@@ -19,3 +19,19 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+subprojects { subproject ->
+    def forceLibcppShared = {
+        subproject.android {
+            defaultConfig {
+                externalNativeBuild {
+                    cmake {
+                        arguments "-DCMAKE_CXX_STANDARD_LIBRARIES=-lc++_shared -latomic -lm"
+                    }
+                }
+            }
+        }
+    }
+    subproject.plugins.withId("com.android.library") { forceLibcppShared() }
+    subproject.plugins.withId("com.android.application") { forceLibcppShared() }
+}
