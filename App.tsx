@@ -1,43 +1,75 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import { useEffect, useState } from 'react';
+import { StatusBar, StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { Provider } from 'react-redux';
+import { PersistGate } from 'redux-persist/integration/react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import { persistor, store } from '@/store';
+import { useAppDispatch } from '@/store/hooks';
+import { restoreSession } from '@/store/authSlice';
+import { ThemeProvider } from '@/theme';
+import { LoadingScreen } from '@/components/ui';
+import AppNavigator from '@/navigation/AppNavigator';
 
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+const SPLASH_DURATION = 1800;
+
+function Bootstrap() {
+  const dispatch = useAppDispatch();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    dispatch(restoreSession());
+    const timer = setTimeout(() => setReady(true), SPLASH_DURATION);
+    return () => clearTimeout(timer);
+  }, [dispatch]);
+
+  if (!ready) {
+    return (
+      <>
+        <StatusBar barStyle="light-content" />
+        <LoadingScreen />
+      </>
+    );
+  }
 
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
-    </SafeAreaProvider>
+    <BottomSheetModalProvider>
+      <SafeAreaProvider>
+        <StatusBar barStyle="dark-content" />
+        <AppNavigator />
+        <Toast topOffset={100} />
+      </SafeAreaProvider>
+    </BottomSheetModalProvider>
   );
 }
 
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
-
+function App() {
   return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
+    <GestureHandlerRootView style={styles.root}>
+      <Provider store={store}>
+        <PersistGate
+          loading={
+            <ThemeProvider>
+              <StatusBar barStyle="light-content" />
+              <LoadingScreen />
+            </ThemeProvider>
+          }
+          persistor={persistor}
+        >
+          <ThemeProvider>
+            <Bootstrap />
+          </ThemeProvider>
+        </PersistGate>
+      </Provider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
   },
 });
