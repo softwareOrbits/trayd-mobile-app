@@ -28,26 +28,3 @@ export type LoginRequest = {
   email: string;
   password: string;
 };
-
-export type VerifyOtpRequest = {
-  email: string;
-  code: string;
-};
-
-export type RequestPasswordResetRequest = {
-  email: string;
-};
-
-export type ResetPasswordRequest = {
-  token: string;
-  password: string;
-};
-
-export type RedeemInviteRequest = {
-  inviteCode: string;
-  password: string;
-};
-
-export type SuccessResponse = {
-  success: boolean;
-};

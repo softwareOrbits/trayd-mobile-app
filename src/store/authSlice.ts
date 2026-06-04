@@ -4,12 +4,18 @@ import {
   type PayloadAction,
 } from '@reduxjs/toolkit';
 import { supabase } from '@/services/supabase';
+import { getJwtClaims } from '@/utils/jwt';
 import type {
   AuthState,
   AuthUser,
   LoginRequest,
   SetCredentialsPayload,
 } from '@/types';
+
+// Reject reason used when a member can sign in but no longer belongs to an
+// active business (removed/suspended) — the custom access-token hook leaves
+// `business_id` null in that case.
+export const ACCOUNT_SUSPENDED = 'account_suspended';
 
 const initialState: AuthState = {
   accessToken: null,
@@ -29,6 +35,13 @@ export const signInWithPassword = createAsyncThunk<
   });
   if (error || !data.session) {
     return rejectWithValue(error?.message ?? 'Unable to sign in');
+  }
+  // A removed/suspended member authenticates fine but has no `business_id`
+  // claim (custom_access_token_hook skips removed rows) — block entry.
+  const claims = getJwtClaims(data.session.access_token);
+  if (!claims?.business_id) {
+    await supabase.auth.signOut();
+    return rejectWithValue(ACCOUNT_SUSPENDED);
   }
   return {
     accessToken: data.session.access_token,

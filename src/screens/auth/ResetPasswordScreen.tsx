@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { Button, Input } from '@/components/ui';
+import { BackButton, Button, Input } from '@/components/ui';
 import { supabase } from '@/services/supabase';
 import { type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
@@ -62,6 +62,7 @@ const ResetPasswordScreen = () => {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <BackButton absolute />
       <ScrollView
         style={styles.flex}
         contentContainerStyle={[

@@ -8,11 +8,10 @@ import { z } from 'zod';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import Toast from 'react-native-toast-message';
 
 import { useAppDispatch } from '@/store/hooks';
-import { signInWithPassword } from '@/store/authSlice';
-import { Button, Input } from '@/components/ui';
+import { ACCOUNT_SUSPENDED, signInWithPassword } from '@/store/authSlice';
+import { Banner, Button, Input } from '@/components/ui';
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import type { AuthStackParamList } from '@/types';
@@ -42,16 +41,34 @@ const LoginScreen = () => {
   });
 
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [banner, setBanner] = useState<{
+    variant: 'error' | 'warning';
+    title: string;
+    message: string;
+  } | null>(null);
 
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
+    setBanner(null);
     try {
       await dispatch(signInWithPassword(data)).unwrap();
     } catch (err) {
-      Toast.show({
-        type: 'error',
-        text1: typeof err === 'string' ? err : 'Unable to sign in',
-      });
+      if (err === ACCOUNT_SUSPENDED) {
+        setBanner({
+          variant: 'warning',
+          title: 'Account Suspended',
+          message:
+            'Your employee account has been suspended. Please contact your organization administrator for assistance.',
+        });
+      } else {
+        setBanner({
+          variant: 'error',
+          title: 'Incorrect email or password',
+          message:
+            "We couldn't sign you in. Please check your email and password and try again.",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -71,6 +88,16 @@ const LoginScreen = () => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {banner ? (
+          <Banner
+            variant={banner.variant}
+            title={banner.title}
+            message={banner.message}
+            onDismiss={() => setBanner(null)}
+            style={styles.banner}
+          />
+        ) : null}
+
         <View style={styles.header}>
           <Image
             source={require('@assets/images/small_logo.png')}
@@ -108,10 +135,14 @@ const LoginScreen = () => {
               <Input
                 label="Password"
                 placeholder="Min. 6 characters"
-                secureTextEntry
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
+                rightIcon={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                onRightIconPress={() => setShowPassword(s => !s)}
                 error={errors.password?.message}
               />
             )}
@@ -155,6 +186,7 @@ export const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     flex: { flex: 1, backgroundColor: theme.colors.background },
     content: { flexGrow: 1, paddingHorizontal: 24 },
+    banner: { marginBottom: 8 },
     header: { alignItems: 'center', marginTop: 12 },
     logo: { width: 86, height: 63, marginBottom: 16 },
     title: titleStyles,
