@@ -1,0 +1,647 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 54;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		00967EBA174D43F187D15017 /* GeistMono-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1FDF45D81ECB45B9B70C9D9E /* GeistMono-Bold.ttf */; };
+		024E6DE36B54408798E11AEC /* GeistMono-ExtraLight.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F96AB32832CD46529CE03C19 /* GeistMono-ExtraLight.ttf */; };
+		04CF8DC4E8C14113925E814B /* Geist-BlackItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 94CB6BFD566A4EB9B008943E /* Geist-BlackItalic.ttf */; };
+		063BA4D0800543DD8A8D786F /* Geist-ExtraLight.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 35B87337198A46278FF092E6 /* Geist-ExtraLight.ttf */; };
+		07F8137901BC4AB3943ECC3E /* Geist-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 111154D37FFE42389EFB7152 /* Geist-Regular.ttf */; };
+		0C4A1AD15AF04467BD833BD3 /* Geist-LightItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F2736E48FA744F61838C4CED /* Geist-LightItalic.ttf */; };
+		0C80B921A6F3F58F76C31292 /* libPods-TraydApp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-TraydApp.a */; };
+		11D9E335D50741F69C8136B4 /* Geist-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = DC5247117EC4450C88BB408E /* Geist-Italic.ttf */; };
+		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		14E3A63D87504497B3DD8691 /* Geist-ExtraLightItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E74D37825B4A4A1E870D6621 /* Geist-ExtraLightItalic.ttf */; };
+		2C518D9A569C4D6FB56F3A5A /* GeistMono-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7AE19FE5CB394010A331AC9B /* GeistMono-Italic.ttf */; };
+		2E8ABC786CBB4F5DBDA8C67D /* GeistMono-LightItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 22CDC8A48E3E4152BE3D97ED /* GeistMono-LightItalic.ttf */; };
+		35953B5416BC4C3E9FCABAAE /* Geist-ThinItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = BB984EAE664443D98A953517 /* Geist-ThinItalic.ttf */; };
+		36BE0ABA556E40AC98A7A85A /* Geist-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E1803615C16347CC82321A76 /* Geist-MediumItalic.ttf */; };
+		4166A57EEA6C43268DEC1607 /* GeistMono-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 93E43495D5444C7896A72A47 /* GeistMono-Light.ttf */; };
+		43542C7986054CA5BFF34382 /* GeistMono-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 35992885B68F4B17AB0200D0 /* GeistMono-Medium.ttf */; };
+		529140EF9AB3454794059D33 /* Geist-Black.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B874D386375840C8BB033299 /* Geist-Black.ttf */; };
+		5DA661FEEC2B4117B1DE9DB8 /* Geist-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 6452B07B571241D39637E8C0 /* Geist-Medium.ttf */; };
+		64526351F61D4EC3AC6EA91A /* GeistMono-ExtraLightItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9BF9BBD1E66042C68D95FA98 /* GeistMono-ExtraLightItalic.ttf */; };
+		64E3B5AF5BD84DB5B7E0B45E /* GeistMono-Thin.ttf in Resources */ = {isa = PBXBuildFile; fileRef = AEF4B3E66DA84733A3F77FC2 /* GeistMono-Thin.ttf */; };
+		708018530462483EA7B09155 /* Geist-Thin.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1F941FE589A74C79948C783C /* Geist-Thin.ttf */; };
+		74D2900F33A244FD8629B8E7 /* GeistMono-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1BC1BE8F8D474B6593A9E1B1 /* GeistMono-MediumItalic.ttf */; };
+		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
+		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		89441119C3F44251ABC230CE /* GeistMono-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = AC797857EB4D40CABC164D47 /* GeistMono-BoldItalic.ttf */; };
+		9E94CEAFA7F3485DB5A76AEB /* GeistMono-SemiBoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A9A2EF2DBAD74446BB661B10 /* GeistMono-SemiBoldItalic.ttf */; };
+		A085D2E2BB0944D383CD3241 /* GeistMono-Black.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2A88861D5CA44C63BA3A0FC5 /* GeistMono-Black.ttf */; };
+		A102DB55B2304E54B1629EF3 /* Geist-SemiBoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 09F5BA2FD05949409B863348 /* Geist-SemiBoldItalic.ttf */; };
+		A3D9C674FDD6EC55776F5297 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
+		A4279A7672B64EC98D3F7DDD /* GeistMono-BlackItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C0B343FD842646DA83D8FBCB /* GeistMono-BlackItalic.ttf */; };
+		AF1CF52BEC22419FB519DC68 /* Geist-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 70392A76B06F462A9885215C /* Geist-ExtraBold.ttf */; };
+		B31C827FBA274108B45F8B54 /* Geist-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 37D2348039B24E7BB4BF3018 /* Geist-SemiBold.ttf */; };
+		B60D3A1C856A4438B0F658C3 /* Geist-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C03BFF277E714F1DB267FAB6 /* Geist-BoldItalic.ttf */; };
+		BC0A4878498D47A2B3A965ED /* GeistMono-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2ACD6D9F7E224AF9867BB5C5 /* GeistMono-Regular.ttf */; };
+		BEF2B745478D434A92A71EF5 /* GeistMono-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 11BEAC71C6584BA78EB3F6D7 /* GeistMono-ExtraBold.ttf */; };
+		DE185F70F4DF4752A53EE836 /* GeistMono-ExtraBoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 50E1A8A3CD5D40F082C07CF0 /* GeistMono-ExtraBoldItalic.ttf */; };
+		DE5DD230E7E9456EBE2E1548 /* Geist-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = ED1E20A278D2450296B0FF7D /* Geist-Light.ttf */; };
+		DEE4F123D0E14004BD4DD938 /* GeistMono-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 042E0AD62EA1437F874BC162 /* GeistMono-SemiBold.ttf */; };
+		DFA8D542E1A34537B9949988 /* Geist-ExtraBoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A2EB7795966E4E16875403F9 /* Geist-ExtraBoldItalic.ttf */; };
+		EB1FC2098C73474DB64E9390 /* GeistMono-ThinItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 901264898047406389993514 /* GeistMono-ThinItalic.ttf */; };
+		EEABC1803B7C477C8BC96A30 /* Geist-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = BEAC94714AA8447294356A60 /* Geist-Bold.ttf */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		042E0AD62EA1437F874BC162 /* GeistMono-SemiBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-SemiBold.ttf"; path = "../assets/fonts/GeistMono-SemiBold.ttf"; sourceTree = "<group>"; };
+		09F5BA2FD05949409B863348 /* Geist-SemiBoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-SemiBoldItalic.ttf"; path = "../assets/fonts/Geist-SemiBoldItalic.ttf"; sourceTree = "<group>"; };
+		111154D37FFE42389EFB7152 /* Geist-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Regular.ttf"; path = "../assets/fonts/Geist-Regular.ttf"; sourceTree = "<group>"; };
+		11BEAC71C6584BA78EB3F6D7 /* GeistMono-ExtraBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-ExtraBold.ttf"; path = "../assets/fonts/GeistMono-ExtraBold.ttf"; sourceTree = "<group>"; };
+		13B07F961A680F5B00A75B9A /* TraydApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TraydApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = TraydApp/Images.xcassets; sourceTree = "<group>"; };
+		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = TraydApp/Info.plist; sourceTree = "<group>"; };
+		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = TraydApp/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		1BC1BE8F8D474B6593A9E1B1 /* GeistMono-MediumItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-MediumItalic.ttf"; path = "../assets/fonts/GeistMono-MediumItalic.ttf"; sourceTree = "<group>"; };
+		1F941FE589A74C79948C783C /* Geist-Thin.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Thin.ttf"; path = "../assets/fonts/Geist-Thin.ttf"; sourceTree = "<group>"; };
+		1FDF45D81ECB45B9B70C9D9E /* GeistMono-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Bold.ttf"; path = "../assets/fonts/GeistMono-Bold.ttf"; sourceTree = "<group>"; };
+		22CDC8A48E3E4152BE3D97ED /* GeistMono-LightItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-LightItalic.ttf"; path = "../assets/fonts/GeistMono-LightItalic.ttf"; sourceTree = "<group>"; };
+		2A88861D5CA44C63BA3A0FC5 /* GeistMono-Black.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Black.ttf"; path = "../assets/fonts/GeistMono-Black.ttf"; sourceTree = "<group>"; };
+		2ACD6D9F7E224AF9867BB5C5 /* GeistMono-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Regular.ttf"; path = "../assets/fonts/GeistMono-Regular.ttf"; sourceTree = "<group>"; };
+		35992885B68F4B17AB0200D0 /* GeistMono-Medium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Medium.ttf"; path = "../assets/fonts/GeistMono-Medium.ttf"; sourceTree = "<group>"; };
+		35B87337198A46278FF092E6 /* Geist-ExtraLight.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-ExtraLight.ttf"; path = "../assets/fonts/Geist-ExtraLight.ttf"; sourceTree = "<group>"; };
+		37D2348039B24E7BB4BF3018 /* Geist-SemiBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-SemiBold.ttf"; path = "../assets/fonts/Geist-SemiBold.ttf"; sourceTree = "<group>"; };
+		3B4392A12AC88292D35C810B /* Pods-TraydApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TraydApp.debug.xcconfig"; path = "Target Support Files/Pods-TraydApp/Pods-TraydApp.debug.xcconfig"; sourceTree = "<group>"; };
+		50E1A8A3CD5D40F082C07CF0 /* GeistMono-ExtraBoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-ExtraBoldItalic.ttf"; path = "../assets/fonts/GeistMono-ExtraBoldItalic.ttf"; sourceTree = "<group>"; };
+		5709B34CF0A7D63546082F79 /* Pods-TraydApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TraydApp.release.xcconfig"; path = "Target Support Files/Pods-TraydApp/Pods-TraydApp.release.xcconfig"; sourceTree = "<group>"; };
+		5DCACB8F33CDC322A6C60F78 /* libPods-TraydApp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-TraydApp.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		6452B07B571241D39637E8C0 /* Geist-Medium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Medium.ttf"; path = "../assets/fonts/Geist-Medium.ttf"; sourceTree = "<group>"; };
+		70392A76B06F462A9885215C /* Geist-ExtraBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-ExtraBold.ttf"; path = "../assets/fonts/Geist-ExtraBold.ttf"; sourceTree = "<group>"; };
+		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = TraydApp/AppDelegate.swift; sourceTree = "<group>"; };
+		7AE19FE5CB394010A331AC9B /* GeistMono-Italic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Italic.ttf"; path = "../assets/fonts/GeistMono-Italic.ttf"; sourceTree = "<group>"; };
+		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = TraydApp/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		901264898047406389993514 /* GeistMono-ThinItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-ThinItalic.ttf"; path = "../assets/fonts/GeistMono-ThinItalic.ttf"; sourceTree = "<group>"; };
+		93E43495D5444C7896A72A47 /* GeistMono-Light.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Light.ttf"; path = "../assets/fonts/GeistMono-Light.ttf"; sourceTree = "<group>"; };
+		94CB6BFD566A4EB9B008943E /* Geist-BlackItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-BlackItalic.ttf"; path = "../assets/fonts/Geist-BlackItalic.ttf"; sourceTree = "<group>"; };
+		9BF9BBD1E66042C68D95FA98 /* GeistMono-ExtraLightItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-ExtraLightItalic.ttf"; path = "../assets/fonts/GeistMono-ExtraLightItalic.ttf"; sourceTree = "<group>"; };
+		A2EB7795966E4E16875403F9 /* Geist-ExtraBoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-ExtraBoldItalic.ttf"; path = "../assets/fonts/Geist-ExtraBoldItalic.ttf"; sourceTree = "<group>"; };
+		A9A2EF2DBAD74446BB661B10 /* GeistMono-SemiBoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-SemiBoldItalic.ttf"; path = "../assets/fonts/GeistMono-SemiBoldItalic.ttf"; sourceTree = "<group>"; };
+		AC797857EB4D40CABC164D47 /* GeistMono-BoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-BoldItalic.ttf"; path = "../assets/fonts/GeistMono-BoldItalic.ttf"; sourceTree = "<group>"; };
+		AEF4B3E66DA84733A3F77FC2 /* GeistMono-Thin.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Thin.ttf"; path = "../assets/fonts/GeistMono-Thin.ttf"; sourceTree = "<group>"; };
+		B874D386375840C8BB033299 /* Geist-Black.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Black.ttf"; path = "../assets/fonts/Geist-Black.ttf"; sourceTree = "<group>"; };
+		BB984EAE664443D98A953517 /* Geist-ThinItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-ThinItalic.ttf"; path = "../assets/fonts/Geist-ThinItalic.ttf"; sourceTree = "<group>"; };
+		BEAC94714AA8447294356A60 /* Geist-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Bold.ttf"; path = "../assets/fonts/Geist-Bold.ttf"; sourceTree = "<group>"; };
+		C03BFF277E714F1DB267FAB6 /* Geist-BoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-BoldItalic.ttf"; path = "../assets/fonts/Geist-BoldItalic.ttf"; sourceTree = "<group>"; };
+		C0B343FD842646DA83D8FBCB /* GeistMono-BlackItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-BlackItalic.ttf"; path = "../assets/fonts/GeistMono-BlackItalic.ttf"; sourceTree = "<group>"; };
+		DC5247117EC4450C88BB408E /* Geist-Italic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Italic.ttf"; path = "../assets/fonts/Geist-Italic.ttf"; sourceTree = "<group>"; };
+		E1803615C16347CC82321A76 /* Geist-MediumItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-MediumItalic.ttf"; path = "../assets/fonts/Geist-MediumItalic.ttf"; sourceTree = "<group>"; };
+		E74D37825B4A4A1E870D6621 /* Geist-ExtraLightItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-ExtraLightItalic.ttf"; path = "../assets/fonts/Geist-ExtraLightItalic.ttf"; sourceTree = "<group>"; };
+		ED1E20A278D2450296B0FF7D /* Geist-Light.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Light.ttf"; path = "../assets/fonts/Geist-Light.ttf"; sourceTree = "<group>"; };
+		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		F2736E48FA744F61838C4CED /* Geist-LightItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-LightItalic.ttf"; path = "../assets/fonts/Geist-LightItalic.ttf"; sourceTree = "<group>"; };
+		F96AB32832CD46529CE03C19 /* GeistMono-ExtraLight.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-ExtraLight.ttf"; path = "../assets/fonts/GeistMono-ExtraLight.ttf"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		13B07F8C1A680F5B00A75B9A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0C80B921A6F3F58F76C31292 /* libPods-TraydApp.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		13B07FAE1A68108700A75B9A /* TraydApp */ = {
+			isa = PBXGroup;
+			children = (
+				13B07FB51A68108700A75B9A /* Images.xcassets */,
+				761780EC2CA45674006654EE /* AppDelegate.swift */,
+				13B07FB61A68108700A75B9A /* Info.plist */,
+				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
+				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
+			);
+			name = TraydApp;
+			sourceTree = "<group>";
+		};
+		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
+				5DCACB8F33CDC322A6C60F78 /* libPods-TraydApp.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		5F52BF40D4684928819E0A59 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B874D386375840C8BB033299 /* Geist-Black.ttf */,
+				94CB6BFD566A4EB9B008943E /* Geist-BlackItalic.ttf */,
+				BEAC94714AA8447294356A60 /* Geist-Bold.ttf */,
+				C03BFF277E714F1DB267FAB6 /* Geist-BoldItalic.ttf */,
+				70392A76B06F462A9885215C /* Geist-ExtraBold.ttf */,
+				A2EB7795966E4E16875403F9 /* Geist-ExtraBoldItalic.ttf */,
+				35B87337198A46278FF092E6 /* Geist-ExtraLight.ttf */,
+				E74D37825B4A4A1E870D6621 /* Geist-ExtraLightItalic.ttf */,
+				DC5247117EC4450C88BB408E /* Geist-Italic.ttf */,
+				ED1E20A278D2450296B0FF7D /* Geist-Light.ttf */,
+				F2736E48FA744F61838C4CED /* Geist-LightItalic.ttf */,
+				6452B07B571241D39637E8C0 /* Geist-Medium.ttf */,
+				E1803615C16347CC82321A76 /* Geist-MediumItalic.ttf */,
+				111154D37FFE42389EFB7152 /* Geist-Regular.ttf */,
+				37D2348039B24E7BB4BF3018 /* Geist-SemiBold.ttf */,
+				09F5BA2FD05949409B863348 /* Geist-SemiBoldItalic.ttf */,
+				1F941FE589A74C79948C783C /* Geist-Thin.ttf */,
+				BB984EAE664443D98A953517 /* Geist-ThinItalic.ttf */,
+				2A88861D5CA44C63BA3A0FC5 /* GeistMono-Black.ttf */,
+				C0B343FD842646DA83D8FBCB /* GeistMono-BlackItalic.ttf */,
+				1FDF45D81ECB45B9B70C9D9E /* GeistMono-Bold.ttf */,
+				AC797857EB4D40CABC164D47 /* GeistMono-BoldItalic.ttf */,
+				11BEAC71C6584BA78EB3F6D7 /* GeistMono-ExtraBold.ttf */,
+				50E1A8A3CD5D40F082C07CF0 /* GeistMono-ExtraBoldItalic.ttf */,
+				F96AB32832CD46529CE03C19 /* GeistMono-ExtraLight.ttf */,
+				9BF9BBD1E66042C68D95FA98 /* GeistMono-ExtraLightItalic.ttf */,
+				7AE19FE5CB394010A331AC9B /* GeistMono-Italic.ttf */,
+				93E43495D5444C7896A72A47 /* GeistMono-Light.ttf */,
+				22CDC8A48E3E4152BE3D97ED /* GeistMono-LightItalic.ttf */,
+				35992885B68F4B17AB0200D0 /* GeistMono-Medium.ttf */,
+				1BC1BE8F8D474B6593A9E1B1 /* GeistMono-MediumItalic.ttf */,
+				2ACD6D9F7E224AF9867BB5C5 /* GeistMono-Regular.ttf */,
+				042E0AD62EA1437F874BC162 /* GeistMono-SemiBold.ttf */,
+				A9A2EF2DBAD74446BB661B10 /* GeistMono-SemiBoldItalic.ttf */,
+				AEF4B3E66DA84733A3F77FC2 /* GeistMono-Thin.ttf */,
+				901264898047406389993514 /* GeistMono-ThinItalic.ttf */,
+			);
+			name = Resources;
+			path = "";
+			sourceTree = "<group>";
+		};
+		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Libraries;
+			sourceTree = "<group>";
+		};
+		83CBB9F61A601CBA00E9B192 = {
+			isa = PBXGroup;
+			children = (
+				13B07FAE1A68108700A75B9A /* TraydApp */,
+				832341AE1AAA6A7D00B99B32 /* Libraries */,
+				83CBBA001A601CBA00E9B192 /* Products */,
+				2D16E6871FA4F8E400B85C8A /* Frameworks */,
+				BBD78D7AC51CEA395F1C20DB /* Pods */,
+				5F52BF40D4684928819E0A59 /* Resources */,
+			);
+			indentWidth = 2;
+			sourceTree = "<group>";
+			tabWidth = 2;
+			usesTabs = 0;
+		};
+		83CBBA001A601CBA00E9B192 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				13B07F961A680F5B00A75B9A /* TraydApp.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				3B4392A12AC88292D35C810B /* Pods-TraydApp.debug.xcconfig */,
+				5709B34CF0A7D63546082F79 /* Pods-TraydApp.release.xcconfig */,
+			);
+			path = Pods;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		13B07F861A680F5B00A75B9A /* TraydApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "TraydApp" */;
+			buildPhases = (
+				C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */,
+				13B07F871A680F5B00A75B9A /* Sources */,
+				13B07F8C1A680F5B00A75B9A /* Frameworks */,
+				13B07F8E1A680F5B00A75B9A /* Resources */,
+				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
+				00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */,
+				E235C05ADACE081382539298 /* [CP] Copy Pods Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TraydApp;
+			productName = TraydApp;
+			productReference = 13B07F961A680F5B00A75B9A /* TraydApp.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		83CBB9F71A601CBA00E9B192 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 1210;
+				TargetAttributes = {
+					13B07F861A680F5B00A75B9A = {
+						LastSwiftMigration = 1120;
+					};
+				};
+			};
+			buildConfigurationList = 83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "TraydApp" */;
+			compatibilityVersion = "Xcode 12.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 83CBB9F61A601CBA00E9B192;
+			productRefGroup = 83CBBA001A601CBA00E9B192 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				13B07F861A680F5B00A75B9A /* TraydApp */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		13B07F8E1A680F5B00A75B9A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
+				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
+				529140EF9AB3454794059D33 /* Geist-Black.ttf in Resources */,
+				04CF8DC4E8C14113925E814B /* Geist-BlackItalic.ttf in Resources */,
+				EEABC1803B7C477C8BC96A30 /* Geist-Bold.ttf in Resources */,
+				B60D3A1C856A4438B0F658C3 /* Geist-BoldItalic.ttf in Resources */,
+				AF1CF52BEC22419FB519DC68 /* Geist-ExtraBold.ttf in Resources */,
+				DFA8D542E1A34537B9949988 /* Geist-ExtraBoldItalic.ttf in Resources */,
+				063BA4D0800543DD8A8D786F /* Geist-ExtraLight.ttf in Resources */,
+				14E3A63D87504497B3DD8691 /* Geist-ExtraLightItalic.ttf in Resources */,
+				11D9E335D50741F69C8136B4 /* Geist-Italic.ttf in Resources */,
+				DE5DD230E7E9456EBE2E1548 /* Geist-Light.ttf in Resources */,
+				0C4A1AD15AF04467BD833BD3 /* Geist-LightItalic.ttf in Resources */,
+				5DA661FEEC2B4117B1DE9DB8 /* Geist-Medium.ttf in Resources */,
+				36BE0ABA556E40AC98A7A85A /* Geist-MediumItalic.ttf in Resources */,
+				07F8137901BC4AB3943ECC3E /* Geist-Regular.ttf in Resources */,
+				B31C827FBA274108B45F8B54 /* Geist-SemiBold.ttf in Resources */,
+				A102DB55B2304E54B1629EF3 /* Geist-SemiBoldItalic.ttf in Resources */,
+				708018530462483EA7B09155 /* Geist-Thin.ttf in Resources */,
+				35953B5416BC4C3E9FCABAAE /* Geist-ThinItalic.ttf in Resources */,
+				A085D2E2BB0944D383CD3241 /* GeistMono-Black.ttf in Resources */,
+				A4279A7672B64EC98D3F7DDD /* GeistMono-BlackItalic.ttf in Resources */,
+				00967EBA174D43F187D15017 /* GeistMono-Bold.ttf in Resources */,
+				89441119C3F44251ABC230CE /* GeistMono-BoldItalic.ttf in Resources */,
+				BEF2B745478D434A92A71EF5 /* GeistMono-ExtraBold.ttf in Resources */,
+				DE185F70F4DF4752A53EE836 /* GeistMono-ExtraBoldItalic.ttf in Resources */,
+				024E6DE36B54408798E11AEC /* GeistMono-ExtraLight.ttf in Resources */,
+				64526351F61D4EC3AC6EA91A /* GeistMono-ExtraLightItalic.ttf in Resources */,
+				2C518D9A569C4D6FB56F3A5A /* GeistMono-Italic.ttf in Resources */,
+				4166A57EEA6C43268DEC1607 /* GeistMono-Light.ttf in Resources */,
+				2E8ABC786CBB4F5DBDA8C67D /* GeistMono-LightItalic.ttf in Resources */,
+				43542C7986054CA5BFF34382 /* GeistMono-Medium.ttf in Resources */,
+				74D2900F33A244FD8629B8E7 /* GeistMono-MediumItalic.ttf in Resources */,
+				BC0A4878498D47A2B3A965ED /* GeistMono-Regular.ttf in Resources */,
+				DEE4F123D0E14004BD4DD938 /* GeistMono-SemiBold.ttf in Resources */,
+				9E94CEAFA7F3485DB5A76AEB /* GeistMono-SemiBoldItalic.ttf in Resources */,
+				64E3B5AF5BD84DB5B7E0B45E /* GeistMono-Thin.ttf in Resources */,
+				EB1FC2098C73474DB64E9390 /* GeistMono-ThinItalic.ttf in Resources */,
+				A3D9C674FDD6EC55776F5297 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/.xcode.env.local",
+				"$(SRCROOT)/.xcode.env",
+			);
+			name = "Bundle React Native code and images";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\n\nWITH_ENVIRONMENT=\"$REACT_NATIVE_PATH/scripts/xcode/with-environment.sh\"\nREACT_NATIVE_XCODE=\"$REACT_NATIVE_PATH/scripts/react-native-xcode.sh\"\n\n/bin/sh -c \"\\\"$WITH_ENVIRONMENT\\\" \\\"$REACT_NATIVE_XCODE\\\"\"\n";
+		};
+		00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-TraydApp/Pods-TraydApp-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-TraydApp/Pods-TraydApp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-TraydApp/Pods-TraydApp-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-TraydApp-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		E235C05ADACE081382539298 /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-TraydApp/Pods-TraydApp-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-TraydApp/Pods-TraydApp-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-TraydApp/Pods-TraydApp-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		13B07F871A680F5B00A75B9A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		13B07F941A680F5B00A75B9A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3B4392A12AC88292D35C810B /* Pods-TraydApp.debug.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_BITCODE = NO;
+				INFOPLIST_FILE = TraydApp/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"-lc++",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_NAME = TraydApp;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		13B07F951A680F5B00A75B9A /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5709B34CF0A7D63546082F79 /* Pods-TraydApp.release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = TraydApp/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"-lc++",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_NAME = TraydApp;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		83CBBA201A601CBA00E9B192 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "";
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					/usr/lib/swift,
+					"$(inherited)",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"\"$(SDKROOT)/usr/lib/swift\"",
+					"\"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)\"",
+					"\"$(inherited)\"",
+				);
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CFLAGS = (
+					"$(inherited)",
+					"-DRCT_REMOVE_LEGACY_ARCH=1",
+				);
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(OTHER_CFLAGS)",
+					"-DFOLLY_NO_CONFIG",
+					"-DFOLLY_MOBILE=1",
+					"-DFOLLY_USE_LIBCPP=1",
+					"-DFOLLY_CFG_NO_COROUTINES=1",
+					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
+					"-DRCT_REMOVE_LEGACY_ARCH=1",
+				);
+				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
+				USE_HERMES = true;
+			};
+			name = Debug;
+		};
+		83CBBA211A601CBA00E9B192 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				COPY_PHASE_STRIP = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "";
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					/usr/lib/swift,
+					"$(inherited)",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"\"$(SDKROOT)/usr/lib/swift\"",
+					"\"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)\"",
+					"\"$(inherited)\"",
+				);
+				MTL_ENABLE_DEBUG_INFO = NO;
+				OTHER_CFLAGS = (
+					"$(inherited)",
+					"-DRCT_REMOVE_LEGACY_ARCH=1",
+				);
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(OTHER_CFLAGS)",
+					"-DFOLLY_NO_CONFIG",
+					"-DFOLLY_MOBILE=1",
+					"-DFOLLY_USE_LIBCPP=1",
+					"-DFOLLY_CFG_NO_COROUTINES=1",
+					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
+					"-DRCT_REMOVE_LEGACY_ARCH=1",
+				);
+				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
+				SDKROOT = iphoneos;
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
+				USE_HERMES = true;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "TraydApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				13B07F941A680F5B00A75B9A /* Debug */,
+				13B07F951A680F5B00A75B9A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "TraydApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				83CBBA201A601CBA00E9B192 /* Debug */,
+				83CBBA211A601CBA00E9B192 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 83CBB9F71A601CBA00E9B192 /* Project object */;
+}
