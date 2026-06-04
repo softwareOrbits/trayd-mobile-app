@@ -12,12 +12,10 @@ import {
 } from 'redux-persist';
 import authReducer from './authSlice';
 import jobsReducer from './jobsSlice';
-import { authApi } from '@/services/auth';
 
 const rootReducer = combineReducers({
   auth: authReducer,
   jobs: jobsReducer,
-  [authApi.reducerPath]: authApi.reducer,
 });
 
 const persistConfig = {
@@ -35,7 +33,7 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-    }).concat(authApi.middleware),
+    }),
 });
 
 export const persistor = persistStore(store);

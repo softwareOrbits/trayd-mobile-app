@@ -4,7 +4,7 @@ export type AuthStackParamList = {
   VerifyIdentity: { email: string };
   CreatePassword: { email: string; token?: string; mode?: 'reset' | 'onboard' };
   InviteCode: undefined;
-  ConfirmInvite: { code: string };
+  ConfirmInvite: undefined;
   OnboardNotifications: undefined;
   OnboardLocation: undefined;
   OnboardPhoto: undefined;

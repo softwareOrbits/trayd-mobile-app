@@ -18,7 +18,7 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
 
-import { Button, Input } from '@/components/ui';
+import { BackButton, Button, Input } from '@/components/ui';
 import { supabase } from '@/services/supabase';
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
@@ -55,10 +55,6 @@ const CreatePasswordScreen = () => {
     if (!canContinue) {
       return;
     }
-    if (isOnboarding) {
-      navigation.navigate('OnboardNotifications');
-      return;
-    }
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
@@ -66,6 +62,20 @@ const CreatePasswordScreen = () => {
       Toast.show({ type: 'error', text1: error.message });
       return;
     }
+
+    if (isOnboarding) {
+      // Activate membership (invited -> active) now that a password is set.
+      const { error: acceptError } = await supabase.rpc('accept_team_invite');
+      setLoading(false);
+      // Tolerate re-entry: a missing pending invite means it's already active.
+      if (acceptError && !/no pending invite/i.test(acceptError.message)) {
+        Toast.show({ type: 'error', text1: acceptError.message });
+        return;
+      }
+      navigation.navigate('OnboardNotifications');
+      return;
+    }
+
     await supabase.auth.signOut();
     setLoading(false);
     Toast.show({ type: 'success', text1: 'Password updated. Please log in.' });
@@ -77,6 +87,7 @@ const CreatePasswordScreen = () => {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <BackButton absolute />
       <ScrollView
         style={styles.flex}
         contentContainerStyle={[

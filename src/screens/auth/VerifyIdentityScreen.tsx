@@ -19,17 +19,18 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
 
-import { Button } from '@/components/ui';
+import { BackButton, Button } from '@/components/ui';
 import { supabase } from '@/services/supabase';
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { linkTextStyles, subtitleStyles, titleStyles } from '@/theme/constants';
 import type { AuthStackParamList } from '@/types';
 
-const CODE_LENGTH = 6;
+const CODE_LENGTH = 8;
 const SCREEN_PADDING = 24;
-const BOX_GAP = 8;
-const BOX_WIDTH = 46;
+const BOX_GAP = 4;
+const BOX_WIDTH = 36;
+const OTP_WIDTH = (BOX_WIDTH + BOX_GAP) * CODE_LENGTH;
 
 const VerifyIdentityScreen = () => {
   const { colors } = useTheme();
@@ -64,6 +65,7 @@ const VerifyIdentityScreen = () => {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <BackButton absolute />
       <ScrollView
         style={styles.flex}
         contentContainerStyle={[
@@ -81,22 +83,24 @@ const VerifyIdentityScreen = () => {
           />
           <Text style={styles.title}>Verify Your Identity</Text>
           <Text style={styles.subtitle}>
-            Enter the 6-digit verification code sent to your email.
+            Enter the 8-digit verification code sent to your email.
           </Text>
         </View>
 
         <View style={styles.form}>
-          <OtpInput
-            numberOfDigits={CODE_LENGTH}
-            onTextChange={setCode}
-            focusColor={colors.secondary}
-            theme={{
-              containerStyle: styles.otpContainer,
-              pinCodeContainerStyle: styles.otpBox,
-              pinCodeTextStyle: styles.otpText,
-              focusedPinCodeContainerStyle: styles.otpBoxFocused,
-            }}
-          />
+          <View style={styles.otpWrap}>
+            <OtpInput
+              numberOfDigits={CODE_LENGTH}
+              onTextChange={setCode}
+              focusColor={colors.secondary}
+              theme={{
+                containerStyle: styles.otpContainer,
+                pinCodeContainerStyle: styles.otpBox,
+                pinCodeTextStyle: styles.otpText,
+                focusedPinCodeContainerStyle: styles.otpBoxFocused,
+              }}
+            />
+          </View>
           <Pressable
             onPress={() =>
               Toast.show({
@@ -134,11 +138,14 @@ export const makeStyles = (theme: Theme) =>
     title: titleStyles,
     subtitle: subtitleStyles,
     form: { marginTop: 28 },
-    otpContainer: { width: '100%', justifyContent: 'center' },
+    otpWrap: { width: '100%', alignItems: 'center' },
+    otpContainer: { width: OTP_WIDTH, alignSelf: 'center' },
     otpBox: {
       width: BOX_WIDTH,
       height: 56,
       marginHorizontal: BOX_GAP / 2,
+      flexGrow: 0,
+      flexShrink: 0,
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: theme.radii.md,
