@@ -105,3 +105,20 @@ export async function fetchJobDetail(id: string): Promise<JobDetail> {
   if (!row) throw new Error('Job not found');
   return mapDetail(row);
 }
+
+/**
+ * Transition a job's status (allowed for the employee via the `jobs_tenant`
+ * RLS policy). NOTE: this is a bare status flip — proper side-effects on
+ * start/finish (creating job_days / job_time_entries / invoices) will need a
+ * dedicated backend RPC once the BE contract is confirmed.
+ */
+export async function updateJobStatus(
+  id: string,
+  status: JobStatus,
+): Promise<void> {
+  const { error } = await supabase
+    .from('jobs')
+    .update({ status })
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+}

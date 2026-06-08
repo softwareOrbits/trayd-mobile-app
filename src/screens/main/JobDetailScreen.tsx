@@ -20,11 +20,18 @@ import Toast from 'react-native-toast-message';
 import { Button } from '@/components/ui';
 import { StatusBadge, LiveStateBadge } from '@/components/jobs';
 import { Callout, InfoRow, Section } from '@/components/jobDetail';
-import { fetchJobDetail } from '@/services/jobs';
+import { fetchJobDetail, updateJobStatus } from '@/services/jobs';
 import { detailStateFor } from '@/data/jobDetails';
+import { useAppDispatch } from '@/store/hooks';
+import { fetchJobs } from '@/store/jobsSlice';
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
-import { JOB_TYPE_LABEL, type JobDetail, type MainStackParamList } from '@/types';
+import {
+  JOB_TYPE_LABEL,
+  type JobDetail,
+  type JobStatus,
+  type MainStackParamList,
+} from '@/types';
 
 const fmtDate = (d: string | null) =>
   d
@@ -50,9 +57,11 @@ const JobDetailScreen = () => {
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const { params } = useRoute<RouteProp<MainStackParamList, 'JobDetail'>>();
 
+  const dispatch = useAppDispatch();
   const [detail, setDetail] = useState<JobDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [acting, setActing] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -65,8 +74,35 @@ const JobDetailScreen = () => {
     };
   }, [params.jobId]);
 
+  // Real status transition (Start / Finish / Pause / Resume / Mark complete).
+  const transition = async (
+    next: JobStatus,
+    label: string,
+    goBackAfter = false,
+  ) => {
+    if (!detail || acting) return;
+    setActing(true);
+    try {
+      await updateJobStatus(detail.id, next);
+      dispatch(fetchJobs());
+      Toast.show({ type: 'success', text1: label });
+      if (goBackAfter) {
+        navigation.goBack();
+      } else {
+        setDetail(await fetchJobDetail(detail.id));
+      }
+    } catch (e) {
+      Toast.show({
+        type: 'error',
+        text1: e instanceof Error ? e.message : 'Could not update job.',
+      });
+    } finally {
+      setActing(false);
+    }
+  };
+
   const preview = () =>
-    Toast.show({ type: 'info', text1: 'Preview — not wired up yet.' });
+    Toast.show({ type: 'info', text1: 'Not wired up yet.' });
 
   const header = (
     <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
@@ -264,31 +300,54 @@ const JobDetailScreen = () => {
     switch (state) {
       case 'scheduled':
         return (
-          <Button label="Start job" leftIcon="play" fullWidth onPress={preview} />
+          <Button
+            label="Start job"
+            leftIcon="play"
+            fullWidth
+            loading={acting}
+            onPress={() => transition('active', 'Job started.')}
+          />
         );
       case 'active':
         return (
           <View style={styles.footerStack}>
-            <Button label="Finish job" fullWidth onPress={preview} />
+            <Button
+              label="Finish job"
+              fullWidth
+              loading={acting}
+              onPress={() =>
+                transition('awaiting_review', 'Submitted for review.', true)
+              }
+            />
             <Button
               label="Continue tomorrow"
               variant="outlined"
               color="secondary"
               fullWidth
-              onPress={preview}
+              disabled={acting}
+              onPress={() => transition('paused', 'Job paused.')}
             />
           </View>
         );
       case 'paused':
         return (
           <View style={styles.footerStack}>
-            <Button label="Resume job" leftIcon="play" fullWidth onPress={preview} />
+            <Button
+              label="Resume job"
+              leftIcon="play"
+              fullWidth
+              loading={acting}
+              onPress={() => transition('active', 'Job resumed.')}
+            />
             <Button
               label="Mark complete"
               variant="outlined"
               color="secondary"
               fullWidth
-              onPress={preview}
+              disabled={acting}
+              onPress={() =>
+                transition('awaiting_review', 'Submitted for review.', true)
+              }
             />
           </View>
         );
