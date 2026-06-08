@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,26 +18,29 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
 
 import { Button } from '@/components/ui';
-import { StatusBadge, ReviewBadge, LiveStateBadge } from '@/components/jobs';
-import {
-  ActionGrid,
-  Callout,
-  DayRow,
-  EmployerNote,
-  InfoRow,
-  LineItemRow,
-  PausedCard,
-  PhotoStrip,
-  RosterChips,
-  Section,
-  TimerCard,
-} from '@/components/jobDetail';
-import { useAppSelector } from '@/store/hooks';
-import { jobDetailMock } from '@/data/jobDetails';
-import { demoJobs } from '@/data/demoJobs';
+import { StatusBadge, LiveStateBadge } from '@/components/jobs';
+import { Callout, InfoRow, Section } from '@/components/jobDetail';
+import { fetchJobDetail } from '@/services/jobs';
+import { detailStateFor } from '@/data/jobDetails';
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
-import type { MainStackParamList } from '@/types';
+import { JOB_TYPE_LABEL, type JobDetail, type MainStackParamList } from '@/types';
+
+const fmtDate = (d: string | null) =>
+  d
+    ? new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+      })
+    : null;
+
+const fmtTime = (t: string | null) => (t ? t.slice(0, 5) : null);
+
+const joinDot = (...parts: (string | null | undefined)[]) =>
+  parts.filter(Boolean).join(' · ');
+
+const money = (n: number) => `€${n.toFixed(2)}`;
 
 const JobDetailScreen = () => {
   const { colors } = useTheme();
@@ -45,15 +50,23 @@ const JobDetailScreen = () => {
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const { params } = useRoute<RouteProp<MainStackParamList, 'JobDetail'>>();
 
-  const storeJob = useAppSelector(state =>
-    state.jobs.items.find(j => j.id === params.jobId),
-  );
-  const job = storeJob ?? demoJobs.find(j => j.id === params.jobId);
+  const [detail, setDetail] = useState<JobDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    fetchJobDetail(params.jobId)
+      .then(d => active && setDetail(d))
+      .catch(e => active && setError(e?.message ?? 'Something went wrong.'))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [params.jobId]);
 
   const preview = () =>
     Toast.show({ type: 'info', text1: 'Preview — not wired up yet.' });
-  const comingSoon = () =>
-    Toast.show({ type: 'info', text1: 'Coming soon.' });
 
   const header = (
     <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
@@ -65,7 +78,7 @@ const JobDetailScreen = () => {
         <Ionicons name="chevron-back" size={22} color={colors.secondary} />
       </Pressable>
       <Text style={styles.headerTitle} numberOfLines={1}>
-        {job ? `${job.client} — ${job.region}` : 'Job'}
+        {detail?.customerName ?? 'Job'}
       </Text>
       <Pressable style={styles.iconBtn} onPress={preview} hitSlop={8}>
         <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
@@ -73,148 +86,95 @@ const JobDetailScreen = () => {
     </View>
   );
 
-  if (!job) {
+  if (loading) {
     return (
       <View style={styles.flex}>
         {header}
-        <View style={styles.missing}>
-          <Text style={styles.missingText}>This job is no longer available.</Text>
+        <View style={styles.centered}>
+          <ActivityIndicator color={colors.secondary} />
         </View>
       </View>
     );
   }
 
-  const mock = jobDetailMock(job);
-  const { state } = mock;
+  if (error || !detail) {
+    return (
+      <View style={styles.flex}>
+        {header}
+        <View style={styles.centered}>
+          <Text style={styles.missingText}>
+            {error ?? 'This job is no longer available.'}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  const state = detailStateFor(detail.status);
+  const scheduledFor = joinDot(
+    fmtDate(detail.scheduledDate),
+    fmtTime(detail.scheduledStartTime),
+  );
+  const placeholder = (
+    <Text style={styles.placeholder}>
+      Logged items, photos &amp; crew appear here once work starts.
+    </Text>
+  );
 
   const badge =
     state === 'active' ? (
       <LiveStateBadge state="active" />
-    ) : state === 'awaiting_review' ? (
-      <ReviewBadge review="awaiting_review" />
-    ) : state === 'approved' ? (
-      <ReviewBadge review="approved" />
     ) : (
-      <StatusBadge status={state === 'paused' ? 'paused' : 'scheduled'} />
+      <StatusBadge status={detail.status} />
     );
+
+  // Shared "details" rows used by most states.
+  const detailsRows = [
+    scheduledFor ? { label: 'Scheduled', value: scheduledFor } : null,
+    { label: 'Type', value: JOB_TYPE_LABEL[detail.jobType] },
+    detail.customerPhone
+      ? { label: 'Customer phone', value: detail.customerPhone }
+      : null,
+    detail.primaryMemberName
+      ? {
+          label: 'Assigned to',
+          value: joinDot(detail.primaryMemberName, detail.primaryMemberRole),
+        }
+      : null,
+  ].filter(Boolean) as { label: string; value: string }[];
 
   const body = () => {
     switch (state) {
-      case 'scheduled':
-        return (
-          <>
-            <View style={styles.block}>
-              <Callout variant="note" icon="alert-circle">
-                <Text style={styles.calloutText}>
-                  <Text style={styles.calloutStrong}>Note from Sile: </Text>
-                  {mock.note}
-                </Text>
-              </Callout>
-            </View>
-            <Section title="Schedule">
-              {mock.schedule!.map((e, i) => (
-                <InfoRow
-                  key={e.label}
-                  entry={e}
-                  last={i === mock.schedule!.length - 1}
-                />
-              ))}
-            </Section>
-            <Section title="Roster — on site" card={false}>
-              <RosterChips members={mock.roster} />
-              <Text style={styles.mutedNote}>{mock.rosterEditableNote}</Text>
-            </Section>
-          </>
-        );
-
-      case 'active':
-        return (
-          <>
-            <View style={styles.block}>
-              <TimerCard time={mock.timer!} onEdit={preview} />
-            </View>
-            <Section title="Roster" card={false}>
-              <RosterChips members={mock.roster} />
-            </Section>
-            <Section title="Logged so far" action="Edit" onAction={preview}>
-              {mock.loggedItems!.map((it, i) => (
-                <LineItemRow
-                  key={it.name}
-                  item={it}
-                  last={i === mock.loggedItems!.length - 1}
-                />
-              ))}
-            </Section>
-            <Section
-              title={`Photos · ${mock.photos!.length}`}
-              action="Add"
-              onAction={comingSoon}
-              card={false}
-            >
-              <PhotoStrip photos={mock.photos!} />
-            </Section>
-            <View style={styles.block}>
-              <EmployerNote
-                time={mock.employerNote!.time}
-                text={mock.employerNote!.text}
-              />
-            </View>
-            <View style={styles.block}>
-              <ActionGrid
-                items={[
-                  { icon: 'camera-outline', label: 'Add photo', onPress: comingSoon },
-                  { icon: 'receipt-outline', label: 'Add receipt', onPress: comingSoon },
-                  { icon: 'cube-outline', label: 'Van stock', onPress: comingSoon },
-                  { icon: 'create-outline', label: 'Add note', onPress: comingSoon },
-                ]}
-              />
-            </View>
-          </>
-        );
-
-      case 'paused':
-        return (
-          <>
-            <View style={styles.block}>
-              <PausedCard since={mock.pausedSince!} summary={mock.pausedSummary!} />
-            </View>
-            <Section title="Days so far">
-              {mock.days!.map((d, i) => (
-                <DayRow key={d.label} day={d} last={i === mock.days!.length - 1} />
-              ))}
-            </Section>
-            <Section title="Logged so far">
-              {mock.loggedItems!.map((it, i) => (
-                <LineItemRow
-                  key={it.name}
-                  item={it}
-                  last={i === mock.loggedItems!.length - 1}
-                />
-              ))}
-            </Section>
-          </>
-        );
-
       case 'awaiting_review':
         return (
           <>
             <View style={styles.block}>
               <Callout variant="info" icon="lock-closed-outline">
-                <Text style={styles.calloutMuted}>{mock.readOnlyNote}</Text>
+                <Text style={styles.calloutMuted}>
+                  Read-only — you&apos;ll get a push when it&apos;s approved.
+                </Text>
               </Callout>
             </View>
             <Section title="Submitted">
-              {mock.submitted!.map((e, i) => (
-                <InfoRow
-                  key={e.label}
-                  entry={e}
-                  last={i === mock.submitted!.length - 1}
-                />
-              ))}
+              {[
+                detail.totalHours != null
+                  ? { label: 'Total hours', value: `${detail.totalHours}h` }
+                  : null,
+                { label: 'Materials total', value: money(detail.invoiceTotal) },
+                detail.customerName
+                  ? { label: 'Customer', value: detail.customerName }
+                  : null,
+              ]
+                .filter(Boolean)
+                .map((e, i, a) => (
+                  <InfoRow key={e!.label} entry={e!} last={i === a.length - 1} />
+                ))}
             </Section>
-            <Section title="Summary">
-              <Text style={styles.cardText}>{mock.summary}</Text>
-            </Section>
+            {detail.summary ? (
+              <Section title="Summary">
+                <Text style={styles.cardText}>{detail.summary}</Text>
+              </Section>
+            ) : null}
           </>
         );
 
@@ -223,20 +183,78 @@ const JobDetailScreen = () => {
           <>
             <View style={styles.block}>
               <Callout variant="success" icon="checkmark">
-                <Text style={styles.calloutStrong}>{mock.approvalLine}</Text>
-                <Text style={styles.calloutMuted}>{mock.approvalAt}</Text>
+                <Text style={styles.calloutStrong}>
+                  {detail.status === 'paid'
+                    ? 'This job is paid.'
+                    : detail.status === 'downloaded'
+                    ? 'Invoice downloaded.'
+                    : 'This job is approved.'}
+                </Text>
               </Callout>
             </View>
             <Section title="Final totals">
-              {mock.finalTotals!.map((e, i) => (
+              {[
+                detail.totalHours != null
+                  ? { label: 'Total hours', value: `${detail.totalHours}h` }
+                  : null,
+                { label: 'Invoice total', value: money(detail.invoiceTotal) },
+              ]
+                .filter(Boolean)
+                .map((e, i, a) => (
+                  <InfoRow key={e!.label} entry={e!} last={i === a.length - 1} />
+                ))}
+            </Section>
+            <Text style={styles.footnote}>
+              The invoice itself stays with your employer. Payment status
+              isn&apos;t shown here.
+            </Text>
+          </>
+        );
+
+      case 'cancelled':
+        return (
+          <View style={styles.block}>
+            <Callout variant="note" icon="close-circle-outline">
+              <Text style={styles.calloutStrong}>This job was cancelled.</Text>
+            </Callout>
+          </View>
+        );
+
+      // scheduled / active / paused share the same top-half layout
+      default:
+        return (
+          <>
+            {detail.employerNote ? (
+              <View style={styles.block}>
+                <Callout variant="note" icon="alert-circle">
+                  <Text style={styles.calloutText}>
+                    <Text style={styles.calloutStrong}>
+                      Note from {detail.createdByName ?? 'your employer'}:{' '}
+                    </Text>
+                    {detail.employerNote}
+                  </Text>
+                </Callout>
+              </View>
+            ) : null}
+            {state !== 'scheduled' ? (
+              <View style={styles.block}>
+                <Callout variant="info" icon="time-outline">
+                  <Text style={styles.calloutMuted}>
+                    {state === 'paused' ? 'Job is paused.' : 'Job is in progress.'}
+                  </Text>
+                </Callout>
+              </View>
+            ) : null}
+            <Section title="Details">
+              {detailsRows.map((e, i) => (
                 <InfoRow
                   key={e.label}
                   entry={e}
-                  last={i === mock.finalTotals!.length - 1}
+                  last={i === detailsRows.length - 1}
                 />
               ))}
             </Section>
-            <Text style={styles.footnote}>{mock.approvedFootnote}</Text>
+            {placeholder}
           </>
         );
     }
@@ -275,8 +293,10 @@ const JobDetailScreen = () => {
           </View>
         );
       case 'awaiting_review':
-        return <Text style={styles.waitingText}>Submitted to Sile · waiting</Text>;
-      case 'approved':
+        return (
+          <Text style={styles.waitingText}>Submitted · waiting for approval</Text>
+        );
+      default:
         return (
           <Button
             label="Back to jobs"
@@ -303,15 +323,13 @@ const JobDetailScreen = () => {
         <View style={styles.metaRow}>
           {badge}
           <Text style={styles.metaText}>
-            {job.postcode} · {mock.distanceKm} km
+            {joinDot(detail.jobNumber, JOB_TYPE_LABEL[detail.jobType])}
           </Text>
         </View>
-        <Text style={styles.title}>
-          {job.client} — {job.region}
-        </Text>
-        <Text style={styles.subtitle}>
-          {job.service} · {mock.daySuffix}
-        </Text>
+        <Text style={styles.title}>{detail.customerName ?? 'Customer'}</Text>
+        {detail.customerAddress ? (
+          <Text style={styles.subtitle}>{detail.customerAddress}</Text>
+        ) : null}
 
         {body()}
 
@@ -347,8 +365,8 @@ export const makeStyles = (theme: Theme) =>
       fontFamily: theme.fonts.bold,
       color: theme.colors.text,
     },
-    missing: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    missingText: { color: theme.colors.textMuted },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+    missingText: { color: theme.colors.textMuted, textAlign: 'center' },
 
     content: { paddingHorizontal: 20, paddingTop: 16, flexGrow: 1 },
     metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -383,18 +401,18 @@ export const makeStyles = (theme: Theme) =>
     calloutMuted: {
       fontSize: theme.typography.size.sm,
       color: theme.colors.textMuted,
-      marginTop: 2,
-    },
-    mutedNote: {
-      marginTop: 12,
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
     },
     cardText: {
       paddingVertical: 14,
       fontSize: theme.typography.size.sm,
       color: theme.colors.text,
       lineHeight: 20,
+    },
+    placeholder: {
+      marginTop: 18,
+      fontSize: theme.typography.size.sm,
+      color: theme.colors.textMuted,
+      fontStyle: 'italic',
     },
     footnote: {
       marginTop: 16,

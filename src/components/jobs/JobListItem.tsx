@@ -5,28 +5,30 @@ import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import type { JobItemProps } from '@/types';
 import StatusBadge from './StatusBadge';
+import JobTypeTag from './JobTypeTag';
 
 export const JobListItem = ({
   job,
   onPress,
   onLongPress,
   onChat,
-  onTimer,
 }: JobItemProps) => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
   return (
     <Pressable style={styles.row} onPress={onPress} onLongPress={onLongPress}>
-      <Avatar name={job.client} />
+      <Avatar name={job.customerName ?? 'J'} />
 
       <View style={styles.body}>
         <View style={styles.titleRow}>
           <Text style={styles.title} numberOfLines={1}>
-            {`${job.client} — ${job.region}`}
+            {job.customerName ?? 'Customer'}
           </Text>
           <View style={styles.trailing}>
-            <Text style={styles.time}>{job.time}</Text>
+            <Text style={styles.time}>
+              {job.scheduledStartTime?.slice(0, 5) ?? ''}
+            </Text>
             <Ionicons
               name="chevron-forward"
               size={16}
@@ -36,15 +38,14 @@ export const JobListItem = ({
         </View>
 
         <Text style={styles.subtitle} numberOfLines={1}>
-          {`${job.postcode} · ${job.service}`}
+          {job.customerAddress ?? '—'}
         </Text>
 
         <View style={styles.metaRow}>
           <StatusBadge status={job.status} />
-          {job.coAssignedBy ? (
-            <Text style={styles.coAssign} numberOfLines={1}>
-              {`· co-assigned by ${job.coAssignedBy}`}
-            </Text>
+          <JobTypeTag type={job.jobType} />
+          {job.jobNumber ? (
+            <Text style={styles.jobNo}>{job.jobNumber}</Text>
           ) : null}
         </View>
 
@@ -57,15 +58,6 @@ export const JobListItem = ({
             size="sm"
             onPress={onChat}
             style={styles.actionChat}
-          />
-          <Button
-            label="Timer"
-            leftIcon="timer-outline"
-            variant="outlined"
-            color="secondary"
-            size="sm"
-            onPress={onTimer}
-            style={styles.action}
           />
         </View>
       </View>
@@ -113,11 +105,10 @@ export const makeStyles = (theme: Theme) =>
       flexWrap: 'wrap',
       gap: 6,
     },
-    coAssign: {
-      flexShrink: 1,
+    jobNo: {
       fontSize: theme.typography.size.xs,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.primary,
+      fontFamily: theme.fonts.mono,
+      color: theme.colors.textMuted,
     },
     actions: { flexDirection: 'row', gap: 10, marginTop: 6 },
     action: {

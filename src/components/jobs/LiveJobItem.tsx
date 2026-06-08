@@ -6,6 +6,7 @@ import { useThemedStyles } from '@/utils/useThemedStyles';
 import type { LiveJobItemProps } from '@/types';
 import LiveStateBadge from './LiveStateBadge';
 import TimerPill from './TimerPill';
+import JobTypeTag from './JobTypeTag';
 
 export const LiveJobItem = ({
   job,
@@ -21,12 +22,12 @@ export const LiveJobItem = ({
 
   return (
     <Pressable style={styles.row} onPress={onPress}>
-      <Avatar name={job.client} />
+      <Avatar name={job.customerName ?? 'J'} />
 
       <View style={styles.body}>
         <View style={styles.titleRow}>
           <Text style={styles.title} numberOfLines={1}>
-            {`${job.client} — ${job.region}`}
+            {job.customerName ?? 'Customer'}
           </Text>
           <View style={styles.trailing}>
             <Text style={styles.relative}>{paused ? 'Yest' : 'Now'}</Text>
@@ -39,11 +40,12 @@ export const LiveJobItem = ({
         </View>
 
         <Text style={styles.subtitle} numberOfLines={1}>
-          {`${job.postcode} · ${job.service}`}
+          {job.customerAddress ?? '—'}
         </Text>
 
         <View style={styles.metaRow}>
           <LiveStateBadge state={paused ? 'paused' : 'active'} />
+          <JobTypeTag type={job.jobType} />
           <Text style={styles.day}>{`· day ${day}`}</Text>
         </View>
 

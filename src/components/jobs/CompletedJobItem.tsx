@@ -4,7 +4,8 @@ import { Avatar } from '@/components/ui';
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import type { CompletedJobItemProps } from '@/types';
-import ReviewBadge from './ReviewBadge';
+import StatusBadge from './StatusBadge';
+import JobTypeTag from './JobTypeTag';
 
 export const CompletedJobItem = ({
   job,
@@ -16,12 +17,12 @@ export const CompletedJobItem = ({
 
   return (
     <Pressable style={styles.row} onPress={onPress}>
-      <Avatar name={job.client} />
+      <Avatar name={job.customerName ?? 'J'} />
 
       <View style={styles.body}>
         <View style={styles.titleRow}>
           <Text style={styles.title} numberOfLines={1}>
-            {`${job.client} — ${job.region}`}
+            {job.customerName ?? 'Customer'}
           </Text>
           <View style={styles.trailing}>
             <Text style={styles.weekday}>{weekday}</Text>
@@ -34,10 +35,13 @@ export const CompletedJobItem = ({
         </View>
 
         <Text style={styles.subtitle} numberOfLines={1}>
-          {`${job.postcode} · ${job.service}`}
+          {job.customerAddress ?? '—'}
         </Text>
 
-        {job.review ? <ReviewBadge review={job.review} /> : null}
+        <View style={styles.metaRow}>
+          <StatusBadge status={job.status} />
+          <JobTypeTag type={job.jobType} />
+        </View>
       </View>
     </Pressable>
   );
@@ -77,6 +81,7 @@ export const makeStyles = (theme: Theme) =>
       fontFamily: theme.fonts.regular,
       color: theme.colors.textMuted,
     },
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   });
 
 export default CompletedJobItem;

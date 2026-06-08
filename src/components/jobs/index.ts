@@ -6,5 +6,5 @@ export { default as LiveJobItem } from './LiveJobItem';
 export { default as LiveNowBanner } from './LiveNowBanner';
 export { default as LiveStateBadge } from './LiveStateBadge';
 export { default as TimerPill } from './TimerPill';
-export { default as ReviewBadge } from './ReviewBadge';
+export { default as JobTypeTag } from './JobTypeTag';
 export { default as CompletedJobItem } from './CompletedJobItem';

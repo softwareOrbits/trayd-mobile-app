@@ -5,13 +5,16 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import type { IconName } from '@/types';
-import type {
-  DayEntry,
-  InfoEntry,
-  LineItem,
-  PhotoTag,
-  RosterMember,
-} from '@/data/jobDetails';
+
+// Local presentational types (kept here so these reusable blocks don't depend
+// on any mock module). Used now by Section/InfoRow/Callout; the rest are ready
+// for the deep-detail pass (materials/photos/roster/days).
+export type InfoEntry = { label: string; value: string };
+export type LineItemTag = 'VAN STOCK' | 'RECEIPT';
+export type LineItem = { name: string; tag: LineItemTag; amount: string };
+export type DayEntry = { label: string; sub: string; active?: boolean };
+export type PhotoTag = { label: string };
+export type RosterMember = { name: string; confirmed: boolean };
 
 /* ---------- Section (small-caps header + white card) ---------- */
 

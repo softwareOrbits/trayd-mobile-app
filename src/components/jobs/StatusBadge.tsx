@@ -5,10 +5,13 @@ import type { JobStatus } from '@/types';
 
 const TONES: Record<JobStatus, { bg: string; fg: string; label: string }> = {
   scheduled: { bg: '#E5F0E9', fg: '#017636', label: 'Scheduled' },
-  quote: { bg: '#FAEACF', fg: '#9A6512', label: 'Quote' },
-  live: { bg: '#FBE4E4', fg: '#D14343', label: 'Live' },
+  active: { bg: '#FBE4E4', fg: '#D14343', label: 'Live' },
   paused: { bg: '#EFF1F3', fg: '#5C6571', label: 'Paused' },
-  completed: { bg: '#EFF1F3', fg: '#5C6571', label: 'Completed' },
+  awaiting_review: { bg: '#FAEACF', fg: '#9A6512', label: 'Awaiting review' },
+  approved: { bg: '#E5F0E9', fg: '#017636', label: 'Approved' },
+  downloaded: { bg: '#E5F0E9', fg: '#017636', label: 'Downloaded' },
+  paid: { bg: '#E5F0E9', fg: '#017636', label: 'Paid' },
+  cancelled: { bg: '#FBE4E4', fg: '#D14343', label: 'Cancelled' },
 };
 
 export const StatusBadge = ({ status }: { status: JobStatus }) => {

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, SectionList, StyleSheet, Text, View } from 'react-native';
+import { SectionList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Toast from 'react-native-toast-message';
 
 import { Button } from '@/components/ui';
 import {
@@ -14,28 +15,25 @@ import {
   LiveNowBanner,
 } from '@/components/jobs';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { createJob, deleteJob, fetchJobs } from '@/store/jobsSlice';
+import { fetchJobs } from '@/store/jobsSlice';
 import { type Theme } from '@/theme';
 import { titleStyles } from '@/theme/constants';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { liveMetaFor } from '@/utils/liveMeta';
-import type {
-  Job,
-  JobStatus,
-  JobTabItem,
-  JobTabKey,
-  MainStackParamList,
+import {
+  STATUS_TAB,
+  type Job,
+  type JobTabItem,
+  type JobTabKey,
+  type MainStackParamList,
 } from '@/types';
 
 const RANGE = 'This week';
 
-const TAB_STATUSES: Record<JobTabKey, JobStatus[]> = {
-  upcoming: ['scheduled', 'quote'],
-  live: ['live', 'paused'],
-  completed: ['completed'],
-};
+const tabOf = (job: Job): JobTabKey | null => STATUS_TAB[job.status];
 
-const formatSectionLabel = (date: string) => {
+const fmtSectionLabel = (date: string | null) => {
+  if (!date) return 'Unscheduled';
   const value = new Date(`${date}T00:00:00`);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -47,67 +45,32 @@ const formatSectionLabel = (date: string) => {
   });
   if (days === 0) return `Today · ${formatted}`;
   if (days === 1) return `Tomorrow · ${formatted}`;
+  if (days === -1) return `Yesterday · ${formatted}`;
   return formatted;
 };
 
-const buildSections = (jobs: Job[], tab: JobTabKey) => {
-  const filtered = jobs.filter(job => TAB_STATUSES[tab].includes(job.status));
+const buildDateSections = (jobs: Job[]) => {
   const byDate = new Map<string, Job[]>();
-  filtered.forEach(job => {
-    const bucket = byDate.get(job.scheduledDate) ?? [];
+  jobs.forEach(job => {
+    const key = job.scheduledDate ?? '';
+    const bucket = byDate.get(key) ?? [];
     bucket.push(job);
-    byDate.set(job.scheduledDate, bucket);
+    byDate.set(key, bucket);
   });
   return [...byDate.keys()]
     .sort()
-    .map(date => ({ title: formatSectionLabel(date), data: byDate.get(date) ?? [] }));
+    .map(date => ({
+      title: fmtSectionLabel(date || null),
+      data: byDate.get(date) ?? [],
+    }));
 };
 
-const weekdayLabel = (date: string) =>
-  new Date(`${date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short' });
-
-const weekStart = (d: Date) => {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
-  return x;
-};
-
-const isoWeek = (date: Date) => {
-  const d = new Date(
-    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
-  );
-  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + 3);
-  const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
-  return (
-    1 + Math.round((d.getTime() - firstThursday.getTime()) / (7 * 86400000))
-  );
-};
-
-const completedSectionLabel = (date: string) => {
-  const value = new Date(`${date}T00:00:00`);
-  const diffWeeks = Math.round(
-    (weekStart(new Date()).getTime() - weekStart(value).getTime()) /
-      (7 * 86400000),
-  );
-  if (diffWeeks <= 0) return 'This week';
-  if (diffWeeks === 1) return `Last week · Wk ${isoWeek(value)}`;
-  return `Wk ${isoWeek(value)}`;
-};
-
-const buildCompletedSections = (jobs: Job[]) => {
-  const completed = jobs
-    .filter(job => job.status === 'completed')
-    .sort((a, b) => b.scheduledDate.localeCompare(a.scheduledDate));
-  const byWeek = new Map<string, Job[]>();
-  completed.forEach(job => {
-    const label = completedSectionLabel(job.scheduledDate);
-    const bucket = byWeek.get(label) ?? [];
-    bucket.push(job);
-    byWeek.set(label, bucket);
-  });
-  return [...byWeek.entries()].map(([title, data]) => ({ title, data }));
-};
+const weekdayLabel = (date: string | null) =>
+  date
+    ? new Date(`${date}T00:00:00`).toLocaleDateString('en-GB', {
+        weekday: 'short',
+      })
+    : '';
 
 const JobsScreen = () => {
   const styles = useThemedStyles(makeStyles);
@@ -124,38 +87,31 @@ const JobsScreen = () => {
     dispatch(fetchJobs());
   }, [dispatch]);
 
-  const tabs = useMemo<JobTabItem[]>(
-    () => [
-      {
-        key: 'upcoming',
-        label: 'Upcoming',
-        count: items.filter(j => TAB_STATUSES.upcoming.includes(j.status)).length,
-      },
-      {
-        key: 'live',
-        label: 'Live',
-        count: items.filter(j => TAB_STATUSES.live.includes(j.status)).length,
-      },
-      {
-        key: 'completed',
-        label: 'Completed',
-        count: items.filter(j => j.status === 'completed').length,
-      },
-    ],
+  const upcoming = useMemo(
+    () => items.filter(j => tabOf(j) === 'upcoming'),
     [items],
   );
-
-  const isLive = activeTab === 'live';
-  const isCompleted = activeTab === 'completed';
-
   const liveActive = useMemo(
-    () => items.filter(j => j.status === 'live'),
+    () => items.filter(j => j.status === 'active'),
     [items],
   );
   const livePaused = useMemo(
     () => items.filter(j => j.status === 'paused'),
     [items],
   );
+  const done = useMemo(() => items.filter(j => tabOf(j) === 'done'), [items]);
+
+  const tabs = useMemo<JobTabItem[]>(
+    () => [
+      { key: 'upcoming', label: 'Upcoming', count: upcoming.length },
+      { key: 'live', label: 'Live', count: liveActive.length + livePaused.length },
+      { key: 'done', label: 'Done', count: done.length },
+    ],
+    [upcoming.length, liveActive.length, livePaused.length, done.length],
+  );
+
+  const isLive = activeTab === 'live';
+  const isDone = activeTab === 'done';
 
   const sections = useMemo(() => {
     if (isLive) {
@@ -164,26 +120,11 @@ const JobsScreen = () => {
         { title: 'Paused', data: livePaused },
       ].filter(section => section.data.length > 0);
     }
-    if (isCompleted) {
-      return buildCompletedSections(items);
+    if (isDone) {
+      return buildDateSections(done);
     }
-    return buildSections(items, activeTab);
-  }, [isLive, isCompleted, liveActive, livePaused, items, activeTab]);
-
-  const onCreate = () => {
-    const today = new Date().toISOString().slice(0, 10);
-    dispatch(
-      createJob({
-        client: 'New client',
-        region: 'Limerick',
-        postcode: 'V94 0000',
-        service: 'New job',
-        status: 'scheduled',
-        time: '09:00',
-        scheduledDate: today,
-      }),
-    );
-  };
+    return buildDateSections(upcoming);
+  }, [isLive, isDone, liveActive, livePaused, done, upcoming]);
 
   const openDetail = (job: Job) =>
     navigation.navigate('JobDetail', { jobId: job.id });
@@ -191,15 +132,8 @@ const JobsScreen = () => {
   const openChat = (job: Job) =>
     navigation.navigate('JobChat', { jobId: job.id });
 
-  const onRemove = (job: Job) =>
-    Alert.alert('Delete job', `Remove "${job.client} — ${job.service}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => dispatch(deleteJob(job.id)),
-      },
-    ]);
+  const onCreate = () =>
+    Toast.show({ type: 'info', text1: 'Start a job — coming next.' });
 
   const emptyLabel =
     status === 'loading'
@@ -231,7 +165,7 @@ const JobsScreen = () => {
               onPress={() => openDetail(item)}
               onChat={() => openChat(item)}
             />
-          ) : isCompleted ? (
+          ) : isDone ? (
             <CompletedJobItem
               job={item}
               weekday={weekdayLabel(item.scheduledDate)}
@@ -241,7 +175,6 @@ const JobsScreen = () => {
             <JobListItem
               job={item}
               onPress={() => openDetail(item)}
-              onLongPress={() => onRemove(item)}
               onChat={() => openChat(item)}
             />
           )
@@ -257,8 +190,8 @@ const JobsScreen = () => {
           isLive && liveActive.length > 0 ? (
             <View style={styles.banner}>
               <LiveNowBanner
-                client={liveActive[0].client}
-                region={liveActive[0].region}
+                client={liveActive[0].customerName ?? 'Job'}
+                region={liveActive[0].customerAddress ?? ''}
                 {...liveMetaFor(liveActive[0].id)}
                 assignee="just you"
                 count={liveActive.length}
