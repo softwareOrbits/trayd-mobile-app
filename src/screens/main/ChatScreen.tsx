@@ -68,19 +68,19 @@ const ChatScreen = () => {
           <Ionicons name="chevron-back" size={22} color={colors.secondary} />
         </Pressable>
 
-        <Avatar name={job?.client ?? 'J'} size={38} style={styles.avatar} />
+        <Avatar name={job?.customerName ?? 'J'} size={38} style={styles.avatar} />
 
         <View style={styles.titleCol}>
           <Text style={styles.title} numberOfLines={1}>
-            {job ? `${job.client} — ${job.region}` : 'Job chat'}
+            {job?.customerName ?? 'Job chat'}
           </Text>
           <Text style={styles.subtitle} numberOfLines={1}>
             <Text style={styles.timer}>{elapsed}</Text>
-            {job ? `  ·  ${job.postcode}` : ''}
+            {job?.customerAddress ? `  ·  ${job.customerAddress}` : ''}
           </Text>
         </View>
 
-        {job?.status === 'live' || paused ? (
+        {job?.status === 'active' || paused ? (
           <LiveStateBadge state={paused ? 'paused' : 'active'} />
         ) : null}
 
