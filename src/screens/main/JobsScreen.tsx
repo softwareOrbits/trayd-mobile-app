@@ -14,7 +14,7 @@ import {
   LiveNowBanner,
 } from '@/components/jobs';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { createJob, deleteJob, fetchJobs, updateJob } from '@/store/jobsSlice';
+import { createJob, deleteJob, fetchJobs } from '@/store/jobsSlice';
 import { type Theme } from '@/theme';
 import { titleStyles } from '@/theme/constants';
 import { useThemedStyles } from '@/utils/useThemedStyles';
@@ -33,14 +33,6 @@ const TAB_STATUSES: Record<JobTabKey, JobStatus[]> = {
   upcoming: ['scheduled', 'quote'],
   live: ['live', 'paused'],
   completed: ['completed'],
-};
-
-const NEXT_STATUS: Record<JobStatus, JobStatus> = {
-  scheduled: 'live',
-  quote: 'live',
-  live: 'paused',
-  paused: 'live',
-  completed: 'scheduled',
 };
 
 const formatSectionLabel = (date: string) => {
@@ -193,8 +185,8 @@ const JobsScreen = () => {
     );
   };
 
-  const onAdvance = (job: Job) =>
-    dispatch(updateJob({ id: job.id, changes: { status: NEXT_STATUS[job.status] } }));
+  const openDetail = (job: Job) =>
+    navigation.navigate('JobDetail', { jobId: job.id });
 
   const openChat = (job: Job) =>
     navigation.navigate('JobChat', { jobId: job.id });
@@ -236,19 +228,19 @@ const JobsScreen = () => {
             <LiveJobItem
               job={item}
               {...liveMetaFor(item.id)}
-              onPress={() => onAdvance(item)}
+              onPress={() => openDetail(item)}
               onChat={() => openChat(item)}
             />
           ) : isCompleted ? (
             <CompletedJobItem
               job={item}
               weekday={weekdayLabel(item.scheduledDate)}
-              onPress={() => onRemove(item)}
+              onPress={() => openDetail(item)}
             />
           ) : (
             <JobListItem
               job={item}
-              onPress={() => onAdvance(item)}
+              onPress={() => openDetail(item)}
               onLongPress={() => onRemove(item)}
               onChat={() => openChat(item)}
             />

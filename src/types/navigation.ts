@@ -19,5 +19,6 @@ export type MainTabParamList = {
 
 export type MainStackParamList = {
   Tabs: undefined;
+  JobDetail: { jobId: string };
   JobChat: { jobId: string };
 };
