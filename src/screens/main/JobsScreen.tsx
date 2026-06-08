@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { SectionList, StyleSheet, Text, View } from 'react-native';
+import {
+  RefreshControl,
+  SectionList,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Toast from 'react-native-toast-message';
 
 import { Button } from '@/components/ui';
 import {
@@ -16,7 +21,7 @@ import {
 } from '@/components/jobs';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
-import { type Theme } from '@/theme';
+import { useTheme, type Theme } from '@/theme';
 import { titleStyles } from '@/theme/constants';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { liveMetaFor } from '@/utils/liveMeta';
@@ -73,6 +78,7 @@ const weekdayLabel = (date: string | null) =>
     : '';
 
 const JobsScreen = () => {
+  const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
   const navigation =
@@ -82,10 +88,22 @@ const JobsScreen = () => {
   const status = useAppSelector(state => state.jobs.status);
   const user = useAppSelector(state => state.auth.user);
   const [activeTab, setActiveTab] = useState<JobTabKey>('upcoming');
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     dispatch(fetchJobs());
   }, [dispatch]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await dispatch(fetchJobs()).unwrap();
+    } catch {
+      // error surfaced via the slice's `status`/empty state
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const upcoming = useMemo(
     () => items.filter(j => tabOf(j) === 'upcoming'),
@@ -132,8 +150,7 @@ const JobsScreen = () => {
   const openChat = (job: Job) =>
     navigation.navigate('JobChat', { jobId: job.id });
 
-  const onCreate = () =>
-    Toast.show({ type: 'info', text1: 'Start a job — coming next.' });
+  const onCreate = () => navigation.navigate('StartJob');
 
   const emptyLabel =
     status === 'loading'
@@ -202,6 +219,14 @@ const JobsScreen = () => {
         stickySectionHeadersEnabled={false}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.secondary}
+            colors={[colors.primary]}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyText}>{emptyLabel}</Text>

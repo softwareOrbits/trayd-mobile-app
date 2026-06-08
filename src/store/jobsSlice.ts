@@ -1,5 +1,11 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { fetchMyJobs } from '@/services/jobs';
+import {
+  logout,
+  setCredentials,
+  signInWithPassword,
+  signOut,
+} from './authSlice';
 import type { Job, JobsState } from '@/types';
 
 export const fetchJobs = createAsyncThunk<Job[], void, { rejectValue: string }>(
@@ -38,7 +44,13 @@ const jobsSlice = createSlice({
       .addCase(fetchJobs.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload ?? 'Unable to load jobs';
-      });
+      })
+      // Clear cached jobs whenever the signed-in user changes, so the previous
+      // user's jobs don't flash before the new user's fetch resolves.
+      .addCase(signOut.fulfilled, () => initialState)
+      .addCase(logout, () => initialState)
+      .addCase(signInWithPassword.fulfilled, () => initialState)
+      .addCase(setCredentials, () => initialState);
   },
 });
 
