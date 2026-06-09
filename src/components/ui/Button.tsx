@@ -111,7 +111,7 @@ export const Button = ({
           <Text
             style={[
               styles.label,
-              { fontSize: sz.fontSize, fontFamily },
+              { fontSize: sz.fontSize, fontFamily, color: fg },
               textStyle,
             ]}
           >
