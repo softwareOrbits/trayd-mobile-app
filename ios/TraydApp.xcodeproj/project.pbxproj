@@ -51,52 +51,52 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		042E0AD62EA1437F874BC162 /* GeistMono-SemiBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-SemiBold.ttf"; path = "../assets/fonts/GeistMono-SemiBold.ttf"; sourceTree = "<group>"; };
-		09F5BA2FD05949409B863348 /* Geist-SemiBoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-SemiBoldItalic.ttf"; path = "../assets/fonts/Geist-SemiBoldItalic.ttf"; sourceTree = "<group>"; };
-		111154D37FFE42389EFB7152 /* Geist-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Regular.ttf"; path = "../assets/fonts/Geist-Regular.ttf"; sourceTree = "<group>"; };
-		11BEAC71C6584BA78EB3F6D7 /* GeistMono-ExtraBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-ExtraBold.ttf"; path = "../assets/fonts/GeistMono-ExtraBold.ttf"; sourceTree = "<group>"; };
+		042E0AD62EA1437F874BC162 /* GeistMono-SemiBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-SemiBold.ttf"; path = "../assets/fonts/GeistMono-SemiBold.ttf"; sourceTree = "<group>"; };
+		09F5BA2FD05949409B863348 /* Geist-SemiBoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-SemiBoldItalic.ttf"; path = "../assets/fonts/Geist-SemiBoldItalic.ttf"; sourceTree = "<group>"; };
+		111154D37FFE42389EFB7152 /* Geist-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Regular.ttf"; path = "../assets/fonts/Geist-Regular.ttf"; sourceTree = "<group>"; };
+		11BEAC71C6584BA78EB3F6D7 /* GeistMono-ExtraBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-ExtraBold.ttf"; path = "../assets/fonts/GeistMono-ExtraBold.ttf"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* TraydApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TraydApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = TraydApp/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = TraydApp/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = TraydApp/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		1BC1BE8F8D474B6593A9E1B1 /* GeistMono-MediumItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-MediumItalic.ttf"; path = "../assets/fonts/GeistMono-MediumItalic.ttf"; sourceTree = "<group>"; };
-		1F941FE589A74C79948C783C /* Geist-Thin.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Thin.ttf"; path = "../assets/fonts/Geist-Thin.ttf"; sourceTree = "<group>"; };
-		1FDF45D81ECB45B9B70C9D9E /* GeistMono-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Bold.ttf"; path = "../assets/fonts/GeistMono-Bold.ttf"; sourceTree = "<group>"; };
-		22CDC8A48E3E4152BE3D97ED /* GeistMono-LightItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-LightItalic.ttf"; path = "../assets/fonts/GeistMono-LightItalic.ttf"; sourceTree = "<group>"; };
-		2A88861D5CA44C63BA3A0FC5 /* GeistMono-Black.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Black.ttf"; path = "../assets/fonts/GeistMono-Black.ttf"; sourceTree = "<group>"; };
-		2ACD6D9F7E224AF9867BB5C5 /* GeistMono-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Regular.ttf"; path = "../assets/fonts/GeistMono-Regular.ttf"; sourceTree = "<group>"; };
-		35992885B68F4B17AB0200D0 /* GeistMono-Medium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Medium.ttf"; path = "../assets/fonts/GeistMono-Medium.ttf"; sourceTree = "<group>"; };
-		35B87337198A46278FF092E6 /* Geist-ExtraLight.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-ExtraLight.ttf"; path = "../assets/fonts/Geist-ExtraLight.ttf"; sourceTree = "<group>"; };
-		37D2348039B24E7BB4BF3018 /* Geist-SemiBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-SemiBold.ttf"; path = "../assets/fonts/Geist-SemiBold.ttf"; sourceTree = "<group>"; };
+		1BC1BE8F8D474B6593A9E1B1 /* GeistMono-MediumItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-MediumItalic.ttf"; path = "../assets/fonts/GeistMono-MediumItalic.ttf"; sourceTree = "<group>"; };
+		1F941FE589A74C79948C783C /* Geist-Thin.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Thin.ttf"; path = "../assets/fonts/Geist-Thin.ttf"; sourceTree = "<group>"; };
+		1FDF45D81ECB45B9B70C9D9E /* GeistMono-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Bold.ttf"; path = "../assets/fonts/GeistMono-Bold.ttf"; sourceTree = "<group>"; };
+		22CDC8A48E3E4152BE3D97ED /* GeistMono-LightItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-LightItalic.ttf"; path = "../assets/fonts/GeistMono-LightItalic.ttf"; sourceTree = "<group>"; };
+		2A88861D5CA44C63BA3A0FC5 /* GeistMono-Black.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Black.ttf"; path = "../assets/fonts/GeistMono-Black.ttf"; sourceTree = "<group>"; };
+		2ACD6D9F7E224AF9867BB5C5 /* GeistMono-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Regular.ttf"; path = "../assets/fonts/GeistMono-Regular.ttf"; sourceTree = "<group>"; };
+		35992885B68F4B17AB0200D0 /* GeistMono-Medium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Medium.ttf"; path = "../assets/fonts/GeistMono-Medium.ttf"; sourceTree = "<group>"; };
+		35B87337198A46278FF092E6 /* Geist-ExtraLight.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-ExtraLight.ttf"; path = "../assets/fonts/Geist-ExtraLight.ttf"; sourceTree = "<group>"; };
+		37D2348039B24E7BB4BF3018 /* Geist-SemiBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-SemiBold.ttf"; path = "../assets/fonts/Geist-SemiBold.ttf"; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-TraydApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TraydApp.debug.xcconfig"; path = "Target Support Files/Pods-TraydApp/Pods-TraydApp.debug.xcconfig"; sourceTree = "<group>"; };
-		50E1A8A3CD5D40F082C07CF0 /* GeistMono-ExtraBoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-ExtraBoldItalic.ttf"; path = "../assets/fonts/GeistMono-ExtraBoldItalic.ttf"; sourceTree = "<group>"; };
+		50E1A8A3CD5D40F082C07CF0 /* GeistMono-ExtraBoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-ExtraBoldItalic.ttf"; path = "../assets/fonts/GeistMono-ExtraBoldItalic.ttf"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-TraydApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TraydApp.release.xcconfig"; path = "Target Support Files/Pods-TraydApp/Pods-TraydApp.release.xcconfig"; sourceTree = "<group>"; };
 		5DCACB8F33CDC322A6C60F78 /* libPods-TraydApp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-TraydApp.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		6452B07B571241D39637E8C0 /* Geist-Medium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Medium.ttf"; path = "../assets/fonts/Geist-Medium.ttf"; sourceTree = "<group>"; };
-		70392A76B06F462A9885215C /* Geist-ExtraBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-ExtraBold.ttf"; path = "../assets/fonts/Geist-ExtraBold.ttf"; sourceTree = "<group>"; };
+		6452B07B571241D39637E8C0 /* Geist-Medium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Medium.ttf"; path = "../assets/fonts/Geist-Medium.ttf"; sourceTree = "<group>"; };
+		70392A76B06F462A9885215C /* Geist-ExtraBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-ExtraBold.ttf"; path = "../assets/fonts/Geist-ExtraBold.ttf"; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = TraydApp/AppDelegate.swift; sourceTree = "<group>"; };
-		7AE19FE5CB394010A331AC9B /* GeistMono-Italic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Italic.ttf"; path = "../assets/fonts/GeistMono-Italic.ttf"; sourceTree = "<group>"; };
+		7AE19FE5CB394010A331AC9B /* GeistMono-Italic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Italic.ttf"; path = "../assets/fonts/GeistMono-Italic.ttf"; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = TraydApp/LaunchScreen.storyboard; sourceTree = "<group>"; };
-		901264898047406389993514 /* GeistMono-ThinItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-ThinItalic.ttf"; path = "../assets/fonts/GeistMono-ThinItalic.ttf"; sourceTree = "<group>"; };
-		93E43495D5444C7896A72A47 /* GeistMono-Light.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Light.ttf"; path = "../assets/fonts/GeistMono-Light.ttf"; sourceTree = "<group>"; };
-		94CB6BFD566A4EB9B008943E /* Geist-BlackItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-BlackItalic.ttf"; path = "../assets/fonts/Geist-BlackItalic.ttf"; sourceTree = "<group>"; };
-		9BF9BBD1E66042C68D95FA98 /* GeistMono-ExtraLightItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-ExtraLightItalic.ttf"; path = "../assets/fonts/GeistMono-ExtraLightItalic.ttf"; sourceTree = "<group>"; };
-		A2EB7795966E4E16875403F9 /* Geist-ExtraBoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-ExtraBoldItalic.ttf"; path = "../assets/fonts/Geist-ExtraBoldItalic.ttf"; sourceTree = "<group>"; };
-		A9A2EF2DBAD74446BB661B10 /* GeistMono-SemiBoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-SemiBoldItalic.ttf"; path = "../assets/fonts/GeistMono-SemiBoldItalic.ttf"; sourceTree = "<group>"; };
-		AC797857EB4D40CABC164D47 /* GeistMono-BoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-BoldItalic.ttf"; path = "../assets/fonts/GeistMono-BoldItalic.ttf"; sourceTree = "<group>"; };
-		AEF4B3E66DA84733A3F77FC2 /* GeistMono-Thin.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Thin.ttf"; path = "../assets/fonts/GeistMono-Thin.ttf"; sourceTree = "<group>"; };
-		B874D386375840C8BB033299 /* Geist-Black.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Black.ttf"; path = "../assets/fonts/Geist-Black.ttf"; sourceTree = "<group>"; };
-		BB984EAE664443D98A953517 /* Geist-ThinItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-ThinItalic.ttf"; path = "../assets/fonts/Geist-ThinItalic.ttf"; sourceTree = "<group>"; };
-		BEAC94714AA8447294356A60 /* Geist-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Bold.ttf"; path = "../assets/fonts/Geist-Bold.ttf"; sourceTree = "<group>"; };
-		C03BFF277E714F1DB267FAB6 /* Geist-BoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-BoldItalic.ttf"; path = "../assets/fonts/Geist-BoldItalic.ttf"; sourceTree = "<group>"; };
-		C0B343FD842646DA83D8FBCB /* GeistMono-BlackItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-BlackItalic.ttf"; path = "../assets/fonts/GeistMono-BlackItalic.ttf"; sourceTree = "<group>"; };
-		DC5247117EC4450C88BB408E /* Geist-Italic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Italic.ttf"; path = "../assets/fonts/Geist-Italic.ttf"; sourceTree = "<group>"; };
-		E1803615C16347CC82321A76 /* Geist-MediumItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-MediumItalic.ttf"; path = "../assets/fonts/Geist-MediumItalic.ttf"; sourceTree = "<group>"; };
-		E74D37825B4A4A1E870D6621 /* Geist-ExtraLightItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-ExtraLightItalic.ttf"; path = "../assets/fonts/Geist-ExtraLightItalic.ttf"; sourceTree = "<group>"; };
-		ED1E20A278D2450296B0FF7D /* Geist-Light.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Light.ttf"; path = "../assets/fonts/Geist-Light.ttf"; sourceTree = "<group>"; };
+		901264898047406389993514 /* GeistMono-ThinItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-ThinItalic.ttf"; path = "../assets/fonts/GeistMono-ThinItalic.ttf"; sourceTree = "<group>"; };
+		93E43495D5444C7896A72A47 /* GeistMono-Light.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Light.ttf"; path = "../assets/fonts/GeistMono-Light.ttf"; sourceTree = "<group>"; };
+		94CB6BFD566A4EB9B008943E /* Geist-BlackItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-BlackItalic.ttf"; path = "../assets/fonts/Geist-BlackItalic.ttf"; sourceTree = "<group>"; };
+		9BF9BBD1E66042C68D95FA98 /* GeistMono-ExtraLightItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-ExtraLightItalic.ttf"; path = "../assets/fonts/GeistMono-ExtraLightItalic.ttf"; sourceTree = "<group>"; };
+		A2EB7795966E4E16875403F9 /* Geist-ExtraBoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-ExtraBoldItalic.ttf"; path = "../assets/fonts/Geist-ExtraBoldItalic.ttf"; sourceTree = "<group>"; };
+		A9A2EF2DBAD74446BB661B10 /* GeistMono-SemiBoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-SemiBoldItalic.ttf"; path = "../assets/fonts/GeistMono-SemiBoldItalic.ttf"; sourceTree = "<group>"; };
+		AC797857EB4D40CABC164D47 /* GeistMono-BoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-BoldItalic.ttf"; path = "../assets/fonts/GeistMono-BoldItalic.ttf"; sourceTree = "<group>"; };
+		AEF4B3E66DA84733A3F77FC2 /* GeistMono-Thin.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-Thin.ttf"; path = "../assets/fonts/GeistMono-Thin.ttf"; sourceTree = "<group>"; };
+		B874D386375840C8BB033299 /* Geist-Black.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Black.ttf"; path = "../assets/fonts/Geist-Black.ttf"; sourceTree = "<group>"; };
+		BB984EAE664443D98A953517 /* Geist-ThinItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-ThinItalic.ttf"; path = "../assets/fonts/Geist-ThinItalic.ttf"; sourceTree = "<group>"; };
+		BEAC94714AA8447294356A60 /* Geist-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Bold.ttf"; path = "../assets/fonts/Geist-Bold.ttf"; sourceTree = "<group>"; };
+		C03BFF277E714F1DB267FAB6 /* Geist-BoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-BoldItalic.ttf"; path = "../assets/fonts/Geist-BoldItalic.ttf"; sourceTree = "<group>"; };
+		C0B343FD842646DA83D8FBCB /* GeistMono-BlackItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-BlackItalic.ttf"; path = "../assets/fonts/GeistMono-BlackItalic.ttf"; sourceTree = "<group>"; };
+		DC5247117EC4450C88BB408E /* Geist-Italic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Italic.ttf"; path = "../assets/fonts/Geist-Italic.ttf"; sourceTree = "<group>"; };
+		E1803615C16347CC82321A76 /* Geist-MediumItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-MediumItalic.ttf"; path = "../assets/fonts/Geist-MediumItalic.ttf"; sourceTree = "<group>"; };
+		E74D37825B4A4A1E870D6621 /* Geist-ExtraLightItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-ExtraLightItalic.ttf"; path = "../assets/fonts/Geist-ExtraLightItalic.ttf"; sourceTree = "<group>"; };
+		ED1E20A278D2450296B0FF7D /* Geist-Light.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Light.ttf"; path = "../assets/fonts/Geist-Light.ttf"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
-		F2736E48FA744F61838C4CED /* Geist-LightItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-LightItalic.ttf"; path = "../assets/fonts/Geist-LightItalic.ttf"; sourceTree = "<group>"; };
-		F96AB32832CD46529CE03C19 /* GeistMono-ExtraLight.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-ExtraLight.ttf"; path = "../assets/fonts/GeistMono-ExtraLight.ttf"; sourceTree = "<group>"; };
+		F2736E48FA744F61838C4CED /* Geist-LightItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-LightItalic.ttf"; path = "../assets/fonts/Geist-LightItalic.ttf"; sourceTree = "<group>"; };
+		F96AB32832CD46529CE03C19 /* GeistMono-ExtraLight.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "GeistMono-ExtraLight.ttf"; path = "../assets/fonts/GeistMono-ExtraLight.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -173,7 +173,6 @@
 				901264898047406389993514 /* GeistMono-ThinItalic.ttf */,
 			);
 			name = Resources;
-			path = "";
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -344,9 +343,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-TraydApp/Pods-TraydApp-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-TraydApp/Pods-TraydApp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -383,9 +386,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-TraydApp/Pods-TraydApp-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-TraydApp/Pods-TraydApp-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -412,9 +419,12 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = ZNYPW5YTV4;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = TraydApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Trayd;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -426,12 +436,13 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.trayd.ios;
 				PRODUCT_NAME = TraydApp;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
@@ -442,8 +453,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = AACU28WQRA;
 				INFOPLIST_FILE = TraydApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Trayd;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -455,11 +471,13 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.trayd.iosapp;
 				PRODUCT_NAME = TraydApp;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;

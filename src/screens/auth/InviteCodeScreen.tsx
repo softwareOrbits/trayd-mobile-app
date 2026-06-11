@@ -109,7 +109,6 @@ const InviteCodeScreen = () => {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <BackButton absolute />
       <ScrollView
@@ -120,6 +119,7 @@ const InviteCodeScreen = () => {
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
         <View style={styles.header}>
           <Image

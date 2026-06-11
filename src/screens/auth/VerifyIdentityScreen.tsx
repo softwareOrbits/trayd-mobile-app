@@ -63,7 +63,6 @@ const VerifyIdentityScreen = () => {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <BackButton absolute />
       <ScrollView
@@ -74,6 +73,7 @@ const VerifyIdentityScreen = () => {
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
         <View style={styles.header}>
           <Image
