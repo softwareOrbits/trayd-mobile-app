@@ -23,6 +23,8 @@ type WizardScaffoldProps = {
   onCancel: () => void;
   footer?: ReactNode;
   children: ReactNode;
+  flowLabel?: string;
+  cancelLabel?: string;
 };
 
 export const WizardScaffold = ({
@@ -34,6 +36,8 @@ export const WizardScaffold = ({
   onCancel,
   footer,
   children,
+  flowLabel = 'Start a job',
+  cancelLabel = 'Cancel',
 }: WizardScaffoldProps) => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -49,10 +53,10 @@ export const WizardScaffold = ({
           <Ionicons name="chevron-back" size={22} color={colors.secondary} />
         </Pressable>
         <Text style={styles.stepLabel}>
-          {`Start a job · ${step} of ${total}`}
+          {`${flowLabel} · ${step} of ${total}`}
         </Text>
         <Pressable onPress={onCancel} hitSlop={8} style={styles.cancelBtn}>
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={styles.cancelText}>{cancelLabel}</Text>
         </Pressable>
       </View>
 

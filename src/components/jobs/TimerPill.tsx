@@ -4,14 +4,25 @@ import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import type { TimerPillProps } from '@/types';
 
-export const TimerPill = ({ time, onPress }: TimerPillProps) => {
+export const TimerPill = ({ time, onPress, paused }: TimerPillProps) => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const fg = paused ? colors.textMuted : colors.onPrimary;
 
   return (
-    <Pressable style={styles.pill} onPress={onPress} hitSlop={6}>
-      <Ionicons name="time-outline" size={16} color={colors.onPrimary} />
-      <Text style={styles.time}>{time}</Text>
+    <Pressable
+      style={[styles.pill, paused && styles.pillPaused]}
+      onPress={onPress}
+      hitSlop={6}
+    >
+      <Ionicons
+        name={paused ? 'pause' : 'time-outline'}
+        size={16}
+        color={fg}
+      />
+      <Text style={[styles.time, paused && styles.timePaused]}>
+        {paused ? `Paused · ${time}` : time}
+      </Text>
     </Pressable>
   );
 };
@@ -27,12 +38,18 @@ export const makeStyles = (theme: Theme) =>
       borderRadius: theme.radii.sm,
       backgroundColor: theme.colors.primary,
     },
+    pillPaused: {
+      backgroundColor: theme.colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+    },
     time: {
       fontSize: theme.typography.size.sm,
       fontFamily: theme.fonts.monoBold,
       color: theme.colors.onPrimary,
       letterSpacing: 0.5,
     },
+    timePaused: { color: theme.colors.textMuted },
   });
 
 export default TimerPill;
