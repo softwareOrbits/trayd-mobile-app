@@ -141,6 +141,7 @@ export type LiveNowBannerProps = {
 export type TimerPillProps = {
   time: string;
   onPress?: () => void;
+  paused?: boolean;
 };
 
 export type LiveStateBadgeProps = {

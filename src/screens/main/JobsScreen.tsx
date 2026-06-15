@@ -24,7 +24,12 @@ import { fetchJobs } from '@/store/jobsSlice';
 import { useTheme, type Theme } from '@/theme';
 import { titleStyles } from '@/theme/constants';
 import { useThemedStyles } from '@/utils/useThemedStyles';
-import { liveMetaFor } from '@/utils/liveMeta';
+import { formatElapsed } from '@/utils/liveMeta';
+import {
+  fetchJobSegments,
+  segmentsElapsedHours,
+  type JobSegment,
+} from '@/services/jobs';
 import {
   STATUS_TAB,
   type Job,
@@ -90,6 +95,12 @@ const JobsScreen = () => {
   const [activeTab, setActiveTab] = useState<JobTabKey>('upcoming');
   const [refreshing, setRefreshing] = useState(false);
 
+  // Real per-job clock from job_time_entries segments: closed hours are frozen,
+  // the open segment (active jobs only) keeps ticking. Paused jobs have no open
+  // segment, so their timer stops — no more mock time running in the background.
+  const [segMeta, setSegMeta] = useState<Map<string, JobSegment[]>>(new Map());
+  const [now, setNow] = useState(() => Date.now());
+
   useEffect(() => {
     dispatch(fetchJobs());
   }, [dispatch]);
@@ -118,6 +129,51 @@ const JobsScreen = () => {
     [items],
   );
   const done = useMemo(() => items.filter(j => tabOf(j) === 'done'), [items]);
+
+  // Fetch segments for the jobs shown in the Live tab and fold them into a map.
+  const liveIds = useMemo(
+    () => [...liveActive, ...livePaused].map(j => j.id),
+    [liveActive, livePaused],
+  );
+  const liveIdsKey = [...liveActive, ...livePaused]
+    .map(j => `${j.id}:${j.status}:${j.updatedAt ?? ''}`)
+    .join(',');
+  useEffect(() => {
+    if (!liveIds.length) {
+      setSegMeta(new Map());
+      return;
+    }
+    let active = true;
+    Promise.all(
+      liveIds.map(id =>
+        fetchJobSegments(id)
+          .then(segs => [id, segs] as const)
+          .catch(() => [id, [] as JobSegment[]] as const),
+      ),
+    ).then(results => {
+      if (active) setSegMeta(new Map(results));
+    });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveIdsKey]);
+
+  // Tick once a second only while at least one job is actually active.
+  useEffect(() => {
+    if (!liveActive.length) return;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [liveActive.length]);
+
+  const metaFor = (job: Job) => {
+    const segs = segMeta.get(job.id);
+    if (!segs?.length) return { elapsed: '00:00:00', day: 1 };
+    const { hours } = segmentsElapsedHours(segs, now);
+    const days = new Set(segs.map(s => s.jobDayId).filter(Boolean)).size;
+    return { elapsed: formatElapsed(hours * 3_600_000), day: Math.max(1, days) };
+  };
 
   const tabs = useMemo<JobTabItem[]>(
     () => [
@@ -178,7 +234,7 @@ const JobsScreen = () => {
           isLive ? (
             <LiveJobItem
               job={item}
-              {...liveMetaFor(item.id)}
+              {...metaFor(item)}
               onPress={() => openDetail(item)}
               onChat={() => openChat(item)}
             />
@@ -209,7 +265,7 @@ const JobsScreen = () => {
               <LiveNowBanner
                 client={liveActive[0].customerName ?? 'Job'}
                 region={liveActive[0].customerAddress ?? ''}
-                {...liveMetaFor(liveActive[0].id)}
+                {...metaFor(liveActive[0])}
                 assignee="just you"
                 count={liveActive.length}
               />

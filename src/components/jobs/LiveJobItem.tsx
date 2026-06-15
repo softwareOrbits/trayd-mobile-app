@@ -59,7 +59,7 @@ export const LiveJobItem = ({
             onPress={onChat}
             style={styles.chat}
           />
-          <TimerPill time={elapsed} onPress={onTimer} />
+          <TimerPill time={elapsed} onPress={onTimer} paused={paused} />
         </View>
       </View>
     </Pressable>

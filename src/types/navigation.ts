@@ -22,4 +22,9 @@ export type MainStackParamList = {
   JobDetail: { jobId: string };
   JobChat: { jobId: string };
   StartJob: undefined;
+  AddNote: { jobId: string };
+  AddReceipt: { jobId: string };
+  AddJobPhoto: { jobId: string; photoCount: number };
+  WrapUpJob: { jobId: string };
+  ChangePassword: undefined;
 };

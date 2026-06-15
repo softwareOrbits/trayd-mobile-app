@@ -1,9 +1,10 @@
 import { type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import type { JobMaterial } from '@/services/jobs';
 import type { IconName } from '@/types';
 
 // Local presentational types (kept here so these reusable blocks don't depend
@@ -13,8 +14,17 @@ export type InfoEntry = { label: string; value: string };
 export type LineItemTag = 'VAN STOCK' | 'RECEIPT';
 export type LineItem = { name: string; tag: LineItemTag; amount: string };
 export type DayEntry = { label: string; sub: string; active?: boolean };
-export type PhotoTag = { label: string };
+export type PhotoTag = { label: string; uri?: string };
 export type RosterMember = { name: string; confirmed: boolean };
+
+export const toLineItem = (m: JobMaterial): LineItem => ({
+  name:
+    m.source === 'receipt'
+      ? m.description
+      : `${m.description} × ${m.quantity}${m.unit ?? ''}`,
+  tag: m.source === 'receipt' ? 'RECEIPT' : 'VAN STOCK',
+  amount: `€${(m.quantity * m.unitCost).toFixed(2)}`,
+});
 
 /* ---------- Section (small-caps header + white card) ---------- */
 
@@ -81,10 +91,13 @@ export const TagChip = ({ label }: { label: string }) => {
 export const LineItemRow = ({
   item,
   last,
+  editable,
 }: {
   item: LineItem;
   last?: boolean;
+  editable?: boolean;
 }) => {
+  const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={[styles.lineItem, last ? null : styles.rowDivider]}>
@@ -93,6 +106,14 @@ export const LineItemRow = ({
         <TagChip label={item.tag} />
       </View>
       <Text style={styles.lineItemAmount}>{item.amount}</Text>
+      {editable ? (
+        <Ionicons
+          name="pencil"
+          size={15}
+          color={colors.textMuted}
+          style={styles.lineItemEdit}
+        />
+      ) : null}
     </View>
   );
 };
@@ -243,7 +264,11 @@ export const PhotoStrip = ({ photos }: { photos: PhotoTag[] }) => {
     <View style={styles.photoRow}>
       {photos.map((p, i) => (
         <View key={`${p.label}-${i}`} style={styles.photo}>
-          <Text style={styles.photoText}>{p.label}</Text>
+          {p.uri ? (
+            <Image source={{ uri: p.uri }} style={styles.photoImg} />
+          ) : (
+            <Text style={styles.photoText}>{p.label}</Text>
+          )}
         </View>
       ))}
     </View>
@@ -255,16 +280,18 @@ export const PhotoStrip = ({ photos }: { photos: PhotoTag[] }) => {
 export const EmployerNote = ({
   time,
   text,
+  tag = 'EMPLOYER-ONLY',
 }: {
-  time: string;
+  time?: string;
   text: string;
+  tag?: string;
 }) => {
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.employerNote}>
       <View style={styles.employerHead}>
-        <TagChip label="EMPLOYER-ONLY" />
-        <Text style={styles.employerTime}>{time}</Text>
+        <TagChip label={tag} />
+        {time ? <Text style={styles.employerTime}>{time}</Text> : null}
       </View>
       <Text style={styles.employerText}>{text}</Text>
     </View>
@@ -375,6 +402,7 @@ export const makeStyles = (theme: Theme) =>
       fontSize: theme.typography.size.sm,
       fontFamily: theme.fonts.semibold,
     },
+    lineItemEdit: { marginLeft: 10 },
 
     rosterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     rosterFilled: {
@@ -515,7 +543,7 @@ export const makeStyles = (theme: Theme) =>
       color: theme.colors.textMuted,
     },
 
-    photoRow: { flexDirection: 'row', gap: 10 },
+    photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
     photo: {
       width: 64,
       height: 64,
@@ -525,7 +553,9 @@ export const makeStyles = (theme: Theme) =>
       borderColor: theme.colors.borderMuted,
       alignItems: 'center',
       justifyContent: 'center',
+      overflow: 'hidden',
     },
+    photoImg: { width: '100%', height: '100%' },
     photoText: {
       fontSize: 9,
       fontFamily: theme.fonts.monoBold,

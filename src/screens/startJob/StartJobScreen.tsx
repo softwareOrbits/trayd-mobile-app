@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { launchCamera } from 'react-native-image-picker';
 import { useForm, Controller } from 'react-hook-form';
@@ -16,28 +16,62 @@ import {
   RadioCard,
   WizardScaffold,
 } from '@/components/wizard';
+import { JOB_TYPE_OPTIONS } from '@/data/startJobMock';
 import {
-  CREW,
-  DEDUP_MATCH,
-  JOB_TYPE_OPTIONS,
-  NEAREST_CUSTOMER,
-  RECENT_CUSTOMERS,
-} from '@/data/startJobMock';
+  findNearestCustomer,
+  findSimilarCustomers,
+  getCustomer,
+  pinCustomerGps,
+  searchCustomers,
+  type CandidateCustomer,
+  type Customer,
+  type NearestCustomer,
+} from '@/services/customers';
+import {
+  autocompleteAddress,
+  getPlaceDetails,
+  newSessionToken,
+  type PlaceSuggestion,
+} from '@/services/places';
+import {
+  formatDistance,
+  getCurrentPosition,
+  type GpsPoint,
+} from '@/utils/location';
+import {
+  addJobMaterial,
+  addJobPhoto,
+  startJob,
+  DuplicateCustomerError,
+} from '@/services/jobs';
+import { searchMaterials, type CatalogMaterial } from '@/services/materials';
+import { fetchActiveRoster, type RosterEntry } from '@/services/member';
+import { useAppDispatch } from '@/store/hooks';
+import { fetchJobs } from '@/store/jobsSlice';
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
-import type { MainStackParamList } from '@/types';
+import type { JobType, MainStackParamList } from '@/types';
 
-const TOTAL = 4;
+const TOTAL = 5;
 
 const customerSchema = z.object({
   fullName: z.string().min(1, 'Full name is required'),
   phone: z.string().min(6, 'Enter a valid phone'),
   email: z.string().email('Enter a valid email').optional().or(z.literal('')),
   address: z.string().min(1, 'Address is required'),
+  eircode: z.string().min(1, 'Eircode is required'),
 });
 type CustomerForm = z.infer<typeof customerSchema>;
 
-type PickedCustomer = { name: string; phone?: string; address?: string };
+type NewCustomerPayload = {
+  name: string;
+  phone: string;
+  email?: string | null;
+  address: string;
+  eircode: string;
+};
+
+type PhotoAsset = { uri: string; base64?: string; type?: string | null };
 type CustomerMode = 'list' | 'new' | 'dedup';
 
 const StartJobScreen = () => {
@@ -46,17 +80,135 @@ const StartJobScreen = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
 
+  const dispatch = useAppDispatch();
+
   const [step, setStep] = useState(1);
   const [mode, setMode] = useState<CustomerMode>('list');
-  const [, setCustomer] = useState<PickedCustomer | null>(null);
   const [search, setSearch] = useState('');
   const [jobType, setJobType] = useState<string | null>(null);
-  const [crew, setCrew] = useState<string[]>(['crew-ciaran']);
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [crew, setCrew] = useState<string[]>([]);
+  const [photo, setPhoto] = useState<PhotoAsset | null>(null);
+  const [starting, setStarting] = useState(false);
+
+  const [customerId, setCustomerId] = useState<string | null>(null);
+  const [newCustomer, setNewCustomer] = useState<NewCustomerPayload | null>(
+    null,
+  );
+  const [candidate, setCandidate] = useState<CandidateCustomer | null>(null);
+
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [roster, setRoster] = useState<RosterEntry[]>([]);
+  const [gps, setGps] = useState<GpsPoint | null>(null);
+  const [nearest, setNearest] = useState<NearestCustomer | null>(null);
+
+  const [addrQuery, setAddrQuery] = useState('');
+  const [addrSuggestions, setAddrSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [placeCoords, setPlaceCoords] = useState<GpsPoint | null>(null);
+  const [placesSession, setPlacesSession] = useState(newSessionToken);
+
+  const [materialSearch, setMaterialSearch] = useState('');
+  const [catalog, setCatalog] = useState<CatalogMaterial[]>([]);
+  const [pickedMaterials, setPickedMaterials] = useState<CatalogMaterial[]>([]);
+
+  useEffect(() => {
+    fetchActiveRoster()
+      .then(rows => {
+        setRoster(rows);
+        const me = rows.find(r => r.isSelf);
+        if (me) setCrew([me.id]);
+      })
+      .catch(e => console.warn('roster:', e?.message));
+
+    getCurrentPosition().then(p => {
+      console.log('[startJob] gps position:', p ?? 'unavailable');
+      if (!p) return;
+      setGps(p);
+      findNearestCustomer(p)
+        .then(n => {
+          console.log(
+            '[startJob] nearest customer:',
+            n
+              ? `${n.customer.name} · ${Math.round(n.distanceM)}m`
+              : 'none with GPS pins within 10km',
+          );
+          setNearest(n);
+        })
+        .catch(e => console.warn('nearest customer:', e?.message));
+    });
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const t = setTimeout(() => {
+      searchCustomers(search)
+        .then(rows => active && setCustomers(rows))
+        .catch(e => console.warn('customers:', e?.message));
+    }, 250);
+    return () => {
+      active = false;
+      clearTimeout(t);
+    };
+  }, [search]);
+
+  useEffect(() => {
+    if (mode !== 'new') return;
+    const q = addrQuery.trim();
+    if (q.length < 3) {
+      setAddrSuggestions([]);
+      return;
+    }
+    let active = true;
+    const t = setTimeout(() => {
+      autocompleteAddress(q, placesSession)
+        .then(s => active && setAddrSuggestions(s))
+        .catch(e => console.warn('places autocomplete:', e?.message));
+    }, 300);
+    return () => {
+      active = false;
+      clearTimeout(t);
+    };
+  }, [addrQuery, placesSession, mode]);
+
+  useEffect(() => {
+    if (step !== 4) return;
+    let active = true;
+    const t = setTimeout(() => {
+      searchMaterials(materialSearch)
+        .then(rows => active && setCatalog(rows))
+        .catch(e => console.warn('materials:', e?.message));
+    }, 250);
+    return () => {
+      active = false;
+      clearTimeout(t);
+    };
+  }, [step, materialSearch]);
+
+  const toggleMaterial = (m: CatalogMaterial) =>
+    setPickedMaterials(prev =>
+      prev.some(x => x.id === m.id)
+        ? prev.filter(x => x.id !== m.id)
+        : [...prev, m],
+    );
+
+  const pickAddress = async (s: PlaceSuggestion) => {
+    setAddrSuggestions([]);
+    setAddrQuery('');
+    try {
+      const d = await getPlaceDetails(s.placeId, placesSession);
+      form.setValue('address', d.address, { shouldValidate: true });
+      if (d.eircode) {
+        form.setValue('eircode', d.eircode, { shouldValidate: true });
+      }
+      setPlaceCoords({ lat: d.lat, lng: d.lng });
+      setPlacesSession(newSessionToken());
+    } catch (e) {
+      console.warn('place details:', e instanceof Error ? e.message : e);
+    }
+  };
 
   const form = useForm<CustomerForm>({
     resolver: zodResolver(customerSchema),
-    defaultValues: { fullName: '', phone: '', email: '', address: '' },
+    defaultValues: { fullName: '', phone: '', email: '', address: '', eircode: '' },
   });
 
   const close = () => navigation.goBack();
@@ -70,20 +222,38 @@ const StartJobScreen = () => {
     setStep(s => s - 1);
   };
 
-  const pickCustomer = (c: PickedCustomer) => {
-    setCustomer(c);
+  const pickExisting = (id: string) => {
+    setCustomerId(id);
+    setNewCustomer(null);
     setMode('list');
     setStep(2);
   };
 
-  const onSaveNew = form.handleSubmit(data => {
-    const digits = data.phone.replace(/\D/g, '');
-    const isMatch = /john/i.test(data.fullName) || digits.endsWith('4441209');
-    if (isMatch) {
-      setMode('dedup');
-    } else {
-      pickCustomer({ name: data.fullName, phone: data.phone, address: data.address });
+  const pickNew = (data: CustomerForm) => {
+    setNewCustomer({
+      name: data.fullName,
+      phone: data.phone,
+      email: data.email || null,
+      address: data.address,
+      eircode: data.eircode,
+    });
+    setCustomerId(null);
+    setMode('list');
+    setStep(2);
+  };
+
+  const onSaveNew = form.handleSubmit(async data => {
+    try {
+      const matches = await findSimilarCustomers(data.phone, data.fullName);
+      if (matches.length) {
+        setCandidate(matches[0]);
+        setMode('dedup');
+        return;
+      }
+    } catch (e) {
+      console.warn('find_similar_customers:', e);
     }
+    pickNew(data);
   });
 
   const toggleCrew = (id: string) =>
@@ -97,25 +267,112 @@ const StartJobScreen = () => {
       quality: 0.7,
       maxWidth: 1200,
       maxHeight: 1200,
+      includeBase64: true,
     });
     if (res.didCancel) return;
     if (res.errorCode) {
       Toast.show({ type: 'error', text1: res.errorMessage ?? 'Camera error.' });
       return;
     }
-    setPhotoUri(res.assets?.[0]?.uri ?? null);
+    const asset = res.assets?.[0];
+    setPhoto(
+      asset?.uri
+        ? { uri: asset.uri, base64: asset.base64, type: asset.type }
+        : null,
+    );
   };
 
-  const finish = () => {
-    Toast.show({ type: 'success', text1: 'Job started (demo).' });
-    close();
-  };
+  const finish = async () => {
+    if (starting) return;
+    if (!customerId && !newCustomer) {
+      Toast.show({ type: 'error', text1: 'Pick a customer first.' });
+      setStep(1);
+      return;
+    }
+    setStarting(true);
+    try {
+      const selfId = roster.find(r => r.isSelf)?.id;
+      const memberIds =
+        crew.length === 1 && crew[0] === selfId ? [] : crew;
 
-  const recent = RECENT_CUSTOMERS.filter(c =>
-    search.trim()
-      ? c.name.toLowerCase().includes(search.trim().toLowerCase())
-      : true,
-  );
+      const jobId = await startJob({
+        customerId: customerId ?? undefined,
+        newCustomer: newCustomer ?? undefined,
+        jobType: (jobType ?? 'standard') as JobType,
+        memberIds,
+        gps: gps ?? undefined,
+      });
+
+      if (newCustomer && placeCoords) {
+        pinCustomerGps(jobId, placeCoords);
+      }
+
+      if (pickedMaterials.length) {
+        const results = await Promise.allSettled(
+          pickedMaterials.map(m =>
+            addJobMaterial({
+              jobId,
+              description: m.name,
+              quantity: 1,
+              unitCost: m.sellPrice,
+              source: 'van_stock',
+              unit: m.unit,
+            }),
+          ),
+        );
+        if (results.some(r => r.status === 'rejected')) {
+          Toast.show({
+            type: 'error',
+            text1: 'Job started, but some materials failed to log.',
+          });
+        }
+      }
+
+      if (photo?.base64) {
+        try {
+          await addJobPhoto({
+            jobId,
+            phase: 'before',
+            base64: photo.base64,
+            type: photo.type,
+          });
+        } catch {
+          Toast.show({
+            type: 'error',
+            text1: 'Job started, but the photo failed to upload.',
+          });
+        }
+      }
+
+      dispatch(fetchJobs());
+      Toast.show({ type: 'success', text1: 'Job started.' });
+      navigation.replace('JobDetail', { jobId });
+    } catch (e) {
+      if (e instanceof DuplicateCustomerError) {
+        const existing = await getCustomer(e.existingId).catch(() => null);
+        if (existing) {
+          setCandidate({
+            id: existing.id,
+            name: existing.name,
+            phone: existing.phone ?? '',
+            email: existing.email,
+            address: existing.address ?? '',
+            eircode: existing.eircode ?? '',
+            similarityReason: 'phone_exact',
+          });
+          setStep(1);
+          setMode('dedup');
+          return;
+        }
+      }
+      Toast.show({
+        type: 'error',
+        text1: e instanceof Error ? e.message : 'Could not start the job.',
+      });
+    } finally {
+      setStarting(false);
+    }
+  };
 
   // ----- per-view content -----
   let title = '';
@@ -133,37 +390,40 @@ const StartJobScreen = () => {
           onChangeText={setSearch}
           autoCapitalize="none"
         />
-        <View>
-          <Text style={styles.sectionLabel}>NEAREST · GPS</Text>
-          <CustomerCard
-            name={NEAREST_CUSTOMER.name}
-            address={NEAREST_CUSTOMER.address}
-            meta={NEAREST_CUSTOMER.meta}
-            highlighted
-            onUse={() =>
-              pickCustomer({
-                name: NEAREST_CUSTOMER.name,
-                phone: NEAREST_CUSTOMER.phone,
-                address: NEAREST_CUSTOMER.address,
-              })
-            }
-          />
-          <Text style={styles.hintText}>
-            No GPS? You can still search or add new — nothing&apos;s blocked.
-          </Text>
-        </View>
+        {nearest ? (
+          <View>
+            <Text style={styles.sectionLabel}>NEAREST · GPS</Text>
+            <CustomerCard
+              name={nearest.customer.name}
+              address={[nearest.customer.address, nearest.customer.eircode]
+                .filter(Boolean)
+                .join(' · ')}
+              meta={`${formatDistance(nearest.distanceM)} away · ${
+                nearest.priorJobs
+              } prior job${nearest.priorJobs === 1 ? '' : 's'}`}
+              highlighted
+              onUse={() => pickExisting(nearest.customer.id)}
+            />
+            <Text style={styles.hintText}>
+              No GPS? You can still search or add new — nothing&apos;s blocked.
+            </Text>
+          </View>
+        ) : null}
         <View>
           <Text style={styles.sectionLabel}>RECENT</Text>
-          {recent.map(c => (
+          {customers.map(c => (
             <CustomerCard
               key={c.id}
               name={c.name}
-              meta={c.meta}
-              onPress={() =>
-                pickCustomer({ name: c.name, phone: c.phone, address: c.address })
-              }
+              meta={[c.eircode, c.phone].filter(Boolean).join(' · ')}
+              onPress={() => pickExisting(c.id)}
             />
           ))}
+          {!customers.length ? (
+            <Text style={styles.hintText}>
+              No customers yet — add your first one below.
+            </Text>
+          ) : null}
         </View>
       </View>
     );
@@ -231,12 +491,54 @@ const StartJobScreen = () => {
           name="address"
           render={({ field: { value, onChange, onBlur } }) => (
             <Input
-              label="Address"
-              placeholder="Address"
+              label="Address *"
+              placeholder="Start typing — suggestions from Google Maps"
+              value={value}
+              onChangeText={t => {
+                onChange(t);
+                setAddrQuery(t);
+                setPlaceCoords(null);
+              }}
+              onBlur={onBlur}
+              error={form.formState.errors.address?.message}
+            />
+          )}
+        />
+        {addrSuggestions.length ? (
+          <View style={styles.suggestBox}>
+            {addrSuggestions.map((s, i) => (
+              <Pressable
+                key={s.placeId}
+                style={[
+                  styles.suggestRow,
+                  i < addrSuggestions.length - 1 ? styles.suggestDivider : null,
+                ]}
+                onPress={() => pickAddress(s)}
+              >
+                <Ionicons
+                  name="location-outline"
+                  size={16}
+                  color={colors.textMuted}
+                />
+                <Text style={styles.suggestText} numberOfLines={2}>
+                  {s.description}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+        <Controller
+          control={form.control}
+          name="eircode"
+          render={({ field: { value, onChange, onBlur } }) => (
+            <Input
+              label="Eircode *"
+              placeholder="e.g. V94 X2P1"
+              autoCapitalize="characters"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
-              error={form.formState.errors.address?.message}
+              error={form.formState.errors.eircode?.message}
             />
           )}
         />
@@ -252,42 +554,36 @@ const StartJobScreen = () => {
         onPress={onSaveNew}
       />
     );
-  } else if (step === 1 && mode === 'dedup') {
-    title = 'Hold on — is this John?';
+  } else if (step === 1 && mode === 'dedup' && candidate) {
+    const firstName = candidate.name.split(' ')[0];
+    title = `Hold on — is this ${firstName}?`;
     subtitle =
       'We match by phone to keep your customers tidy — same number means same person, even if a name was typed differently.';
     bodyContent = (
       <View style={styles.matchCard}>
         <Text style={styles.matchLabel}>PHONE NUMBER ALREADY ON FILE</Text>
         <CustomerCard
-          name={DEDUP_MATCH.name}
-          address={`${DEDUP_MATCH.address} · ${DEDUP_MATCH.phone}`}
-          meta={DEDUP_MATCH.meta}
+          name={candidate.name}
+          address={[candidate.address, candidate.phone]
+            .filter(Boolean)
+            .join(' · ')}
+          meta={candidate.eircode}
         />
       </View>
     );
     footer = (
       <View style={styles.gap12}>
         <Button
-          label={`Yes — use existing ${DEDUP_MATCH.name}`}
+          label={`Yes — use existing ${candidate.name}`}
           fullWidth
-          onPress={() =>
-            pickCustomer({
-              name: DEDUP_MATCH.name,
-              phone: DEDUP_MATCH.phone,
-              address: DEDUP_MATCH.address,
-            })
-          }
+          onPress={() => pickExisting(candidate.id)}
         />
         <Button
           label="No — create a new customer"
           variant="outlined"
           color="secondary"
           fullWidth
-          onPress={() => {
-            const d = form.getValues();
-            pickCustomer({ name: d.fullName, phone: d.phone, address: d.address });
-          }}
+          onPress={() => pickNew(form.getValues())}
         />
       </View>
     );
@@ -334,15 +630,20 @@ const StartJobScreen = () => {
           color="secondary"
           fullWidth
           onPress={() => {
-            setCrew(['crew-ciaran']);
+            const me = roster.find(r => r.isSelf);
+            setCrew(me ? [me.id] : []);
             setStep(4);
           }}
         />
-        {CREW.map(m => (
+        {roster.map(m => (
           <CheckboxRow
             key={m.id}
-            name={m.name}
-            role={m.role}
+            name={m.fullName ?? m.email ?? 'Member'}
+            role={
+              m.isSelf
+                ? [m.roleName ?? 'Member', 'you'].join(' · ')
+                : m.roleName ?? ''
+            }
             selected={crew.includes(m.id)}
             onPress={() => toggleCrew(m.id)}
           />
@@ -357,14 +658,57 @@ const StartJobScreen = () => {
         onPress={() => setStep(4)}
       />
     );
+  } else if (step === 4) {
+    title = 'Anything off the van?';
+    subtitle =
+      'Tap to add van stock — you can adjust or add more during the job.';
+    bodyContent = (
+      <View style={styles.gap12}>
+        <Input
+          placeholder="Search materials…"
+          value={materialSearch}
+          onChangeText={setMaterialSearch}
+          autoCapitalize="none"
+        />
+        {catalog.map(m => (
+          <CheckboxRow
+            key={m.id}
+            name={m.name}
+            role={[`€${m.sellPrice.toFixed(2)}`, m.unit]
+              .filter(Boolean)
+              .join(' · ')}
+            selected={pickedMaterials.some(x => x.id === m.id)}
+            onPress={() => toggleMaterial(m)}
+          />
+        ))}
+        {!catalog.length ? (
+          <Text style={styles.hintText}>
+            No materials found — try a different search.
+          </Text>
+        ) : null}
+      </View>
+    );
+    footer = (
+      <Button
+        label={
+          pickedMaterials.length
+            ? `${pickedMaterials.length} item${
+                pickedMaterials.length === 1 ? '' : 's'
+              } — continue`
+            : 'Continue'
+        }
+        fullWidth
+        onPress={() => setStep(5)}
+      />
+    );
   } else {
     title = 'Snap before photos.';
     subtitle =
       'Two or three photos of the existing state. They protect both sides if something’s queried.';
     bodyContent = (
       <Pressable style={styles.photoTile} onPress={openCamera}>
-        {photoUri ? (
-          <Image source={{ uri: photoUri }} style={styles.photoImg} />
+        {photo ? (
+          <Image source={{ uri: photo.uri }} style={styles.photoImg} />
         ) : (
           <>
             <Ionicons name="camera-outline" size={28} color={colors.textMuted} />
@@ -379,10 +723,22 @@ const StartJobScreen = () => {
           label="Open camera"
           leftIcon="camera"
           fullWidth
+          disabled={starting}
           onPress={openCamera}
         />
-        <Pressable onPress={finish} hitSlop={8} style={styles.skipBtn}>
-          <Text style={styles.skipText}>Skip — start the job</Text>
+        <Pressable
+          onPress={finish}
+          hitSlop={8}
+          style={styles.skipBtn}
+          disabled={starting}
+        >
+          <Text style={styles.skipText}>
+            {starting
+              ? 'Starting…'
+              : photo
+              ? 'Start the job'
+              : 'Skip — start the job'}
+          </Text>
         </Pressable>
       </View>
     );
@@ -465,6 +821,29 @@ export const makeStyles = (theme: Theme) =>
       fontSize: theme.typography.size.sm,
       color: theme.colors.textMuted,
       fontFamily: theme.fonts.medium,
+    },
+    suggestBox: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radii.md,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      marginTop: -8,
+    },
+    suggestRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+    },
+    suggestDivider: {
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.divider,
+    },
+    suggestText: {
+      flex: 1,
+      fontSize: theme.typography.size.sm,
+      color: theme.colors.text,
     },
     skipBtn: { alignSelf: 'center', paddingVertical: 4 },
     skipText: {
