@@ -20,7 +20,7 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { Button, Input } from '@/components/ui';
+import { AppToast, Button, Input } from '@/components/ui';
 import {
   addReceiptLine,
   confirmReceiptToJob,
@@ -127,7 +127,7 @@ const AddReceiptScreen = () => {
   };
 
   const openCamera = async (closeOnCancel: boolean) => {
-    const asset = await capturePhoto({ quality: 0.8, maxSize: 2000 });
+    const asset = await capturePhoto({ quality: 0.8, maxSize: 1600 });
     if (!asset) {
       if (closeOnCancel) navigation.goBack();
       return;
@@ -532,6 +532,7 @@ const AddReceiptScreen = () => {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      <AppToast />
     </View>
   );
 };

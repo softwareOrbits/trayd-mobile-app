@@ -15,7 +15,7 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { Button } from '@/components/ui';
+import { AppToast, Button } from '@/components/ui';
 import { addJobPhoto, type JobPhotoPhase } from '@/services/jobs';
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
@@ -139,6 +139,7 @@ const AddJobPhotoScreen = () => {
           />
         )}
       </View>
+      <AppToast />
     </View>
   );
 };

@@ -6,7 +6,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   useNavigation,
   useRoute,
@@ -16,13 +15,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Toast from 'react-native-toast-message';
 
-import { Button, Input } from '@/components/ui';
-import {
-  LineItemRow,
-  PhotoStrip,
-  toLineItem,
-  type LineItem,
-} from '@/components/jobDetail';
+import { Button, Input, JobFooter, JobHeader } from '@/components/ui';
+import { PhotoStrip } from '@/components/jobDetail';
 import { WizardScaffold } from '@/components/wizard';
 import {
   addJobPhoto,
@@ -33,6 +27,7 @@ import {
   fetchDefaultVatRate,
   fetchJobDetail,
   fetchJobMaterials,
+  fetchJobNotes,
   fetchJobPhotos,
   fetchJobSegments,
   finishJob,
@@ -40,6 +35,7 @@ import {
   isAccessRevoked,
   pauseJob,
   type JobMaterial,
+  type JobNote,
   type JobSegment,
 } from '@/services/jobs';
 import { enqueueAction, queueFinish } from '@/services/outbox';
@@ -99,7 +95,6 @@ const SUMMARY_CHIPS = [
 const WrapUpJobScreen = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const insets = useSafeAreaInsets();
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const { params } = useRoute<RouteProp<MainStackParamList, 'WrapUpJob'>>();
@@ -119,9 +114,14 @@ const WrapUpJobScreen = () => {
   const [materials, setMaterials] = useState<JobMaterial[]>([]);
   const [rates, setRates] = useState<Map<string, number>>(new Map());
   const [vatRate, setVatRate] = useState(0);
-  const [afterPhotos, setAfterPhotos] = useState<{ id: string; uri: string }[]>(
-    [],
-  );
+  const [afterPhotos, setAfterPhotos] = useState<
+    { id: string; uri: string; time: string | null }[]
+  >([]);
+  const [refPhotos, setRefPhotos] = useState<
+    { id: string; uri: string; label: string }[]
+  >([]);
+  const [photoCounts, setPhotoCounts] = useState({ beforeMid: 0, after: 0 });
+  const [notes, setNotes] = useState<JobNote[]>([]);
 
   // Step 1 — start & finish times
   const [startDate, setStartDate] = useState<Date | null>(null);
@@ -133,12 +133,18 @@ const WrapUpJobScreen = () => {
   const [editReason, setEditReason] = useState('');
   const [timeEdited, setTimeEdited] = useState(false);
   const [startEdited, setStartEdited] = useState(false);
+  // Editor: days to shift the date, and which quick-preset is active.
+  const [editDayOffset, setEditDayOffset] = useState(0);
+  const [activePreset, setActivePreset] = useState<
+    'down5' | 'down15' | 'now' | null
+  >(null);
 
   // Steps 2–5
   const [capturing, setCapturing] = useState(false);
   const [summary, setSummary] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [finalHours, setFinalHours] = useState(0);
+  const [submittedAt, setSubmittedAt] = useState<string | null>(null);
 
   const openSegment = useMemo(
     () => segments.find(s => s.finishTime == null) ?? null,
@@ -148,11 +154,31 @@ const WrapUpJobScreen = () => {
   const loadAfterPhotos = useCallback(async (jobId: string) => {
     try {
       const all = await fetchJobPhotos(jobId);
+      const fmtT = (iso: string | null) =>
+        iso
+          ? new Date(iso).toLocaleTimeString('en-GB', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : null;
       setAfterPhotos(
         all
           .filter(p => p.phase === 'after' && p.url)
-          .map(p => ({ id: p.id, uri: p.url as string })),
+          .map(p => ({ id: p.id, uri: p.url as string, time: fmtT(p.takenAt) })),
       );
+      setRefPhotos(
+        all
+          .filter(p => p.phase !== 'after' && p.url)
+          .map(p => ({
+            id: p.id,
+            uri: p.url as string,
+            label: p.phase === 'during' ? 'MID' : 'BEFORE',
+          })),
+      );
+      setPhotoCounts({
+        beforeMid: all.filter(p => p.phase !== 'after').length,
+        after: all.filter(p => p.phase === 'after').length,
+      });
     } catch (e) {
       console.warn('after photos:', e instanceof Error ? e.message : e);
     }
@@ -162,15 +188,17 @@ const WrapUpJobScreen = () => {
     let active = true;
     (async () => {
       try {
-        const [d, segs, mats, rateMap, vat] = await Promise.all([
+        const [d, segs, mats, rateMap, vat, jobNotes] = await Promise.all([
           fetchJobDetail(params.jobId),
           fetchJobSegments(params.jobId),
           fetchJobMaterials(params.jobId),
           fetchAssignmentRates(params.jobId).catch(() => new Map()),
           fetchDefaultVatRate().catch(() => 0),
+          fetchJobNotes(params.jobId).catch(() => [] as JobNote[]),
         ]);
         if (!active) return;
         setDetail(d);
+        setNotes(jobNotes);
         // End-of-day decision only applies to jobs that can span days.
         if (d.jobType === 'standard' || d.jobType === 'multi_day') {
           setPhase('decision');
@@ -251,8 +279,6 @@ const WrapUpJobScreen = () => {
       ? Math.max(0, (finishDate.getTime() - startDate.getTime()) / 3_600_000)
       : hours;
 
-  const lineItems: LineItem[] = materials.map(toLineItem);
-
   // ----- Step 1: time edit (start or finish) -----
   const baseFor = (target: 'start' | 'finish') =>
     target === 'start' ? startDate : finishDate;
@@ -263,6 +289,8 @@ const WrapUpJobScreen = () => {
     setEditHH(two(d.getHours()));
     setEditMM(two(d.getMinutes()));
     setEditReason('');
+    setEditDayOffset(0);
+    setActivePreset(null);
     setEditing(true);
   };
 
@@ -271,11 +299,14 @@ const WrapUpJobScreen = () => {
     setEditTarget(target);
     setEditHH(two(d.getHours()));
     setEditMM(two(d.getMinutes()));
+    setEditDayOffset(0);
+    setActivePreset(null);
   };
 
-  // Build a Date on the target day from the current HH:MM in the editor.
+  // Build a Date on the target day (plus any offset) from the editor HH:MM.
   const editedDate = () => {
     const d = new Date(baseFor(editTarget) ?? Date.now());
+    d.setDate(d.getDate() + editDayOffset);
     d.setHours(
       Math.min(23, Math.max(0, parseInt(editHH, 10) || 0)),
       Math.min(59, Math.max(0, parseInt(editMM, 10) || 0)),
@@ -283,6 +314,16 @@ const WrapUpJobScreen = () => {
       0,
     );
     return d;
+  };
+
+  // Manual HH/MM edits clear the active preset highlight.
+  const onEditHH = (v: string) => {
+    setEditHH(v);
+    setActivePreset(null);
+  };
+  const onEditMM = (v: string) => {
+    setEditMM(v);
+    setActivePreset(null);
   };
 
   const applyPreset = (kind: 'down5' | 'down15' | 'now') => {
@@ -294,6 +335,7 @@ const WrapUpJobScreen = () => {
     }
     setEditHH(two(d.getHours()));
     setEditMM(two(d.getMinutes()));
+    setActivePreset(kind);
   };
 
   const saveTimeEdit = () => {
@@ -386,6 +428,7 @@ const WrapUpJobScreen = () => {
       });
       setFinalHours(total || hours);
       dispatch(fetchJobs());
+      setSubmittedAt(fmtClock(new Date()));
       setResult('success');
     } catch (e) {
       if (isNetworkError(e)) {
@@ -396,6 +439,7 @@ const WrapUpJobScreen = () => {
           atIso: finishIso,
         });
         setFinalHours(hours);
+        setSubmittedAt(fmtClock(new Date()));
         setResult('offline');
       } else if (isAccessRevoked(e)) {
         dispatch(signOut());
@@ -453,8 +497,15 @@ const WrapUpJobScreen = () => {
   // ---------------- Result screens ----------------
   if (result) {
     const success = result === 'success';
+    const owner = detail?.createdByName ?? 'Your office';
     return (
-      <View style={[styles.flex, styles.resultWrap, { paddingTop: insets.top }]}>
+      <View style={styles.flex}>
+        <JobHeader
+          title=""
+          onBack={() => navigation.navigate('Tabs')}
+          right={<Text style={styles.resultLogo}>TRAYD</Text>}
+        />
+
         <View style={styles.resultBody}>
           <View
             style={[
@@ -468,37 +519,39 @@ const WrapUpJobScreen = () => {
               color={success ? colors.onPrimary : colors.textMuted}
             />
           </View>
+
+          <Text style={styles.resultEyebrow}>
+            {success
+              ? `SUBMITTED${submittedAt ? ` · ${submittedAt}` : ''}`
+              : `SAVED OFFLINE${submittedAt ? ` · ${submittedAt}` : ''}`}
+          </Text>
           <Text style={styles.resultTitle}>
-            {success ? 'Good work 👍' : 'Saved on your phone.'}
+            {success ? 'Good work. 👋' : 'Saved on your phone.'}
           </Text>
           <Text style={styles.resultText}>
             {success
-              ? 'This job has been sent for review. You’ll get a push when it’s approved.'
+              ? `${owner} has been notified. You’ll get a push when the invoice is approved.`
               : 'Nothing to do — Trayd will send this automatically when signal returns.'}
           </Text>
 
-          {success ? (
-            <Text style={styles.resultStat}>
+          <View style={styles.resultCard}>
+            <View style={styles.resultCardHead}>
+              <Text style={styles.resultCardName} numberOfLines={1}>
+                {(detail?.customerName ?? 'Job').toUpperCase()}
+              </Text>
+              <View style={styles.reviewBadge}>
+                <Text style={styles.reviewBadgeText}>
+                  {success ? 'AWAITING REVIEW' : 'WAITING TO SYNC'}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.resultCardStat}>
               {`${fmtHoursMin(finalHours)} · ${fmtMoney(materialsTotal)} materials`}
             </Text>
-          ) : (
-            <View style={styles.syncRow}>
-              <Ionicons name="time-outline" size={16} color={colors.textMuted} />
-              <Text style={styles.syncText}>Job submission · waiting to sync</Text>
-            </View>
-          )}
+          </View>
         </View>
 
-        <View style={[styles.resultFooter, { paddingBottom: insets.bottom + 16 }]}>
-          {success ? (
-            <Button
-              label="Start another job"
-              variant="outlined"
-              color="secondary"
-              fullWidth
-              onPress={() => navigation.replace('StartJob')}
-            />
-          ) : null}
+        <JobFooter>
           <Button
             label="Back to chat"
             fullWidth
@@ -506,7 +559,16 @@ const WrapUpJobScreen = () => {
               navigation.navigate('JobChat', { jobId: params.jobId })
             }
           />
-        </View>
+          {success ? (
+            <Pressable
+              onPress={() => navigation.replace('StartJob')}
+              hitSlop={8}
+              style={styles.linkBtn}
+            >
+              <Text style={styles.linkText}>Start another job</Text>
+            </Pressable>
+          ) : null}
+        </JobFooter>
       </View>
     );
   }
@@ -545,14 +607,8 @@ const WrapUpJobScreen = () => {
     const dayNumber = Math.max(1, dayIds.length || 1);
 
     return (
-      <View style={[styles.flex, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.decisionHeader}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-            <Ionicons name="chevron-back" size={22} color={colors.secondary} />
-          </Pressable>
-          <Text style={styles.decisionHeaderTitle}>Wrapping up</Text>
-          <View style={styles.decisionHeaderSpacer} />
-        </View>
+      <View style={styles.flex}>
+        <JobHeader title="Wrapping up" onBack={() => navigation.goBack()} />
 
         <View style={styles.decisionBody}>
           <Text style={styles.decisionEyebrow}>
@@ -596,9 +652,7 @@ const WrapUpJobScreen = () => {
           </View>
         </View>
 
-        <View
-          style={[styles.decisionFooter, { paddingBottom: insets.bottom + 16 }]}
-        >
+        <JobFooter>
           <Button
             label="Continue tomorrow"
             fullWidth
@@ -613,12 +667,24 @@ const WrapUpJobScreen = () => {
             disabled={pausing}
             onPress={() => setPhase('wizard')}
           />
-        </View>
+        </JobFooter>
       </View>
     );
   }
 
   // ---------------- Wizard ----------------
+  // The owner ("Síle" in the design) — fall back to a generic label.
+  const ownerName = detail.createdByName ?? 'your office';
+  const customerNotes = notes.filter(
+    n => n.visibility === 'customer_visible',
+  ).length;
+  const notesValue =
+    notes.length === 0
+      ? '—'
+      : customerNotes === 0
+      ? `${notes.length} employer-only`
+      : `${notes.length} note${notes.length === 1 ? '' : 's'}`;
+
   let title = '';
   let subtitle: string | undefined;
   let body: React.ReactNode = null;
@@ -657,14 +723,26 @@ const WrapUpJobScreen = () => {
 
         <View style={styles.dateRow}>
           <Text style={styles.dateLabel}>DATE</Text>
-          <Text style={styles.dateValue}>{fmtDateLong(editD)}</Text>
+          <View style={styles.dateStepper}>
+            <Pressable onPress={() => setEditDayOffset(o => o - 1)} hitSlop={8}>
+              <Ionicons name="chevron-back" size={18} color={colors.secondary} />
+            </Pressable>
+            <Text style={styles.dateValue}>{fmtDateLong(editD)}</Text>
+            <Pressable onPress={() => setEditDayOffset(o => o + 1)} hitSlop={8}>
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={colors.secondary}
+              />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.timeEditCard}>
           <View style={styles.timeEditRow}>
             <Input
               value={editHH}
-              onChangeText={setEditHH}
+              onChangeText={onEditHH}
               keyboardType="number-pad"
               maxLength={2}
               style={styles.timeBox}
@@ -673,7 +751,7 @@ const WrapUpJobScreen = () => {
             <Text style={styles.timeColon}>:</Text>
             <Input
               value={editMM}
-              onChangeText={setEditMM}
+              onChangeText={onEditMM}
               keyboardType="number-pad"
               maxLength={2}
               style={styles.timeBox}
@@ -690,15 +768,20 @@ const WrapUpJobScreen = () => {
 
         <Text style={styles.presetHeading}>QUICK PRESETS</Text>
         <View style={styles.presetWrap}>
-          {presets.map(p => (
-            <Pressable
-              key={p.k}
-              style={styles.preset}
-              onPress={() => applyPreset(p.k)}
-            >
-              <Text style={styles.presetText}>{p.label}</Text>
-            </Pressable>
-          ))}
+          {presets.map(p => {
+            const on = activePreset === p.k;
+            return (
+              <Pressable
+                key={p.k}
+                style={[styles.preset, on && styles.presetOn]}
+                onPress={() => applyPreset(p.k)}
+              >
+                <Text style={[styles.presetText, on && styles.presetTextOn]}>
+                  {p.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* Details list */}
@@ -737,8 +820,11 @@ const WrapUpJobScreen = () => {
     );
   } else if (step === 1) {
     title = 'Finishing now?';
-    subtitle =
-      'Check the times below — tap Edit to fix the start or finish if the clock is off.';
+    subtitle = `We logged your start at ${
+      startDate ? fmtClock(startDate) : '—'
+    } and finish at ${
+      finishDate ? fmtClock(finishDate) : '—'
+    }. Adjust either if you need to fix things up retroactively.`;
     body = (
       <View style={styles.gap12}>
         <View style={styles.timeCard}>
@@ -763,15 +849,16 @@ const WrapUpJobScreen = () => {
             {finishDate ? fmtClock(finishDate) : '—'}
           </Text>
         </View>
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Total time on site</Text>
+        <View style={styles.totalCard}>
+          <Text style={styles.totalLabel}>TOTAL TIME ON SITE</Text>
           <Text style={styles.totalValue}>{fmtHoursMin(spanHours)}</Text>
         </View>
         <View style={styles.warnBox}>
           <Ionicons name="alert-circle" size={18} color={colors.warning} />
           <Text style={styles.warnText}>
-            Off the clock? Edit the times so your hours match when you actually
-            started and left.
+            <Text style={styles.warnStrong}>Forgot to off the timer? </Text>
+            Tap a card to set the real start or finish time — we log the edit so
+            {` ${ownerName}`} can see what you changed.
           </Text>
         </View>
       </View>
@@ -779,8 +866,7 @@ const WrapUpJobScreen = () => {
     footer = (
       <>
         <Button
-          label={`Finish at ${finishDate ? fmtClock(finishDate) : '—'}`}
-          rightIcon="checkmark"
+          label={`Finish at ${finishDate ? fmtClock(finishDate) : '—'} ✓`}
           fullWidth
           onPress={() => setStep(2)}
         />
@@ -799,6 +885,15 @@ const WrapUpJobScreen = () => {
       'Two or three of the finished work. They sit next to the before shots.';
     body = (
       <View style={styles.gap16}>
+        {afterPhotos.length ? (
+          <PhotoStrip
+            photos={afterPhotos.map(p => ({
+              label: p.time ? `AFTER · ${p.time}` : 'AFTER',
+              uri: p.uri,
+            }))}
+          />
+        ) : null}
+
         <Pressable style={styles.photoTile} onPress={addAfterPhoto}>
           {capturing ? (
             <ActivityIndicator color={colors.textMuted} />
@@ -813,10 +908,18 @@ const WrapUpJobScreen = () => {
             </>
           )}
         </Pressable>
-        {afterPhotos.length ? (
-          <PhotoStrip
-            photos={afterPhotos.map(p => ({ label: 'AFTER', uri: p.uri }))}
-          />
+
+        {refPhotos.length ? (
+          <View>
+            <Text style={styles.refLabel}>
+              {`BEFORE · ${refPhotos.length} PHOTO${
+                refPhotos.length === 1 ? '' : 'S'
+              }`}
+            </Text>
+            <PhotoStrip
+              photos={refPhotos.map(p => ({ label: p.label, uri: p.uri }))}
+            />
+          </View>
         ) : null}
       </View>
     );
@@ -842,35 +945,75 @@ const WrapUpJobScreen = () => {
           numberOfLines={5}
           style={styles.summaryInput}
         />
-        <View style={styles.chipWrap}>
-          {SUMMARY_CHIPS.map(c => (
-            <Pressable key={c} style={styles.chip} onPress={() => toggleChip(c)}>
-              <Text style={styles.chipText}>+ {c}</Text>
-            </Pressable>
-          ))}
+        <View>
+          <Text style={styles.quickAddLabel}>QUICK ADD</Text>
+          <View style={styles.chipWrap}>
+            {SUMMARY_CHIPS.map(c => (
+              <Pressable
+                key={c}
+                style={styles.chip}
+                onPress={() => toggleChip(c)}
+              >
+                <Text style={styles.chipText}>+ {c}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+        <View style={styles.infoBox}>
+          <Text style={styles.infoText}>
+            AI uses this as the description line — keep it factual. Trayd will
+            not reword it.
+          </Text>
         </View>
       </View>
     );
     footer = <Button label="Continue" fullWidth onPress={() => setStep(4)} />;
   } else if (step === 4) {
+    const addItems = () =>
+      navigation.navigate('AddReceipt', { jobId: params.jobId });
     title = 'Materials look right?';
-    subtitle = 'Everything logged across the job. Make sure nothing’s missing.';
+    subtitle =
+      'Everything logged across the day, in one list. Make sure nothing’s missing before submitting.';
     body = (
-      <View style={styles.card}>
-        {lineItems.length ? (
-          lineItems.map((it, i) => (
-            <LineItemRow
-              key={`${it.name}-${i}`}
-              item={it}
-              last={i === lineItems.length - 1}
-            />
-          ))
-        ) : (
-          <Text style={styles.emptyText}>Nothing logged.</Text>
-        )}
-        <View style={styles.materialsTotalRow}>
-          <Text style={styles.materialsTotalLabel}>Materials total</Text>
-          <Text style={styles.materialsTotalValue}>
+      <View style={styles.gap12}>
+        <View style={styles.card}>
+          {materials.length ? (
+            materials.map((m, i) => (
+              <View
+                key={m.id}
+                style={[
+                  styles.matRow,
+                  i < materials.length - 1 && styles.matDivider,
+                ]}
+              >
+                <View style={styles.matMain}>
+                  <Text style={styles.matName}>{m.description}</Text>
+                  <View style={styles.matMeta}>
+                    <View style={styles.matChip}>
+                      <Text style={styles.matChipText}>
+                        {m.source === 'receipt' ? 'RECEIPT' : 'VAN STOCK'}
+                      </Text>
+                    </View>
+                    <Text style={styles.matQty}>{`qty ${m.quantity}`}</Text>
+                  </View>
+                </View>
+                <Text style={styles.matAmount}>
+                  {fmtMoney(m.quantity * m.unitCost)}
+                </Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.emptyText}>Nothing logged.</Text>
+          )}
+          <Pressable style={styles.addItemBtn} onPress={addItems}>
+            <Ionicons name="add" size={16} color={colors.secondary} />
+            <Text style={styles.addItemText}>Add another item</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.materialsTotalBar}>
+          <Text style={styles.materialsTotalBarLabel}>MATERIALS TOTAL</Text>
+          <Text style={styles.materialsTotalBarValue}>
             {fmtMoney(materialsTotal)}
           </Text>
         </View>
@@ -883,40 +1026,68 @@ const WrapUpJobScreen = () => {
           fullWidth
           onPress={() => setStep(5)}
         />
-        <Pressable
-          onPress={() => navigation.navigate('AddReceipt', { jobId: params.jobId })}
-          hitSlop={8}
-          style={styles.linkBtn}
-        >
+        <Pressable onPress={addItems} hitSlop={8} style={styles.linkBtn}>
           <Text style={styles.linkText}>Add or edit items</Text>
         </Pressable>
       </>
     );
   } else {
-    title = 'Send this to your office?';
-    subtitle = 'A draft summary — review may change it before the invoice goes out.';
+    const crewCount = new Set(segments.map(s => s.memberId)).size;
+    const labourCrew = crewCount <= 1 ? 'just you' : `${crewCount} crew`;
+    const dayIds = Array.from(
+      new Set(segments.map(s => s.jobDayId).filter(Boolean)),
+    );
+    const totalDays = Math.max(1, dayIds.length);
+    const jobMeta = [
+      detail.customerEircode,
+      totalDays > 1 ? `day ${totalDays} of ${totalDays}` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    title = `Send this to ${ownerName}?`;
+    subtitle = `This is a draft summary, not the final invoice — ${ownerName} reviews the full line-by-line and edits before sending. Catch anything wrong now.`;
     body = (
       <View style={styles.gap12}>
-        <Text style={styles.draftName}>{detail.customerName ?? 'Customer'}</Text>
-        <View style={styles.card}>
-          <DraftRow label={`Labour · ${fmtHoursMin(hours)}`} value={fmtMoney(labour)} />
-          <DraftRow label="Materials" value={fmtMoney(materialsTotal)} />
+        <View style={styles.draftCard}>
+          <View style={styles.draftHead}>
+            <Text style={styles.draftEyebrow}>JOB</Text>
+            <View style={styles.reviewBadge}>
+              <Text style={styles.reviewBadgeText}>AWAITING REVIEW</Text>
+            </View>
+          </View>
+          <Text style={styles.draftCustomer}>
+            {detail.customerName ?? 'Customer'}
+          </Text>
+          {jobMeta ? <Text style={styles.draftMeta}>{jobMeta}</Text> : null}
+
+          <View style={styles.draftDivider} />
+          <DraftRow label={`Labour · ${labourCrew}`} value={fmtHoursMin(hours)} />
           <DraftRow
-            label={`VAT (${vatRate}%)`}
-            value={fmtMoney(vatAmount)}
+            label={`Materials · ${materials.length} line${materials.length === 1 ? '' : 's'}`}
+            value={fmtMoney(materialsTotal)}
           />
+          <DraftRow
+            label="Before / after photos"
+            value={`${photoCounts.beforeMid} + ${photoCounts.after}`}
+          />
+          <DraftRow label="Notes" value={notesValue} last />
+
           <View style={styles.draftTotalRow}>
-            <Text style={styles.draftTotalLabel}>DRAFT TOTAL</Text>
+            <View>
+              <Text style={styles.draftTotalLabel}>DRAFT TOTAL</Text>
+              <Text style={styles.draftTotalSub}>{`INCL. ${vatRate}% VAT`}</Text>
+            </View>
             <Text style={styles.draftTotalValue}>{fmtMoney(draftTotal)}</Text>
           </View>
+          <Text style={styles.draftCaveat}>
+            {ownerName}&apos;s review may change this
+          </Text>
         </View>
-        <Text style={styles.metaLine}>
-          {`${afterPhotos.length} after photo${afterPhotos.length === 1 ? '' : 's'} · ${materials.length} material line${materials.length === 1 ? '' : 's'}`}
-        </Text>
+
         <View style={styles.warnBox}>
           <Ionicons name="information-circle" size={18} color={colors.warning} />
           <Text style={styles.warnText}>
-            You won’t see the final invoice document. Once your office approves,
+            You won’t see the final invoice document. Once {ownerName} approves,
             this job goes Approved.
           </Text>
         </View>
@@ -925,8 +1096,8 @@ const WrapUpJobScreen = () => {
     footer = (
       <>
         <Button
-          label="Submit to office"
-          rightIcon="paper-plane"
+          label={`Submit to ${ownerName}`}
+          leftIcon="paper-plane"
           fullWidth
           loading={submitting}
           onPress={submit}
@@ -954,10 +1125,18 @@ const WrapUpJobScreen = () => {
   );
 };
 
-const DraftRow = ({ label, value }: { label: string; value: string }) => {
+const DraftRow = ({
+  label,
+  value,
+  last,
+}: {
+  label: string;
+  value: string;
+  last?: boolean;
+}) => {
   const styles = useThemedStyles(makeStyles);
   return (
-    <View style={styles.draftRow}>
+    <View style={[styles.draftRow, last && styles.draftRowLast]}>
       <Text style={styles.draftRowLabel}>{label}</Text>
       <Text style={styles.draftRowValue}>{value}</Text>
     </View>
@@ -1003,15 +1182,21 @@ export const makeStyles = (theme: Theme) =>
       fontFamily: theme.fonts.semibold,
       color: theme.colors.primary,
     },
-    totalRow: {
+    totalCard: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 4,
-      paddingTop: 4,
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radii.md,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
     },
     totalLabel: {
-      fontSize: theme.typography.size.sm,
+      fontSize: 11,
+      fontFamily: theme.fonts.monoBold,
+      letterSpacing: 1.2,
       color: theme.colors.textMuted,
     },
     totalValue: {
@@ -1033,6 +1218,7 @@ export const makeStyles = (theme: Theme) =>
       color: theme.colors.text,
       lineHeight: 19,
     },
+    warnStrong: { fontFamily: theme.fonts.bold },
 
     // time editor
     segToggle: {
@@ -1048,13 +1234,18 @@ export const makeStyles = (theme: Theme) =>
       paddingVertical: 9,
       borderRadius: theme.radii.sm,
     },
-    segItemOn: { backgroundColor: theme.colors.surface },
+    segItemOn: { backgroundColor: theme.colors.secondary },
     segText: {
       fontSize: theme.typography.size.sm,
       fontFamily: theme.fonts.semibold,
       color: theme.colors.textMuted,
     },
-    segTextOn: { color: theme.colors.text },
+    segTextOn: { color: theme.colors.onSecondary },
+    dateStepper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+    },
     dateRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1078,6 +1269,7 @@ export const makeStyles = (theme: Theme) =>
       color: theme.colors.text,
     },
     timeEditCard: {
+      backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.colors.primary,
       borderRadius: theme.radii.lg,
@@ -1171,12 +1363,42 @@ export const makeStyles = (theme: Theme) =>
       paddingHorizontal: 14,
       paddingVertical: 9,
     },
+    presetOn: {
+      backgroundColor: theme.colors.secondary,
+      borderColor: theme.colors.secondary,
+    },
     presetText: {
       fontSize: theme.typography.size.sm,
       fontFamily: theme.fonts.medium,
       color: theme.colors.text,
     },
+    presetTextOn: { color: theme.colors.onSecondary },
     reasonInput: { minHeight: 80, textAlignVertical: 'top' },
+
+    refLabel: {
+      marginBottom: 8,
+      fontSize: 11,
+      fontFamily: theme.fonts.monoBold,
+      letterSpacing: 1.2,
+      color: theme.colors.textMuted,
+    },
+    quickAddLabel: {
+      marginBottom: 8,
+      fontSize: 11,
+      fontFamily: theme.fonts.monoBold,
+      letterSpacing: 1.2,
+      color: theme.colors.textMuted,
+    },
+    infoBox: {
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: theme.radii.md,
+      padding: 12,
+    },
+    infoText: {
+      fontSize: theme.typography.size.sm,
+      color: theme.colors.textMuted,
+      lineHeight: 19,
+    },
 
     // step 2 photos
     photoTile: {
@@ -1226,23 +1448,79 @@ export const makeStyles = (theme: Theme) =>
       fontSize: theme.typography.size.sm,
       color: theme.colors.textMuted,
     },
-    materialsTotalRow: {
+    matRow: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
-      paddingVertical: 14,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.divider,
+      justifyContent: 'space-between',
+      gap: 12,
+      paddingVertical: 13,
     },
-    materialsTotalLabel: {
+    matDivider: {
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.divider,
+    },
+    matMain: { flex: 1, gap: 6 },
+    matName: {
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.medium,
+      color: theme.colors.text,
+    },
+    matMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    matChip: {
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: theme.radii.sm,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+    },
+    matChipText: {
+      fontSize: 9,
+      fontFamily: theme.fonts.monoBold,
+      letterSpacing: 0.6,
+      color: theme.colors.textMuted,
+    },
+    matQty: {
+      fontSize: theme.typography.size.xs,
+      fontFamily: theme.fonts.mono,
+      color: theme.colors.textMuted,
+    },
+    matAmount: {
       fontSize: theme.typography.size.sm,
       fontFamily: theme.fonts.semibold,
       color: theme.colors.text,
     },
-    materialsTotalValue: {
-      fontSize: theme.typography.size.lg,
+    addItemBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 14,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.divider,
+    },
+    addItemText: {
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.secondary,
+    },
+    materialsTotalBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radii.lg,
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+    },
+    materialsTotalBarLabel: {
+      fontSize: 11,
+      fontFamily: theme.fonts.monoBold,
+      letterSpacing: 1.2,
+      color: theme.colors.onPrimary,
+    },
+    materialsTotalBarValue: {
+      fontSize: theme.typography.size.xl,
       fontFamily: theme.fonts.bold,
-      color: theme.colors.primary,
+      color: theme.colors.onPrimary,
     },
 
     // step 5 draft
@@ -1251,6 +1529,54 @@ export const makeStyles = (theme: Theme) =>
       fontFamily: theme.fonts.bold,
       color: theme.colors.text,
     },
+    draftCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radii.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    draftHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    draftEyebrow: {
+      fontSize: 10,
+      fontFamily: theme.fonts.monoBold,
+      letterSpacing: 1.2,
+      color: theme.colors.textMuted,
+    },
+    reviewBadge: {
+      backgroundColor: theme.colors.warningBg,
+      borderRadius: theme.radii.sm,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    reviewBadgeText: {
+      fontSize: 9,
+      fontFamily: theme.fonts.monoBold,
+      letterSpacing: 0.6,
+      color: theme.colors.warning,
+    },
+    draftCustomer: {
+      marginTop: 6,
+      fontSize: theme.typography.size.lg,
+      fontFamily: theme.fonts.bold,
+      color: theme.colors.text,
+    },
+    draftMeta: {
+      marginTop: 2,
+      fontSize: theme.typography.size.xs,
+      fontFamily: theme.fonts.mono,
+      color: theme.colors.textMuted,
+    },
+    draftDivider: {
+      height: 1,
+      backgroundColor: theme.colors.divider,
+      marginTop: 12,
+    },
     draftRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -1258,6 +1584,7 @@ export const makeStyles = (theme: Theme) =>
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.divider,
     },
+    draftRowLast: { borderBottomWidth: 0 },
     draftRowLabel: {
       fontSize: theme.typography.size.sm,
       color: theme.colors.textMuted,
@@ -1271,7 +1598,9 @@ export const makeStyles = (theme: Theme) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingVertical: 16,
+      paddingTop: 14,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.divider,
     },
     draftTotalLabel: {
       fontSize: 11,
@@ -1279,10 +1608,21 @@ export const makeStyles = (theme: Theme) =>
       letterSpacing: 1.4,
       color: theme.colors.textMuted,
     },
+    draftTotalSub: {
+      marginTop: 2,
+      fontSize: 9,
+      fontFamily: theme.fonts.mono,
+      color: theme.colors.textMuted,
+    },
     draftTotalValue: {
       fontSize: theme.typography.size.xxl,
       fontFamily: theme.fonts.bold,
       color: theme.colors.text,
+    },
+    draftCaveat: {
+      marginTop: 8,
+      fontSize: theme.typography.size.xs,
+      color: theme.colors.textMuted,
     },
     metaLine: {
       fontSize: theme.typography.size.xs,
@@ -1298,13 +1638,33 @@ export const makeStyles = (theme: Theme) =>
 
     // result screens
     resultWrap: { paddingHorizontal: 24 },
-    resultBody: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 },
+    resultTop: { paddingTop: 8, paddingHorizontal: 24, alignItems: 'flex-start' },
+    resultLogo: {
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.bold,
+      letterSpacing: 1.5,
+      color: theme.colors.secondary,
+    },
+    resultBody: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      paddingHorizontal: 24,
+    },
     resultIcon: {
       width: 88,
       height: 88,
       borderRadius: 24,
       alignItems: 'center',
       justifyContent: 'center',
+      marginBottom: 6,
+    },
+    resultEyebrow: {
+      fontSize: 11,
+      fontFamily: theme.fonts.monoBold,
+      letterSpacing: 1.2,
+      color: theme.colors.primary,
     },
     resultTitle: {
       fontSize: theme.typography.size.xxl,
@@ -1319,10 +1679,33 @@ export const makeStyles = (theme: Theme) =>
       lineHeight: 20,
       paddingHorizontal: 12,
     },
-    resultStat: {
-      marginTop: 4,
-      fontSize: theme.typography.size.md,
+    resultCard: {
+      alignSelf: 'stretch',
+      marginTop: 10,
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radii.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      gap: 6,
+    },
+    resultCardHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    resultCardName: {
+      flex: 1,
+      fontSize: 11,
       fontFamily: theme.fonts.monoBold,
+      letterSpacing: 1,
+      color: theme.colors.textMuted,
+    },
+    resultCardStat: {
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.semibold,
       color: theme.colors.text,
     },
     syncRow: {

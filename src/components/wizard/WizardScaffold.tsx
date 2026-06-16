@@ -2,17 +2,16 @@ import { type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { useTheme, type Theme } from '@/theme';
+import { type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { AppToast, JobFooter, JobHeader } from '@/components/ui';
 
 type WizardScaffoldProps = {
   step: number;
@@ -39,7 +38,6 @@ export const WizardScaffold = ({
   flowLabel = 'Start a job',
   cancelLabel = 'Cancel',
 }: WizardScaffoldProps) => {
-  const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
 
@@ -48,17 +46,12 @@ export const WizardScaffold = ({
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        <Pressable style={styles.iconBtn} onPress={onBack} hitSlop={8}>
-          <Ionicons name="chevron-back" size={22} color={colors.secondary} />
-        </Pressable>
-        <Text style={styles.stepLabel}>
-          {`${flowLabel} · ${step} of ${total}`}
-        </Text>
-        <Pressable onPress={onCancel} hitSlop={8} style={styles.cancelBtn}>
-          <Text style={styles.cancelText}>{cancelLabel}</Text>
-        </Pressable>
-      </View>
+      <JobHeader
+        title={`${flowLabel} · ${step} of ${total}`}
+        onBack={onBack}
+        onCancel={onCancel}
+        cancelLabel={cancelLabel}
+      />
 
       <View style={styles.segments}>
         {Array.from({ length: total }).map((_, i) => (
@@ -83,11 +76,8 @@ export const WizardScaffold = ({
         <View style={styles.body}>{children}</View>
       </ScrollView>
 
-      {footer ? (
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-          {footer}
-        </View>
-      ) : null}
+      {footer ? <JobFooter>{footer}</JobFooter> : null}
+      <AppToast />
     </KeyboardAvoidingView>
   );
 };

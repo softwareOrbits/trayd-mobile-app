@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { base64ToUint8Array } from '@/utils/base64';
+import { imageExtFromType, imageMimeFromType } from '@/utils/image';
 
 const PROFILE_BUCKET = 'profile-photos';
 
@@ -122,11 +123,6 @@ export async function fetchMemberStats(
   return { jobs: assign.count ?? 0, hours, materials };
 }
 
-const extFromType = (type?: string | null) => {
-  if (type?.includes('png')) return 'png';
-  if (type?.includes('webp')) return 'webp';
-  return 'jpg';
-};
 
 /**
  * Uploads a picked image (base64) to the private `profile-photos` bucket under
@@ -143,11 +139,11 @@ export async function uploadProfilePhoto(asset: {
     throw new Error('Not authenticated');
   }
 
-  const path = `${userData.user.id}/profile.${extFromType(asset.type)}`;
+  const path = `${userData.user.id}/profile.${imageExtFromType(asset.type)}`;
   const { error: uploadError } = await supabase.storage
     .from(PROFILE_BUCKET)
     .upload(path, base64ToUint8Array(asset.base64), {
-      contentType: asset.type ?? 'image/jpeg',
+      contentType: imageMimeFromType(asset.type),
       upsert: true,
     });
   if (uploadError) throw new Error(uploadError.message);

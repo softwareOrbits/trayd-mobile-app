@@ -68,6 +68,10 @@ import {
   type JobSegment,
 } from '@/services/jobs';
 import { enqueueAction, flushOutbox } from '@/services/outbox';
+import {
+  MaterialSelect,
+  type SelectedMaterial,
+} from '@/components/MaterialSelect';
 import { fetchMyMember } from '@/services/member';
 import { signOut } from '@/store/authSlice';
 import { detailStateFor } from '@/data/jobDetails';
@@ -131,6 +135,7 @@ const JobDetailScreen = () => {
   const [editingLogs, setEditingLogs] = useState(false);
   const [saving, setSaving] = useState(false);
   const [itemName, setItemName] = useState('');
+  const [itemUnit, setItemUnit] = useState<string | null>(null);
   const [itemQty, setItemQty] = useState('1');
   const [itemCost, setItemCost] = useState('');
 
@@ -389,6 +394,7 @@ const JobDetailScreen = () => {
 
   const openNewMaterial = () => {
     setItemName('');
+    setItemUnit(null);
     setItemQty('1');
     setItemCost('');
     setMatSheet('new');
@@ -396,9 +402,17 @@ const JobDetailScreen = () => {
 
   const openEditMaterial = (m: JobMaterial) => {
     setItemName(m.description);
+    setItemUnit(m.unit);
     setItemQty(String(m.quantity));
     setItemCost(m.unitCost ? String(m.unitCost) : '');
     setMatSheet(m.id);
+  };
+
+  // Picking from the catalog auto-fills the unit price; custom items keep it.
+  const onPickMaterial = (m: SelectedMaterial) => {
+    setItemName(m.name);
+    setItemUnit(m.unit);
+    if (m.sellPrice != null) setItemCost(String(m.sellPrice));
   };
 
   const saveMaterial = async () => {
@@ -413,6 +427,7 @@ const JobDetailScreen = () => {
           description: itemName.trim(),
           quantity: qty,
           unitCost: cost,
+          unit: itemUnit,
           source: 'van_stock',
         });
       } else {
@@ -1028,10 +1043,7 @@ const JobDetailScreen = () => {
       {header}
       <ScrollView
         style={styles.flex}
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: insets.bottom + 24 },
-        ]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.metaRow}>
@@ -1053,9 +1065,11 @@ const JobDetailScreen = () => {
         ) : null}
 
         {body()}
-
-        <View style={styles.footer}>{footer()}</View>
       </ScrollView>
+
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
+        {footer()}
+      </View>
 
       <Modal
         visible={matSheet !== null}
@@ -1075,11 +1089,18 @@ const JobDetailScreen = () => {
             <Text style={styles.modalTitle}>
               {matSheet === 'new' ? 'Log van stock' : 'Edit item'}
             </Text>
-            <Input
-              label="Item"
-              placeholder="e.g. Ball valve 22mm"
-              value={itemName}
-              onChangeText={setItemName}
+            <MaterialSelect
+              value={
+                itemName
+                  ? {
+                      materialId: null,
+                      name: itemName,
+                      unit: itemUnit,
+                      sellPrice: null,
+                    }
+                  : null
+              }
+              onChange={onPickMaterial}
             />
             <View style={styles.modalRow}>
               <Input
@@ -1219,7 +1240,12 @@ export const makeStyles = (theme: Theme) =>
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
     missingText: { color: theme.colors.textMuted, textAlign: 'center' },
 
-    content: { paddingHorizontal: 20, paddingTop: 16, flexGrow: 1 },
+    content: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 24,
+      flexGrow: 1,
+    },
     metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     metaText: {
       fontSize: theme.typography.size.xs,
@@ -1278,7 +1304,13 @@ export const makeStyles = (theme: Theme) =>
       color: theme.colors.textMuted,
       paddingVertical: 12,
     },
-    footer: { marginTop: 'auto', paddingTop: 24 },
+    footer: {
+      paddingHorizontal: 20,
+      paddingTop: 14,
+      backgroundColor: theme.colors.surface,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.borderMuted,
+    },
     footerStack: { gap: 12 },
 
     emptyText: {
@@ -1306,6 +1338,66 @@ export const makeStyles = (theme: Theme) =>
     },
     modalRow: { flexDirection: 'row', gap: 12 },
     modalRowItem: { flex: 1 },
+
+    selectContainer: { gap: 6 },
+    selectLabel: {
+      color: theme.colors.black,
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.semibold,
+    },
+    selectField: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      backgroundColor: theme.colors.inputBackground,
+      borderColor: theme.colors.inputBorder,
+      borderWidth: 1,
+      borderRadius: theme.radii.md,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    selectValue: {
+      flex: 1,
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.regular,
+      color: theme.colors.black,
+    },
+    selectPlaceholder: { color: theme.colors.placeholder },
+    selectDropdown: { gap: 8 },
+    selectList: {
+      maxHeight: 200,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      borderRadius: theme.radii.md,
+    },
+    selectLoading: { paddingVertical: 20 },
+    selectOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.divider,
+    },
+    selectOptionName: {
+      flex: 1,
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.medium,
+      color: theme.colors.text,
+    },
+    selectOptionMeta: {
+      fontSize: theme.typography.size.xs,
+      fontFamily: theme.fonts.mono,
+      color: theme.colors.textMuted,
+    },
+    selectEmpty: {
+      padding: 14,
+      fontSize: theme.typography.size.sm,
+      color: theme.colors.textMuted,
+    },
     modalDeleteBtn: { alignSelf: 'center', paddingVertical: 4 },
     modalDeleteText: {
       fontSize: theme.typography.size.sm,
