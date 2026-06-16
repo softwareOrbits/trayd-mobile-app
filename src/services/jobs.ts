@@ -1,6 +1,7 @@
-import { supabase } from './supabase';
+﻿import { supabase } from './supabase';
 import { fetchMyMember } from './member';
 import { base64ToUint8Array } from '@/utils/base64';
+import { imageExtFromType, imageMimeFromType } from '@/utils/image';
 import type { Job, JobDetail, JobStatus, JobType } from '@/types';
 
 type ListRow = {
@@ -343,11 +344,6 @@ export async function fetchJobPhotos(jobId: string): Promise<JobPhoto[]> {
   }));
 }
 
-const extFromType = (type?: string | null) => {
-  if (type?.includes('png')) return 'png';
-  if (type?.includes('webp')) return 'webp';
-  return 'jpg';
-};
 
 const uuidv4 = () =>
   'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -366,13 +362,13 @@ export async function addJobPhoto(input: {
   type?: string | null;
 }): Promise<void> {
   const me = await fetchMyMember();
-  const path = `${me.businessId}/${input.jobId}/${input.phase}/${uuidv4()}.${extFromType(input.type)}`;
+  const path = `${me.businessId}/${input.jobId}/${input.phase}/${uuidv4()}.${imageExtFromType(input.type)}`;
   const dayId = await fetchCurrentJobDayId(input.jobId).catch(() => null);
 
   const { error: uploadError } = await supabase.storage
     .from(JOB_PHOTO_BUCKET)
     .upload(path, base64ToUint8Array(input.base64), {
-      contentType: input.type ?? 'image/jpeg',
+      contentType: imageMimeFromType(input.type),
       cacheControl: '31536000',
     });
   if (uploadError) throw new Error(uploadError.message);
@@ -438,6 +434,8 @@ export async function addJobNote(
 }
 
 const RECEIPT_BUCKET = 'receipts';
+/** Max wait for the extract-receipt Edge Function before manual-entry fallback. */
+const EXTRACT_TIMEOUT_MS = 15000;
 
 export type ReceiptConfidence = 'high' | 'medium' | 'low';
 
@@ -476,12 +474,12 @@ export async function uploadAndExtractReceipt(input: {
   type?: string | null;
 }): Promise<ReceiptExtraction> {
   const me = await fetchMyMember();
-  const path = `${me.businessId}/${input.jobId}/${uuidv4()}.${extFromType(input.type)}`;
+  const path = `${me.businessId}/${input.jobId}/${uuidv4()}.${imageExtFromType(input.type)}`;
 
   const { error: uploadError } = await supabase.storage
     .from(RECEIPT_BUCKET)
     .upload(path, base64ToUint8Array(input.base64), {
-      contentType: input.type ?? 'image/jpeg',
+      contentType: imageMimeFromType(input.type),
       cacheControl: '31536000',
     });
   if (uploadError) throw new Error(uploadError.message);
@@ -500,9 +498,19 @@ export async function uploadAndExtractReceipt(input: {
   if (insErr) throw new Error(insErr.message);
 
   try {
-    const { data, error } = await supabase.functions.invoke('extract-receipt', {
+    // The Edge Function can cold-start or stall on Claude; cap the wait so the
+    // spinner can never hang. On timeout we fall back to manual entry â€” the row
+    // and image are already saved (mds job-logging Â§6).
+    const call = supabase.functions.invoke('extract-receipt', {
       body: { receipt_id: receipt.id },
     });
+    call.catch(() => undefined); // swallow a late rejection if the timeout wins
+    const { data, error } = await Promise.race([
+      call,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('extract_timeout')), EXTRACT_TIMEOUT_MS),
+      ),
+    ]);
     if (error) throw error;
     if (!data || data.ok === false) {
       return { receiptId: receipt.id, storagePath: path, ok: false, extracted: null };
@@ -666,9 +674,9 @@ export async function fetchJobRoster(jobId: string): Promise<JobCrewMember[]> {
 
 export function humaniseLifecycle(msg: string): string {
   if (msg.startsWith('job_not_active'))
-    return 'Job is not running — pull to refresh.';
+    return 'Job is not running â€” pull to refresh.';
   if (msg.startsWith('job_not_paused'))
-    return 'Job is not paused — pull to refresh.';
+    return 'Job is not paused â€” pull to refresh.';
   if (msg.startsWith('job_not_in_progress'))
     return 'This job was already finished.';
   if (msg.startsWith('job_not_found')) return 'Job not found.';

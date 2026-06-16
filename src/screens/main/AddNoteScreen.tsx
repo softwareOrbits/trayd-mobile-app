@@ -13,7 +13,7 @@ import {
   type RouteProp,
 } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Button, Input } from '@/components/ui';
+import { AppToast, Button, Input } from '@/components/ui';
 import { TagChip } from '@/components/jobDetail';
 import { addJobNote, type NoteVisibility } from '@/services/jobs';
 import { type Theme } from '@/theme';
@@ -156,6 +156,7 @@ const AddNoteScreen = () => {
           onPress={save}
         />
       </View>
+      <AppToast />
     </View>
   );
 };

@@ -14,7 +14,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Toast from 'react-native-toast-message';
 
-import { Button, Input } from '@/components/ui';
+import { AppToast, Button, Input } from '@/components/ui';
 import { updatePassword } from '@/services/member';
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
@@ -129,6 +129,7 @@ const ChangePasswordScreen = () => {
           onPress={submit}
         />
       </View>
+      <AppToast />
     </KeyboardAvoidingView>
   );
 };

@@ -1,3 +1,4 @@
+import { InteractionManager } from 'react-native';
 import { launchCamera, type PhotoQuality } from 'react-native-image-picker';
 import Toast from 'react-native-toast-message';
 
@@ -11,11 +12,16 @@ export async function capturePhoto(opts?: {
   quality?: PhotoQuality;
   maxSize?: number;
 }): Promise<CapturedPhoto | null> {
+  // Let the screen's navigation/modal animation finish before launching the
+  // camera — opening it mid-transition is what makes it jerk on open.
+  await new Promise<void>(resolve =>
+    InteractionManager.runAfterInteractions(() => resolve()),
+  );
   const res = await launchCamera({
     mediaType: 'photo',
-    quality: opts?.quality ?? 0.8,
-    maxWidth: opts?.maxSize ?? 2000,
-    maxHeight: opts?.maxSize ?? 2000,
+    quality: opts?.quality ?? 0.7,
+    maxWidth: opts?.maxSize ?? 1600,
+    maxHeight: opts?.maxSize ?? 1600,
     includeBase64: true,
   });
   if (res.didCancel) return null;
