@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { Menu } from 'react-native-paper';
 import {
   useNavigation,
   useRoute,
@@ -21,7 +22,7 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
 
-import { Button, Input } from '@/components/ui';
+import { Button, Input, JobHeader } from '@/components/ui';
 import { StatusBadge, LiveStateBadge } from '@/components/jobs';
 import {
   ActionGrid,
@@ -30,6 +31,7 @@ import {
   EmployerNote,
   InfoRow,
   LineItemRow,
+  LocationCard,
   PausedCard,
   PhotoStrip,
   RosterChips,
@@ -55,6 +57,8 @@ import {
   finishJob,
   isAccessRevoked,
   updateJobMaterial,
+  cancelJob,
+  deleteJob,
   pausedSinceFrom,
   pauseJob,
   resumeJob,
@@ -84,10 +88,14 @@ import { isNetworkError } from '@/utils/errors';
 import { toastError, toastSuccess } from '@/utils/toast';
 import {
   JOB_TYPE_LABEL,
+  type IconName,
   type JobDetail,
   type JobStatus,
   type MainStackParamList,
 } from '@/types';
+
+const menuIcon = (name: IconName, color: string) => () =>
+  <Ionicons name={name} size={18} color={color} />;
 
 const fmtDate = (d: string | null) =>
   d
@@ -129,6 +137,9 @@ const JobDetailScreen = () => {
   const [segments, setSegments] = useState<JobSegment[]>([]);
   const [days, setDays] = useState<JobDay[]>([]);
   const [myMemberId, setMyMemberId] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirm, setConfirm] = useState<'cancel' | 'delete' | null>(null);
+  const [actioning, setActioning] = useState(false);
 
   // Material sheet: 'new' logs van stock, a material id edits that line.
   const [matSheet, setMatSheet] = useState<'new' | string | null>(null);
@@ -316,9 +327,6 @@ const JobDetailScreen = () => {
     }
   };
 
-  const preview = () =>
-    Toast.show({ type: 'info', text1: 'Not wired up yet.' });
-
   // ----- Timer edit (running segment start time) -----
   const pad2 = (n: number) => String(n).padStart(2, '0');
   const openSegment = segments.find(s => s.finishTime == null) ?? null;
@@ -463,22 +471,70 @@ const JobDetailScreen = () => {
   };
 
 
+  const manageState = detail ? detailStateFor(detail.status) : null;
+  const ownsJob =
+    !!detail && !!myMemberId && detail.primaryMemberId === myMemberId;
+  const menuEdit = ownsJob && manageState === 'scheduled';
+  const menuCancel =
+    ownsJob &&
+    (manageState === 'scheduled' ||
+      manageState === 'active' ||
+      manageState === 'paused');
+  const menuDelete =
+    ownsJob && (manageState === 'scheduled' || manageState === 'cancelled');
+  const canManage = menuEdit || menuCancel || menuDelete;
+
   const header = (
-    <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-      <Pressable
-        style={styles.iconBtn}
-        onPress={() => navigation.goBack()}
-        hitSlop={8}
-      >
-        <Ionicons name="chevron-back" size={22} color={colors.secondary} />
-      </Pressable>
-      <Text style={styles.headerTitle} numberOfLines={1}>
-        {detail?.customerName ?? 'Job'}
-      </Text>
-      <Pressable style={styles.iconBtn} onPress={preview} hitSlop={8}>
-        <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
-      </Pressable>
-    </View>
+    <JobHeader
+      title={detail?.customerName ?? 'Job'}
+      onBack={() => navigation.goBack()}
+      right={
+        canManage ? (
+          <Menu
+            visible={menuOpen}
+            onDismiss={() => setMenuOpen(false)}
+            anchor={
+              <Pressable onPress={() => setMenuOpen(true)} hitSlop={8}>
+                <Ionicons
+                  name="ellipsis-horizontal"
+                  size={20}
+                  color={colors.text}
+                />
+              </Pressable>
+            }
+          >
+            {menuEdit ? (
+              <Menu.Item
+                onPress={() => goEdit()}
+                title="Edit job"
+                leadingIcon={menuIcon('create-outline', colors.secondary)}
+              />
+            ) : null}
+            {menuCancel ? (
+              <Menu.Item
+                onPress={() => {
+                  setMenuOpen(false);
+                  setConfirm('cancel');
+                }}
+                title="Cancel job"
+                leadingIcon={menuIcon('close-circle-outline', colors.secondary)}
+              />
+            ) : null}
+            {menuDelete ? (
+              <Menu.Item
+                onPress={() => {
+                  setMenuOpen(false);
+                  setConfirm('delete');
+                }}
+                title="Delete job"
+                titleStyle={{ color: colors.error }}
+                leadingIcon={menuIcon('trash-outline', colors.error)}
+              />
+            ) : null}
+          </Menu>
+        ) : null
+      }
+    />
   );
 
   if (loading) {
@@ -510,6 +566,40 @@ const JobDetailScreen = () => {
     fmtDate(detail.scheduledDate),
     fmtTime(detail.scheduledStartTime),
   );
+
+  const goEdit = () => {
+    setMenuOpen(false);
+    navigation.navigate('EditJob', { jobId: detail.id });
+  };
+
+  const runCancel = async () => {
+    setActioning(true);
+    try {
+      await cancelJob(detail.id);
+      dispatch(fetchJobs());
+      setConfirm(null);
+      setDetail(await fetchJobDetail(detail.id));
+      toastSuccess('Job cancelled.');
+    } catch (e) {
+      toastError(e, 'Could not cancel the job.');
+    } finally {
+      setActioning(false);
+    }
+  };
+
+  const runDelete = async () => {
+    setActioning(true);
+    try {
+      await deleteJob(detail.id);
+      dispatch(fetchJobs());
+      setConfirm(null);
+      toastSuccess('Job deleted.');
+      navigation.goBack();
+    } catch (e) {
+      toastError(e, 'Could not delete the job.');
+      setActioning(false);
+    }
+  };
 
   // Live elapsed from job_time_entries segments (the billing source of truth);
   // fall back to started_at for jobs started before the clock existed.
@@ -586,6 +676,23 @@ const JobDetailScreen = () => {
       </Section>
     ) : null;
 
+  const scheduleRows = [
+    fmtDate(detail.scheduledDate)
+      ? { label: 'Scheduled day', value: fmtDate(detail.scheduledDate)! }
+      : null,
+    fmtTime(detail.scheduledStartTime)
+      ? { label: 'Start time', value: fmtTime(detail.scheduledStartTime)! }
+      : null,
+  ].filter(Boolean) as { label: string; value: string }[];
+
+  const scheduleSection = scheduleRows.length ? (
+    <Section title="Schedule">
+      {scheduleRows.map((e, i) => (
+        <InfoRow key={e.label} entry={e} last={i === scheduleRows.length - 1} />
+      ))}
+    </Section>
+  ) : null;
+
   // Roster from job_assignments; fall back to the primary assignee.
   const roster: RosterMember[] = crew.length
     ? crew.map(c => ({
@@ -623,9 +730,7 @@ const JobDetailScreen = () => {
       <StatusBadge status={detail.status} />
     );
 
-  // Shared "details" rows used by most states.
   const detailsRows = [
-    scheduledFor ? { label: 'Scheduled', value: scheduledFor } : null,
     { label: 'Type', value: JOB_TYPE_LABEL[detail.jobType] },
     detail.customerPhone
       ? { label: 'Customer phone', value: detail.customerPhone }
@@ -827,6 +932,7 @@ const JobDetailScreen = () => {
             <View style={styles.block}>
               <TimerCard time={elapsed} onEdit={openTimeEdit} />
             </View>
+            {scheduleSection}
             {detail.employerNote ? (
               <View style={styles.block}>
                 <Callout variant="note" icon="alert-circle">
@@ -951,7 +1057,16 @@ const JobDetailScreen = () => {
                 )}
               </View>
             ) : null}
+            {scheduleSection}
             {daysSoFar}
+            {detail.customerAddress || detail.customerEircode ? (
+              <Section title="Location" card={false}>
+                <LocationCard
+                  address={detail.customerAddress}
+                  eircode={detail.customerEircode}
+                />
+              </Section>
+            ) : null}
             <Section title="Details">
               {detailsRows.map((e, i) => (
                 <InfoRow
@@ -1060,7 +1175,9 @@ const JobDetailScreen = () => {
               `day ${day}`,
             )}
           </Text>
-        ) : detail.customerAddress ? (
+        ) : state === 'scheduled' && scheduledFor ? (
+          <Text style={styles.subtitle}>{scheduledFor}</Text>
+        ) : state === 'scheduled' ? null : detail.customerAddress ? (
           <Text style={styles.subtitle}>{detail.customerAddress}</Text>
         ) : null}
 
@@ -1207,6 +1324,49 @@ const JobDetailScreen = () => {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <Modal
+        visible={confirm !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirm(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setConfirm(null)}
+          />
+          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 20 }]}>
+            <Text style={styles.modalTitle}>
+              {confirm === 'delete' ? 'Delete this job?' : 'Cancel this job?'}
+            </Text>
+            <Text style={styles.modalHint}>
+              {confirm === 'delete'
+                ? 'This permanently removes the job and can’t be undone.'
+                : 'This marks the job as cancelled. It stays visible under Done.'}
+            </Text>
+            <Pressable
+              style={styles.dangerBtn}
+              disabled={actioning}
+              onPress={confirm === 'delete' ? runDelete : runCancel}
+            >
+              {actioning ? (
+                <ActivityIndicator color={colors.error} />
+              ) : (
+                <Text style={styles.dangerText}>
+                  {confirm === 'delete' ? 'Yes, delete job' : 'Yes, cancel job'}
+                </Text>
+              )}
+            </Pressable>
+            <Pressable
+              style={styles.keepBtn}
+              onPress={() => setConfirm(null)}
+            >
+              <Text style={styles.keepText}>Keep job</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -1214,27 +1374,32 @@ const JobDetailScreen = () => {
 export const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     flex: { flex: 1, backgroundColor: theme.colors.background },
-    header: {
-      flexDirection: 'row',
+    dangerBtn: {
+      alignSelf: 'stretch',
       alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 12,
-      paddingBottom: 12,
-      borderBottomWidth: 0.5,
-      borderBottomColor: theme.colors.textMuted,
-      backgroundColor: theme.colors.background,
+      borderWidth: 1,
+      borderColor: theme.colors.error,
+      borderRadius: theme.radii.md,
+      paddingVertical: 14,
+      marginTop: 4,
     },
-    iconBtn: {
-      width: 36,
-      height: 36,
+    dangerText: {
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.error,
+    },
+    keepBtn: {
+      alignSelf: 'stretch',
       alignItems: 'center',
-      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      borderRadius: theme.radii.md,
+      paddingVertical: 14,
+      marginTop: 10,
     },
-    headerTitle: {
-      flex: 1,
-      textAlign: 'center',
-      fontSize: theme.typography.size.lg,
-      fontFamily: theme.fonts.bold,
+    keepText: {
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.semibold,
       color: theme.colors.text,
     },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },

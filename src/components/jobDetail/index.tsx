@@ -1,11 +1,15 @@
 import { type ReactNode } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import Toast from 'react-native-toast-message';
 
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import type { JobMaterial } from '@/services/jobs';
 import type { IconName } from '@/types';
+import LocationMap from './LocationMap';
+
+export { default as LocationMap } from './LocationMap';
 
 // Local presentational types (kept here so these reusable blocks don't depend
 // on any mock module). Used now by Section/InfoRow/Callout; the rest are ready
@@ -71,6 +75,70 @@ export const InfoRow = ({
     <View style={[styles.row, last ? null : styles.rowDivider]}>
       <Text style={styles.rowLabel}>{entry.label}</Text>
       <Text style={styles.rowValue}>{entry.value}</Text>
+    </View>
+  );
+};
+
+/* ---------- Location card with Google Maps directions ---------- */
+
+export const LocationCard = ({
+  address,
+  eircode,
+}: {
+  address: string | null;
+  eircode?: string | null;
+}) => {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+
+  const destination = [eircode, address].filter(Boolean).join(', ');
+
+  const openDirections = () => {
+    if (!destination) return;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+      destination,
+    )}`;
+    Linking.openURL(url).catch(() =>
+      Toast.show({ type: 'error', text1: 'Could not open Maps.' }),
+    );
+  };
+
+  return (
+    <View style={styles.locationCard}>
+      {destination ? (
+        <View style={styles.locationMap}>
+          <LocationMap query={destination} onPress={openDirections} />
+        </View>
+      ) : null}
+      <View style={styles.locationTop}>
+        <View style={styles.locationPin}>
+          <Ionicons name="location" size={18} color={colors.primary} />
+        </View>
+        <View style={styles.locationText}>
+          <Text style={styles.locationLabel}>ADDRESS</Text>
+          <Text style={styles.locationAddress}>
+            {address ?? 'No address on file'}
+          </Text>
+          {eircode ? (
+            <View style={styles.eircodeChip}>
+              <Text style={styles.eircodeText}>EIRCODE · {eircode}</Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+
+      {destination ? (
+        <Pressable style={styles.directionsBtn} onPress={openDirections}>
+          <Ionicons name="navigate" size={17} color={colors.primary} />
+          <Text style={styles.directionsText}>Get directions</Text>
+          <Ionicons
+            name="open-outline"
+            size={15}
+            color={colors.onSecondary}
+            style={styles.directionsExt}
+          />
+        </Pressable>
+      ) : null}
     </View>
   );
 };
@@ -311,7 +379,7 @@ export const ActionGrid = ({
     <View style={styles.grid}>
       {items.map(it => (
         <Pressable key={it.label} style={styles.gridItem} onPress={it.onPress}>
-          <Ionicons name={it.icon} size={18} color={colors.secondary} />
+          <Ionicons name={it.icon} size={18} color={colors.primary} />
           <Text style={styles.gridLabel}>{it.label}</Text>
         </Pressable>
       ))}
@@ -369,6 +437,67 @@ export const makeStyles = (theme: Theme) =>
       flexShrink: 1,
       textAlign: 'right',
     },
+
+    locationCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radii.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      padding: 16,
+    },
+    locationMap: { marginBottom: 14 },
+    locationTop: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+    locationPin: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: theme.colors.warningBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    locationText: { flex: 1, gap: 4 },
+    locationLabel: {
+      fontSize: 10,
+      fontFamily: theme.fonts.monoBold,
+      letterSpacing: 1.2,
+      color: theme.colors.textMuted,
+    },
+    locationAddress: {
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.text,
+      lineHeight: 21,
+    },
+    eircodeChip: {
+      alignSelf: 'flex-start',
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: theme.radii.sm,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      marginTop: 2,
+    },
+    eircodeText: {
+      fontSize: 11,
+      fontFamily: theme.fonts.monoBold,
+      letterSpacing: 0.6,
+      color: theme.colors.secondary,
+    },
+    directionsBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      marginTop: 14,
+      backgroundColor: theme.colors.secondary,
+      borderRadius: theme.radii.md,
+      paddingVertical: 13,
+    },
+    directionsText: {
+      color: theme.colors.onSecondary,
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.semibold,
+    },
+    directionsExt: { opacity: 0.7 },
 
     tag: {
       alignSelf: 'flex-start',

@@ -22,23 +22,38 @@ type MaterialRow = {
 const num = (v: number | string | null) =>
   v == null ? 0 : typeof v === 'string' ? parseFloat(v) || 0 : v;
 
+// Cache catalog searches per normalised term so re-typing the same query (or
+// reopening the picker) doesn't re-hit the DB. Cleared on app restart.
+const searchCache = new Map<string, CatalogMaterial[]>();
+const cacheKey = (query?: string) =>
+  (query?.trim().replace(/[,()]/g, '') ?? '').toLowerCase();
+
+/** Synchronous cache peek — lets callers skip the spinner/debounce on a hit. */
+export function peekMaterials(query?: string): CatalogMaterial[] | undefined {
+  return searchCache.get(cacheKey(query));
+}
+
 export async function searchMaterials(
   query?: string,
 ): Promise<CatalogMaterial[]> {
+  const term = query?.trim().replace(/[,()]/g, '') ?? '';
+  const key = cacheKey(query);
+  const cached = searchCache.get(key);
+  if (cached) return cached;
+
   let q = supabase
     .from('materials')
     .select('id, name, unit, category, cost_price, sell_price')
     .order('name')
     .limit(50);
 
-  const term = query?.trim().replace(/[,()]/g, '');
   if (term) {
     q = q.ilike('name', `%${term}%`);
   }
 
   const { data, error } = await q;
   if (error) throw new Error(error.message);
-  return ((data ?? []) as MaterialRow[]).map(r => ({
+  const out = ((data ?? []) as MaterialRow[]).map(r => ({
     id: r.id,
     name: r.name,
     unit: r.unit,
@@ -46,4 +61,10 @@ export async function searchMaterials(
     costPrice: num(r.cost_price),
     sellPrice: num(r.sell_price),
   }));
+
+  if (searchCache.size >= 100) {
+    searchCache.delete(searchCache.keys().next().value as string);
+  }
+  searchCache.set(key, out);
+  return out;
 }

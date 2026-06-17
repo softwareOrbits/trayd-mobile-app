@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Pressable,
   RefreshControl,
   SectionList,
   StyleSheet,
@@ -9,6 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { Button } from '@/components/ui';
 import {
@@ -19,6 +21,7 @@ import {
   LiveJobItem,
   LiveNowBanner,
 } from '@/components/jobs';
+import { useSync } from '@/offline';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
 import { useTheme, type Theme } from '@/theme';
@@ -31,16 +34,43 @@ import {
   type JobSegment,
 } from '@/services/jobs';
 import {
-  STATUS_TAB,
+  STATUS_GROUP,
   type Job,
+  type JobStatusGroup,
   type JobTabItem,
   type JobTabKey,
   type MainStackParamList,
 } from '@/types';
 
+const EMPTY_LABEL: Record<JobTabKey, string> = {
+  today: 'jobs scheduled today',
+  week: 'jobs scheduled this week',
+  live: 'live jobs',
+  resume: 'jobs to resume',
+  done: 'completed jobs',
+};
+
 const RANGE = 'This week';
 
-const tabOf = (job: Job): JobTabKey | null => STATUS_TAB[job.status];
+const groupOf = (job: Job): JobStatusGroup | null => STATUS_GROUP[job.status];
+
+/** Local YYYY-MM-DD key (ISO dates sort/compare lexicographically). */
+const dateKey = (d: Date) => {
+  const m = `${d.getMonth() + 1}`.padStart(2, '0');
+  const day = `${d.getDate()}`.padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+};
+
+/** Monday-anchored bounds of the week containing `base`. */
+const weekBounds = (base: Date) => {
+  const start = new Date(base);
+  start.setHours(0, 0, 0, 0);
+  const offset = (start.getDay() + 6) % 7; // 0 = Monday
+  start.setDate(start.getDate() - offset);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return { start: dateKey(start), end: dateKey(end) };
+};
 
 const fmtSectionLabel = (date: string | null) => {
   if (!date) return 'Unscheduled';
@@ -75,6 +105,12 @@ const buildDateSections = (jobs: Job[]) => {
     }));
 };
 
+const liveSections = (active: Job[], paused: Job[]) =>
+  [
+    { title: 'Live', data: active },
+    { title: 'Paused', data: paused },
+  ].filter(s => s.data.length > 0);
+
 const weekdayLabel = (date: string | null) =>
   date
     ? new Date(`${date}T00:00:00`).toLocaleDateString('en-GB', {
@@ -92,7 +128,8 @@ const JobsScreen = () => {
   const items = useAppSelector(state => state.jobs.items);
   const status = useAppSelector(state => state.jobs.status);
   const user = useAppSelector(state => state.auth.user);
-  const [activeTab, setActiveTab] = useState<JobTabKey>('upcoming');
+  const { pending, flushNow } = useSync();
+  const [activeTab, setActiveTab] = useState<JobTabKey>('today');
   const [refreshing, setRefreshing] = useState(false);
 
   // Real per-job clock from job_time_entries segments: closed hours are frozen,
@@ -116,9 +153,29 @@ const JobsScreen = () => {
     }
   };
 
-  const upcoming = useMemo(
-    () => items.filter(j => tabOf(j) === 'upcoming'),
+  // Date anchors computed once per mount (a tab switch shouldn't recompute the
+  // week, and the per-second timer tick must not invalidate these filters).
+  const todayKey = useMemo(() => dateKey(new Date()), []);
+  const week = useMemo(() => weekBounds(new Date()), []);
+
+  const scheduled = useMemo(
+    () => items.filter(j => groupOf(j) === 'upcoming'),
     [items],
+  );
+  const todayJobs = useMemo(
+    () => scheduled.filter(j => j.scheduledDate === todayKey),
+    [scheduled, todayKey],
+  );
+  // This Week: anything scheduled within the current Mon–Sun window (today
+  // included), plus not-yet-dated jobs so they're never hidden.
+  const weekJobs = useMemo(
+    () =>
+      scheduled.filter(
+        j =>
+          !j.scheduledDate ||
+          (j.scheduledDate >= week.start && j.scheduledDate <= week.end),
+      ),
+    [scheduled, week],
   );
   const liveActive = useMemo(
     () => items.filter(j => j.status === 'active'),
@@ -128,7 +185,7 @@ const JobsScreen = () => {
     () => items.filter(j => j.status === 'paused'),
     [items],
   );
-  const done = useMemo(() => items.filter(j => tabOf(j) === 'done'), [items]);
+  const done = useMemo(() => items.filter(j => groupOf(j) === 'done'), [items]);
 
   // Fetch segments for the jobs shown in the Live tab and fold them into a map.
   const liveIds = useMemo(
@@ -177,28 +234,34 @@ const JobsScreen = () => {
 
   const tabs = useMemo<JobTabItem[]>(
     () => [
-      { key: 'upcoming', label: 'Upcoming', count: upcoming.length },
-      { key: 'live', label: 'Live', count: liveActive.length + livePaused.length },
-      { key: 'done', label: 'Done', count: done.length },
+      { key: 'today', label: 'Today', icon: 'today-outline', count: todayJobs.length },
+      { key: 'week', label: 'This Week', icon: 'calendar-outline', count: weekJobs.length },
+      { key: 'live', label: 'Live', icon: 'play-circle-outline', count: liveActive.length },
+      { key: 'resume', label: 'Resume', icon: 'pause-circle-outline', count: livePaused.length },
+      { key: 'done', label: 'Done', icon: 'checkmark-done-outline', count: done.length },
     ],
-    [upcoming.length, liveActive.length, livePaused.length, done.length],
+    [todayJobs.length, weekJobs.length, liveActive.length, livePaused.length, done.length],
   );
 
-  const isLive = activeTab === 'live';
+  const showTimer = activeTab === 'live' || activeTab === 'resume';
   const isDone = activeTab === 'done';
 
   const sections = useMemo(() => {
-    if (isLive) {
-      return [
-        { title: 'Live', data: liveActive },
-        { title: 'Paused', data: livePaused },
-      ].filter(section => section.data.length > 0);
+    switch (activeTab) {
+      case 'today':
+        return buildDateSections(todayJobs);
+      case 'week':
+        return buildDateSections(weekJobs);
+      case 'live':
+        return liveSections(liveActive, []);
+      case 'resume':
+        return liveSections([], livePaused);
+      case 'done':
+        return buildDateSections(done);
+      default:
+        return [];
     }
-    if (isDone) {
-      return buildDateSections(done);
-    }
-    return buildDateSections(upcoming);
-  }, [isLive, isDone, liveActive, livePaused, done, upcoming]);
+  }, [activeTab, todayJobs, weekJobs, liveActive, livePaused, done]);
 
   const openDetail = (job: Job) =>
     navigation.navigate('JobDetail', { jobId: job.id });
@@ -213,7 +276,7 @@ const JobsScreen = () => {
       ? 'Loading jobs…'
       : status === 'failed'
         ? 'Could not load jobs'
-        : `No ${activeTab} jobs`;
+        : `No ${EMPTY_LABEL[activeTab]}`;
 
   return (
     <View style={styles.flex}>
@@ -227,11 +290,32 @@ const JobsScreen = () => {
         </View>
       </View>
 
+      {pending > 0 ? (
+        <View style={styles.offlineWrap}>
+          <Pressable style={styles.offlineCard} onPress={() => flushNow()}>
+            <View style={styles.offlineIcon}>
+              <Ionicons
+                name="cloud-offline-outline"
+                size={18}
+                color={colors.white}
+              />
+            </View>
+            <View style={styles.offlineBody}>
+              <Text style={styles.offlineTitle}>Working offline</Text>
+              <Text style={styles.offlineSub} numberOfLines={1}>
+                {`${pending} item${pending === 1 ? '' : 's'} queued · auto-syncs when signal returns`}
+              </Text>
+            </View>
+            <Text style={styles.offlineAction}>Details</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       <SectionList<Job>
         sections={sections}
         keyExtractor={item => item.id}
         renderItem={({ item }) =>
-          isLive ? (
+          showTimer ? (
             <LiveJobItem
               job={item}
               {...metaFor(item)}
@@ -248,19 +332,26 @@ const JobsScreen = () => {
             <JobListItem
               job={item}
               onPress={() => openDetail(item)}
-              onChat={() => openChat(item)}
+              onStart={() => openDetail(item)}
             />
           )
         }
         renderSectionHeader={({ section }) => (
           <JobSectionHeader
             label={
-              isLive ? `${section.title} · ${section.data.length}` : section.title
+              showTimer
+                ? `${section.title} · ${section.data.length}`
+                : section.title
+            }
+            divider={
+              !showTimer &&
+              !isDone &&
+              sections.findIndex(s => s.title === section.title) > 0
             }
           />
         )}
         ListHeaderComponent={
-          isLive && liveActive.length > 0 ? (
+          activeTab === 'live' && liveActive.length > 0 ? (
             <View style={styles.banner}>
               <LiveNowBanner
                 client={liveActive[0].customerName ?? 'Job'}
@@ -319,6 +410,41 @@ export const makeStyles = (theme: Theme) =>
     title: titleStyles,
     tabs: { marginTop: 14 },
     banner: { paddingTop: 16, paddingBottom: 4 },
+    offlineWrap: { paddingHorizontal: 20, paddingTop: 12 },
+    offlineCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: theme.colors.warningBg,
+      borderRadius: theme.radii.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.warning,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    offlineIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: theme.radii.md,
+      backgroundColor: theme.colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    offlineBody: { flex: 1, gap: 2 },
+    offlineTitle: {
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.bold,
+      color: theme.colors.text,
+    },
+    offlineSub: {
+      fontSize: theme.typography.size.xs,
+      color: theme.colors.textMuted,
+    },
+    offlineAction: {
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.primary,
+    },
     content: {
       paddingHorizontal: 20,
       paddingBottom: 120,

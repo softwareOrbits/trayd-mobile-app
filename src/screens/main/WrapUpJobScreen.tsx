@@ -1027,7 +1027,7 @@ const WrapUpJobScreen = () => {
           onPress={() => setStep(5)}
         />
         <Pressable onPress={addItems} hitSlop={8} style={styles.linkBtn}>
-          <Text style={styles.linkText}>Add or edit items</Text>
+          <Text style={styles.editLink}>Add or edit items</Text>
         </Pressable>
       </>
     );
@@ -1432,7 +1432,7 @@ export const makeStyles = (theme: Theme) =>
     chipText: {
       fontSize: theme.typography.size.sm,
       fontFamily: theme.fonts.medium,
-      color: theme.colors.text,
+      color: theme.colors.primary,
     },
 
     // step 4/5 card
@@ -1500,7 +1500,7 @@ export const makeStyles = (theme: Theme) =>
     addItemText: {
       fontSize: theme.typography.size.sm,
       fontFamily: theme.fonts.semibold,
-      color: theme.colors.secondary,
+      color: theme.colors.primary,
     },
     materialsTotalBar: {
       flexDirection: 'row',

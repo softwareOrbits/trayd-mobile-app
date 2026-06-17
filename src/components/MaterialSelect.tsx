@@ -10,7 +10,11 @@ import {
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { Input } from '@/components/ui';
-import { searchMaterials, type CatalogMaterial } from '@/services/materials';
+import {
+  peekMaterials,
+  searchMaterials,
+  type CatalogMaterial,
+} from '@/services/materials';
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 
@@ -52,6 +56,13 @@ export const MaterialSelect = ({
 
   useEffect(() => {
     if (!open) return;
+    // Cache hit → show instantly, no spinner, no debounce.
+    const cached = peekMaterials(query);
+    if (cached) {
+      setResults(cached);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     let active = true;
     const t = setTimeout(() => {

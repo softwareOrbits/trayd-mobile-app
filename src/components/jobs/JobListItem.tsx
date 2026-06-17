@@ -11,7 +11,7 @@ export const JobListItem = ({
   job,
   onPress,
   onLongPress,
-  onChat,
+  onStart,
 }: JobItemProps) => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -51,13 +51,13 @@ export const JobListItem = ({
 
         <View style={styles.actions}>
           <Button
-            label="Chat"
-            leftIcon="chatbubble-ellipses-outline"
-            variant="outlined"
+            label="Start Job"
+            variant="filled"
             color="secondary"
             size="sm"
-            onPress={onChat}
-            style={styles.actionChat}
+            onPress={onStart}
+            style={styles.actionStart}
+            textStyle={styles.actionStartLabel}
           />
         </View>
       </View>
@@ -71,8 +71,6 @@ export const makeStyles = (theme: Theme) =>
       flexDirection: 'row',
       gap: 12,
       paddingVertical: 16,
-      borderBottomWidth: 0.2,
-      borderBottomColor: theme.colors.border,
       backgroundColor: theme.colors.surface,
     },
     body: { flex: 1, gap: 5, },
@@ -111,17 +109,12 @@ export const makeStyles = (theme: Theme) =>
       color: theme.colors.textMuted,
     },
     actions: { flexDirection: 'row', gap: 10, marginTop: 6 },
-    action: {
-      minWidth: 96,
-      borderWidth: 1,
-      borderColor: theme.colors.creamBorder,
-      backgroundColor: theme.colors.surface,
+    actionStart: {
+      minWidth: 120,
+      backgroundColor: theme.colors.secondary,
     },
-    actionChat: {
-      minWidth: 96,
-      borderWidth: 1,
-      borderColor: theme.colors.creamBorder,
-      backgroundColor: theme.colors.background,
+    actionStartLabel: {
+      color: theme.colors.primary,
     },
   });
 
