@@ -21,6 +21,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { AppToast, Button, Input } from '@/components/ui';
+import { AddressAutocomplete } from '@/components/AddressAutocomplete';
+import { MaterialSelect } from '@/components/MaterialSelect';
 import {
   addReceiptLine,
   confirmReceiptToJob,
@@ -453,7 +455,7 @@ const AddReceiptScreen = () => {
           <View style={[styles.sheet, { paddingBottom: insets.bottom + 20 }]}>
             <Text style={styles.sheetTitle}>Vendor &amp; date</Text>
             <Input label="Vendor" value={vendor} onChangeText={setVendor} />
-            <Input
+            <AddressAutocomplete
               label="Location (optional)"
               value={location}
               onChangeText={setLocation}
@@ -494,11 +496,18 @@ const AddReceiptScreen = () => {
             <Text style={styles.sheetTitle}>
               {lineSheet === 'new' ? 'Add line' : 'Edit line'}
             </Text>
-            <Input
-              label="Description"
-              placeholder="e.g. Copper pipe 22mm × 1m"
-              value={lDesc}
-              onChangeText={setLDesc}
+            <MaterialSelect
+              label="Item"
+              placeholder="Search materials or add your own"
+              value={
+                lDesc
+                  ? { materialId: null, name: lDesc, unit: null, sellPrice: null }
+                  : null
+              }
+              onChange={m => {
+                setLDesc(m.name);
+                if (m.sellPrice != null) setLPrice(String(m.sellPrice));
+              }}
             />
             <View style={styles.sheetRow}>
               <Input

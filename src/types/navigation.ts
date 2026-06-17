@@ -26,5 +26,8 @@ export type MainStackParamList = {
   AddReceipt: { jobId: string };
   AddJobPhoto: { jobId: string; photoCount: number };
   WrapUpJob: { jobId: string };
+  EditJob: { jobId: string };
   ChangePassword: undefined;
+  WorkingHours: undefined;
+  ServiceArea: undefined;
 };

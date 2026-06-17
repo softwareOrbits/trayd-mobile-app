@@ -191,6 +191,114 @@ export async function fetchActiveRoster(): Promise<RosterEntry[]> {
   });
 }
 
+/* ------------------------------------------------------------------ */
+/* Editable member fields: phone, working hours, service area.         */
+/* ------------------------------------------------------------------ */
+
+export const WEEK_DAYS = [
+  { key: 'mon', label: 'Mon' },
+  { key: 'tue', label: 'Tue' },
+  { key: 'wed', label: 'Wed' },
+  { key: 'thu', label: 'Thu' },
+  { key: 'fri', label: 'Fri' },
+  { key: 'sat', label: 'Sat' },
+  { key: 'sun', label: 'Sun' },
+] as const;
+
+export type DayHours = { start: string; end: string; enabled: boolean };
+export type WorkingHours = Record<string, DayHours>;
+export type ServiceArea = { primary: string | null; additional: string[] };
+
+const FULL_DAY: Record<string, string> = {
+  mon: 'monday',
+  tue: 'tuesday',
+  wed: 'wednesday',
+  thu: 'thursday',
+  fri: 'friday',
+  sat: 'saturday',
+  sun: 'sunday',
+};
+
+const asString = (v: unknown, fallback: string) =>
+  typeof v === 'string' && v ? v : fallback;
+
+/** Parse the raw `working_hours` column into a full 7-day map (defensive). */
+export function parseWorkingHours(raw: unknown): WorkingHours {
+  const obj =
+    raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const out: WorkingHours = {};
+  for (const { key } of WEEK_DAYS) {
+    const v = (obj[key] ?? obj[FULL_DAY[key]]) as
+      | { start?: unknown; end?: unknown; enabled?: unknown }
+      | undefined;
+    out[key] =
+      v && typeof v === 'object'
+        ? {
+            start: asString(v.start, '08:00'),
+            end: asString(v.end, '17:00'),
+            enabled: v.enabled !== false,
+          }
+        : { start: '08:00', end: '17:00', enabled: false };
+  }
+  return out;
+}
+
+/** Parse the raw `service_area` column (string | array | object). */
+export function parseServiceArea(raw: unknown): ServiceArea {
+  if (!raw) return { primary: null, additional: [] };
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        return parseServiceArea(JSON.parse(trimmed));
+      } catch {
+        return { primary: trimmed, additional: [] };
+      }
+    }
+    return { primary: trimmed || null, additional: [] };
+  }
+  if (Array.isArray(raw)) {
+    const list = raw.filter((x): x is string => typeof x === 'string');
+    return { primary: list[0] ?? null, additional: list.slice(1) };
+  }
+  const o = raw as Record<string, unknown>;
+  const primary =
+    asString(o.primary, '') || asString(o.primary_location, '') || null;
+  const rawList = Array.isArray(o.additional)
+    ? o.additional
+    : Array.isArray(o.locations)
+    ? o.locations
+    : [];
+  return {
+    primary,
+    additional: rawList.filter((x): x is string => typeof x === 'string'),
+  };
+}
+
+/** Updates the caller's own business_members row; throws if RLS blocks it. */
+async function updateMyMember(patch: Record<string, unknown>): Promise<void> {
+  const { data: userData, error: userErr } = await supabase.auth.getUser();
+  if (userErr || !userData.user) throw new Error('Not authenticated');
+  const { data, error } = await supabase
+    .from('business_members')
+    .update(patch)
+    .eq('user_id', userData.user.id)
+    .select('id');
+  if (error) throw new Error(error.message);
+  if (!data?.length) {
+    throw new Error('You don’t have permission to change this here.');
+  }
+}
+
+export const updateMyWorkingHours = (wh: WorkingHours) =>
+  updateMyMember({ working_hours: wh });
+
+export const updateMyServiceArea = (sa: ServiceArea) =>
+  updateMyMember({ service_area: JSON.stringify(sa) });
+
+export const updateMyPhone = (phone: string) =>
+  updateMyMember({ phone: phone.trim() || null });
+
 export type NextJob = { id: string; title: string; meta: string };
 
 const humanize = (value: string | null) =>

@@ -5,6 +5,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { PaperProvider } from 'react-native-paper';
 import Toast from 'react-native-toast-message';
 
 import { persistor, store } from '@/store';
@@ -12,6 +13,7 @@ import { useAppDispatch } from '@/store/hooks';
 import { restoreSession } from '@/store/authSlice';
 import { ThemeProvider } from '@/theme';
 import { LoadingScreen } from '@/components/ui';
+import { SyncProvider } from '@/offline';
 import AppNavigator from '@/navigation/AppNavigator';
 
 const SPLASH_DURATION = 1800;
@@ -36,13 +38,17 @@ function Bootstrap() {
   }
 
   return (
-    <BottomSheetModalProvider>
-      <SafeAreaProvider>
-        <StatusBar barStyle="dark-content" />
-        <AppNavigator />
-        <Toast topOffset={100} />
-      </SafeAreaProvider>
-    </BottomSheetModalProvider>
+    <PaperProvider>
+      <BottomSheetModalProvider>
+        <SafeAreaProvider>
+          <StatusBar barStyle="dark-content" />
+          <SyncProvider>
+            <AppNavigator />
+          </SyncProvider>
+          <Toast topOffset={100} />
+        </SafeAreaProvider>
+      </BottomSheetModalProvider>
+    </PaperProvider>
   );
 }
 

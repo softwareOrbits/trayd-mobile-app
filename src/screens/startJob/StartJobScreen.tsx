@@ -27,12 +27,7 @@ import {
   type Customer,
   type NearestCustomer,
 } from '@/services/customers';
-import {
-  autocompleteAddress,
-  getPlaceDetails,
-  newSessionToken,
-  type PlaceSuggestion,
-} from '@/services/places';
+import { AddressAutocomplete } from '@/components/AddressAutocomplete';
 import {
   formatDistance,
   getCurrentPosition,
@@ -101,10 +96,7 @@ const StartJobScreen = () => {
   const [gps, setGps] = useState<GpsPoint | null>(null);
   const [nearest, setNearest] = useState<NearestCustomer | null>(null);
 
-  const [addrQuery, setAddrQuery] = useState('');
-  const [addrSuggestions, setAddrSuggestions] = useState<PlaceSuggestion[]>([]);
   const [placeCoords, setPlaceCoords] = useState<GpsPoint | null>(null);
-  const [placesSession, setPlacesSession] = useState(newSessionToken);
 
   const [materialSearch, setMaterialSearch] = useState('');
   const [catalog, setCatalog] = useState<CatalogMaterial[]>([]);
@@ -151,25 +143,6 @@ const StartJobScreen = () => {
   }, [search]);
 
   useEffect(() => {
-    if (mode !== 'new') return;
-    const q = addrQuery.trim();
-    if (q.length < 3) {
-      setAddrSuggestions([]);
-      return;
-    }
-    let active = true;
-    const t = setTimeout(() => {
-      autocompleteAddress(q, placesSession)
-        .then(s => active && setAddrSuggestions(s))
-        .catch(e => console.warn('places autocomplete:', e?.message));
-    }, 300);
-    return () => {
-      active = false;
-      clearTimeout(t);
-    };
-  }, [addrQuery, placesSession, mode]);
-
-  useEffect(() => {
     if (step !== 4) return;
     let active = true;
     const t = setTimeout(() => {
@@ -189,22 +162,6 @@ const StartJobScreen = () => {
         ? prev.filter(x => x.id !== m.id)
         : [...prev, m],
     );
-
-  const pickAddress = async (s: PlaceSuggestion) => {
-    setAddrSuggestions([]);
-    setAddrQuery('');
-    try {
-      const d = await getPlaceDetails(s.placeId, placesSession);
-      form.setValue('address', d.address, { shouldValidate: true });
-      if (d.eircode) {
-        form.setValue('eircode', d.eircode, { shouldValidate: true });
-      }
-      setPlaceCoords({ lat: d.lat, lng: d.lng });
-      setPlacesSession(newSessionToken());
-    } catch (e) {
-      console.warn('place details:', e instanceof Error ? e.message : e);
-    }
-  };
 
   const form = useForm<CustomerForm>({
     resolver: zodResolver(customerSchema),
@@ -489,44 +446,25 @@ const StartJobScreen = () => {
         <Controller
           control={form.control}
           name="address"
-          render={({ field: { value, onChange, onBlur } }) => (
-            <Input
+          render={({ field: { value, onChange } }) => (
+            <AddressAutocomplete
               label="Address *"
-              placeholder="Start typing — suggestions from Google Maps"
               value={value}
+              error={form.formState.errors.address?.message}
               onChangeText={t => {
                 onChange(t);
-                setAddrQuery(t);
                 setPlaceCoords(null);
               }}
-              onBlur={onBlur}
-              error={form.formState.errors.address?.message}
+              onSelect={d => {
+                onChange(d.address);
+                if (d.eircode) {
+                  form.setValue('eircode', d.eircode, { shouldValidate: true });
+                }
+                setPlaceCoords({ lat: d.lat, lng: d.lng });
+              }}
             />
           )}
         />
-        {addrSuggestions.length ? (
-          <View style={styles.suggestBox}>
-            {addrSuggestions.map((s, i) => (
-              <Pressable
-                key={s.placeId}
-                style={[
-                  styles.suggestRow,
-                  i < addrSuggestions.length - 1 ? styles.suggestDivider : null,
-                ]}
-                onPress={() => pickAddress(s)}
-              >
-                <Ionicons
-                  name="location-outline"
-                  size={16}
-                  color={colors.textMuted}
-                />
-                <Text style={styles.suggestText} numberOfLines={2}>
-                  {s.description}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
         <Controller
           control={form.control}
           name="eircode"

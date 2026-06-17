@@ -1,6 +1,7 @@
 export { default as JobListItem } from './JobListItem';
 export { default as JobSectionHeader } from './JobSectionHeader';
 export { default as JobTabs } from './JobTabs';
+export { default as JobStageFilter } from './JobStageFilter';
 export { default as StatusBadge } from './StatusBadge';
 export { default as LiveJobItem } from './LiveJobItem';
 export { default as LiveNowBanner } from './LiveNowBanner';

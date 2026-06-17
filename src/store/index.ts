@@ -21,7 +21,9 @@ const rootReducer = combineReducers({
 const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
-  whitelist: ['auth'],
+  // `jobs` is persisted so the list survives a cold start with no signal
+  // (stale-while-revalidate: render the cache, then refetch when online).
+  whitelist: ['auth', 'jobs'],
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

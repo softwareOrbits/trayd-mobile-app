@@ -260,7 +260,7 @@ export const makeStyles = (theme: Theme) =>
     chipText: {
       fontSize: theme.typography.size.sm,
       fontFamily: theme.fonts.medium,
-      color: theme.colors.text,
+      color: theme.colors.primary,
     },
 
     footer: { paddingHorizontal: 20, paddingTop: 12 },

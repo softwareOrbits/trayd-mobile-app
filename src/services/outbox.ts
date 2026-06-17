@@ -1,7 +1,14 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { finishJob, pauseJob, resumeJob } from './jobs';
-
-const KEY = 'outbox:lifecycle';
+/**
+ * Compatibility shim.
+ *
+ * The offline queue now lives in `@/offline` as a generic mutation layer. This
+ * module is kept only so the screens that already import the old lifecycle API
+ * keep working unchanged. New code should import from `@/offline` directly.
+ *
+ * @deprecated Use `enqueue` / `flushNow` / `useSync` from `@/offline`.
+ */
+import { enqueue, flushNow } from '@/offline';
+import { readQueue } from '@/offline';
 
 export type QueuedAction = {
   id: string;
@@ -12,32 +19,27 @@ export type QueuedAction = {
   totalHours?: number | null;
 };
 
-const read = async (): Promise<QueuedAction[]> => {
-  try {
-    const raw = await AsyncStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as QueuedAction[]) : [];
-  } catch {
-    return [];
-  }
-};
-
-const write = (items: QueuedAction[]) =>
-  AsyncStorage.setItem(KEY, JSON.stringify(items));
-
-export async function enqueueAction(action: QueuedAction): Promise<void> {
-  const items = await read();
-  items.push(action);
-  await write(items);
+export function enqueueAction(action: QueuedAction): Promise<void> {
+  return enqueue({
+    id: action.id,
+    kind: `job.${action.kind}`,
+    createdAt: action.atIso,
+    payload: {
+      jobId: action.jobId,
+      atIso: action.atIso,
+      summary: action.summary ?? null,
+      totalHours: action.totalHours ?? null,
+    },
+  });
 }
 
-/** Backwards-compatible helper used by the wrap-up screen. */
-export async function queueFinish(input: {
+export function queueFinish(input: {
   jobId: string;
   summary: string | null;
   totalHours: number | null;
   atIso: string;
 }): Promise<void> {
-  await enqueueAction({
+  return enqueueAction({
     id: `${input.jobId}:finish:${input.atIso}`,
     jobId: input.jobId,
     kind: 'finish',
@@ -48,61 +50,14 @@ export async function queueFinish(input: {
 }
 
 export async function hasQueuedActions(jobId?: string): Promise<boolean> {
-  const items = await read();
-  return jobId ? items.some(i => i.jobId === jobId) : items.length > 0;
+  const items = await readQueue();
+  const lifecycle = items.filter(i => i.kind.startsWith('job.'));
+  if (!jobId) return lifecycle.length > 0;
+  return lifecycle.some(
+    i => (i.payload as { jobId?: string })?.jobId === jobId,
+  );
 }
 
-const isNetworkError = (e: unknown) => {
-  const msg = e instanceof Error ? e.message.toLowerCase() : '';
-  return (
-    msg.includes('network') ||
-    msg.includes('failed to fetch') ||
-    msg.includes('fetch failed') ||
-    msg.includes('timeout')
-  );
-};
-
-const isAlreadyApplied = (kind: QueuedAction['kind'], e: unknown) => {
-  const msg = e instanceof Error ? e.message : '';
-  if (kind === 'pause') return msg.startsWith('Job is not running');
-  if (kind === 'resume') return msg.startsWith('Job is not paused');
-  return msg.startsWith('This job was already finished');
-};
-
-const replay = (a: QueuedAction) => {
-  if (a.kind === 'pause') return pauseJob(a.jobId, a.atIso);
-  if (a.kind === 'resume') return resumeJob(a.jobId, a.atIso);
-  return finishJob({
-    jobId: a.jobId,
-    summary: a.summary ?? null,
-    totalHours: a.totalHours ?? null,
-    atIso: a.atIso,
-  });
-};
-
-export async function flushOutbox(): Promise<number> {
-  const items = await read();
-  if (!items.length) return 0;
-
-  let cleared = 0;
-  let i = 0;
-  for (; i < items.length; i++) {
-    const a = items[i];
-    try {
-      await replay(a);
-      cleared += 1;
-    } catch (e) {
-      if (isAlreadyApplied(a.kind, e)) {
-        cleared += 1; // server already past it — drop and continue
-        continue;
-      }
-      if (isNetworkError(e)) {
-        break; // still offline — keep this and the rest for next flush
-      }
-      cleared += 1;
-    }
-  }
-
-  await write(items.slice(i));
-  return cleared;
+export function flushOutbox(): Promise<number> {
+  return flushNow();
 }

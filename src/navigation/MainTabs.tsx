@@ -15,7 +15,7 @@ type TabConfig = NavItem & {
 
 const TABS: TabConfig[] = [
   { name: 'Jobs', key: 'Jobs', label: 'Jobs', icon: 'layers-outline', activeIcon: 'layers', component: JobsScreen },
-  { name: 'Notifications', key: 'Notifications', label: 'Notifications', icon: 'notifications-outline', activeIcon: 'notifications', badge: 2, component: NotificationsScreen },
+  { name: 'Notifications', key: 'Notifications', label: 'Notifications', icon: 'notifications-outline', activeIcon: 'notifications', component: NotificationsScreen },
   { name: 'Profile', key: 'Profile', label: 'Profile', icon: 'person-outline', activeIcon: 'person', component: ProfileScreen },
 ];
 

@@ -136,6 +136,54 @@ export async function updateJobStatus(
   }
 }
 
+export type JobEdit = {
+  jobType?: JobType;
+  scheduledDate?: string | null;
+  scheduledStartTime?: string | null;
+};
+
+export async function updateJob(id: string, edit: JobEdit): Promise<void> {
+  const row: Record<string, unknown> = {};
+  if (edit.jobType !== undefined) row.job_type = edit.jobType;
+  if (edit.scheduledDate !== undefined) row.scheduled_date = edit.scheduledDate;
+  if (edit.scheduledStartTime !== undefined) {
+    row.scheduled_start_time = edit.scheduledStartTime;
+  }
+  const { data, error } = await supabase
+    .from('jobs')
+    .update(row)
+    .eq('id', id)
+    .select('id');
+  if (error) throw new Error(error.message);
+  if (!data?.length) {
+    throw new Error('You don’t have permission to edit this job.');
+  }
+}
+
+export async function cancelJob(id: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('jobs')
+    .update({ status: 'cancelled' })
+    .eq('id', id)
+    .select('id');
+  if (error) throw new Error(error.message);
+  if (!data?.length) {
+    throw new Error('You don’t have permission to cancel this job.');
+  }
+}
+
+export async function deleteJob(id: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('jobs')
+    .delete()
+    .eq('id', id)
+    .select('id');
+  if (error) throw new Error(error.message);
+  if (!data?.length) {
+    throw new Error('You don’t have permission to delete this job.');
+  }
+}
+
 export type StartJobPayload = {
   customerId?: string;
   newCustomer?: {
@@ -285,6 +333,33 @@ export async function deleteJobMaterial(id: string): Promise<void> {
     .select('id');
   if (error) throw new Error(error.message);
   if (!data?.length) throw new Error('You can only remove items you logged.');
+}
+
+export async function addJobAssignment(
+  jobId: string,
+  memberId: string,
+): Promise<void> {
+  const me = await fetchMyMember();
+  const { error } = await supabase.from('job_assignments').insert({
+    job_id: jobId,
+    business_id: me.businessId,
+    business_member_id: memberId,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function removeJobAssignment(
+  jobId: string,
+  memberId: string,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('job_assignments')
+    .delete()
+    .eq('job_id', jobId)
+    .eq('business_member_id', memberId)
+    .select('business_member_id');
+  if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error('Could not remove that person.');
 }
 
 export async function fetchCurrentJobDayId(

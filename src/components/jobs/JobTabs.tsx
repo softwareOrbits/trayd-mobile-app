@@ -1,34 +1,40 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@react-native-vector-icons/ionicons';
+import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
-import { type Theme } from '@/theme';
 import type { JobTabsProps } from '@/types';
 
 export const JobTabs = ({ tabs, activeKey, onChange }: JobTabsProps) => {
+  const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
   return (
-    <View style={styles.row}>
+    <View style={styles.track}>
       {tabs.map(tab => {
         const isActive = tab.key === activeKey;
         return (
           <Pressable
             key={tab.key}
             onPress={() => onChange(tab.key)}
-            style={[styles.tab, isActive ? styles.tabActive : null]}
+            style={[styles.segment, isActive ? styles.segmentActive : null]}
           >
-            <Text style={[styles.label, isActive ? styles.labelActive : null]}>
-              {tab.label}
-            </Text>
-            <View style={[styles.count, isActive ? styles.countActive : null]}>
-              <Text
-                style={[
-                  styles.countText,
-                  isActive ? styles.countTextActive : null,
-                ]}
-              >
-                {tab.count}
-              </Text>
-            </View>
+            <Ionicons
+              name={tab.icon}
+              size={18}
+              color={isActive ? colors.onSecondary : colors.textMuted}
+            />
+            {isActive ? (
+              <>
+                <Text style={styles.labelActive} numberOfLines={1}>
+                  {tab.label}
+                </Text>
+                {tab.count > 0 ? (
+                  <View style={styles.count}>
+                    <Text style={styles.countText}>{tab.count}</Text>
+                  </View>
+                ) : null}
+              </>
+            ) : null}
           </Pressable>
         );
       })}
@@ -38,37 +44,49 @@ export const JobTabs = ({ tabs, activeKey, onChange }: JobTabsProps) => {
 
 export const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-    row: { flexDirection: 'row', gap: 8 },
-    tab: {
+    track: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 7,
-      paddingVertical: 8,
-      paddingHorizontal: 14,
+      justifyContent: 'space-between',
+      paddingVertical: 4,
+      paddingHorizontal: 6,
       borderRadius: theme.radii.pill,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.creamBorder,
     },
-    tabActive: { backgroundColor: theme.colors.secondary },
-    label: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.textMuted,
-    },
-    labelActive: { color: theme.colors.onSecondary },
-    count: {
-      minWidth: 20,
-      height: 20,
-      paddingHorizontal: 5,
-      borderRadius: theme.radii.pill,
+    segment: {
+      flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
+      gap: 6,
+      height: 36,
+      paddingHorizontal: 11,
+      borderRadius: theme.radii.pill,
     },
-    countActive: { backgroundColor: theme.colors.primary },
+    segmentActive: {
+      paddingHorizontal: 14,
+      backgroundColor: theme.colors.secondary,
+    },
+    labelActive: {
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.onSecondary,
+    },
+    count: {
+      minWidth: 18,
+      height: 18,
+      paddingHorizontal: 5,
+      borderRadius: 9,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.primary,
+    },
     countText: {
       fontSize: theme.typography.size.xs,
       fontFamily: theme.fonts.bold,
-      color: theme.colors.textMuted,
+      color: theme.colors.onPrimary,
     },
-    countTextActive: { color: theme.colors.onPrimary },
   });
 
 export default JobTabs;

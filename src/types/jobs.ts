@@ -1,3 +1,5 @@
+import type { IconName } from './theme';
+
 export type JobStatus =
   | 'scheduled'
   | 'active'
@@ -10,7 +12,10 @@ export type JobStatus =
 
 export type JobType = 'standard' | 'multi_day' | 'quote' | 'callout';
 
-export type JobTabKey = 'upcoming' | 'live' | 'done';
+export type JobTabKey = 'today' | 'week' | 'live' | 'resume' | 'done';
+
+/** Coarse bucket a status falls into, before the date-based tab split. */
+export type JobStatusGroup = 'upcoming' | 'live' | 'paused' | 'done';
 
 /** One row from the `list_jobs` RPC. */
 export type Job = {
@@ -60,11 +65,13 @@ export type JobDetail = {
   invoiceTotal: number;
 };
 
-/** Which list tab a status belongs to (null = hidden, e.g. cancelled). */
-export const STATUS_TAB: Record<JobStatus, JobTabKey | null> = {
+/** Which group a status belongs to (null = hidden, e.g. cancelled). The
+ * `upcoming` group is split into the Today / This Week tabs by scheduled date,
+ * and `live`/`paused` map to the Live / Resume tabs. */
+export const STATUS_GROUP: Record<JobStatus, JobStatusGroup | null> = {
   scheduled: 'upcoming',
   active: 'live',
-  paused: 'live',
+  paused: 'paused',
   awaiting_review: 'done',
   approved: 'done',
   downloaded: 'done',
@@ -97,6 +104,7 @@ export type LiveMeta = {
 export type JobTabItem = {
   key: JobTabKey;
   label: string;
+  icon: IconName;
   count: number;
 };
 
@@ -110,7 +118,7 @@ export type JobItemProps = {
   job: Job;
   onPress?: () => void;
   onLongPress?: () => void;
-  onChat?: () => void;
+  onStart?: () => void;
   onTimer?: () => void;
 };
 

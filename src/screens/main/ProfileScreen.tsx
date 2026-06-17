@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -14,13 +15,21 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { Avatar, Button } from '@/components/ui';
+import Toast from 'react-native-toast-message';
+
+import { AppToast, Avatar, Button, Input } from '@/components/ui';
 import {
+  WEEK_DAYS,
   fetchMemberStats,
   fetchMyMember,
+  parseServiceArea,
+  parseWorkingHours,
+  updateMyPhone,
   type MemberProfile,
   type MemberStats,
 } from '@/services/member';
+import { staticMapUrl } from '@/services/places';
+import { APP_VERSION } from '@/config/appInfo';
 import { hasQueuedActions } from '@/services/outbox';
 import { useAppDispatch } from '@/store/hooks';
 import { signOut } from '@/store/authSlice';
@@ -28,44 +37,32 @@ import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import type { MainStackParamList } from '@/types';
 
-const DAY_LABEL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-/** Best-effort summary of the `working_hours` JSON column (shape unconfirmed). */
+/** Compact summary of the working-hours column for the profile row. */
 const summariseHours = (raw: unknown): string => {
-  if (!raw) return 'Not set';
-  if (typeof raw === 'string') return raw;
-  if (typeof raw === 'object') {
-    const obj = raw as Record<string, { start?: string; end?: string; enabled?: boolean }>;
-    const on = Object.entries(obj).filter(([, v]) => v?.enabled !== false && (v?.start || v?.end));
-    if (!on.length) return 'Not set';
-    const first = on[0][1];
-    const days = on
-      .map(([k]) => {
-        const idx = DAY_LABEL.findIndex(d => d.toLowerCase() === k.slice(0, 3).toLowerCase());
-        return idx;
-      })
-      .filter(i => i >= 0)
-      .sort((a, b) => a - b);
-    const range =
-      days.length > 1
-        ? `${DAY_LABEL[days[0]]}–${DAY_LABEL[days[days.length - 1]]}`
-        : DAY_LABEL[days[0]] ?? '';
-    const times = first?.start && first?.end ? ` · ${first.start}–${first.end}` : '';
-    return `${range}${times}`.trim() || 'Set';
-  }
-  return 'Not set';
+  const wh = parseWorkingHours(raw);
+  const on = WEEK_DAYS.filter(d => wh[d.key].enabled);
+  if (!on.length) return 'Not set';
+  const first = wh[on[0].key];
+  const idxs = on.map(d => WEEK_DAYS.findIndex(w => w.key === d.key));
+  const contiguous = idxs.every((v, i) => i === 0 || v === idxs[i - 1] + 1);
+  const label =
+    on.length === 1
+      ? on[0].label
+      : contiguous
+      ? `${on[0].label}–${on[on.length - 1].label}`
+      : `${on.length} days`;
+  return `${label} · ${first.start}–${first.end}`;
 };
 
-/** Best-effort summary of the `service_area` JSON column (shape unconfirmed). */
+/** Compact summary of the service-area column for the profile row. */
 const summariseArea = (raw: unknown): string => {
-  if (!raw) return 'Not set';
-  if (typeof raw === 'string') return raw;
-  if (Array.isArray(raw)) return (raw[0] as string) ?? 'Not set';
-  if (typeof raw === 'object') {
-    const obj = raw as { primary?: string; primary_location?: string };
-    return obj.primary ?? obj.primary_location ?? 'Set';
-  }
-  return 'Not set';
+  const sa = parseServiceArea(raw);
+  const primary = sa.primary ?? sa.additional[0] ?? null;
+  if (!primary) return 'Not set';
+  const extra = sa.additional.length
+    ? ` +${sa.primary ? sa.additional.length : sa.additional.length - 1}`
+    : '';
+  return `${primary}${extra}`.trim();
 };
 
 const fmtHours = (h: number) => `${Math.round(h)}h`;
@@ -85,6 +82,9 @@ const ProfileScreen = () => {
   const [loading, setLoading] = useState(true);
   const [notify, setNotify] = useState(true);
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [phoneModal, setPhoneModal] = useState(false);
+  const [phoneDraft, setPhoneDraft] = useState('');
+  const [phoneSaving, setPhoneSaving] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -114,6 +114,38 @@ const ProfileScreen = () => {
     );
   }
 
+  const openPhone = () => {
+    setPhoneDraft(member?.phone ?? '');
+    setPhoneModal(true);
+  };
+
+  const savePhone = async () => {
+    if (phoneSaving) return;
+    setPhoneSaving(true);
+    try {
+      const next = phoneDraft.trim();
+      await updateMyPhone(next);
+      setMember(m => (m ? { ...m, phone: next || null } : m));
+      setPhoneModal(false);
+      Toast.show({ type: 'success', text1: 'Phone updated.' });
+    } catch (e) {
+      Toast.show({
+        type: 'error',
+        text1: e instanceof Error ? e.message : 'Could not update phone.',
+      });
+    } finally {
+      setPhoneSaving(false);
+    }
+  };
+
+  const serviceArea = parseServiceArea(member?.serviceArea);
+  const areaMapUrl = staticMapUrl(
+    [serviceArea.primary, ...serviceArea.additional].filter(
+      (v): v is string => !!v,
+    ),
+    { width: 640, height: 260 },
+  );
+
   const row = (
     label: string,
     value: string,
@@ -141,7 +173,7 @@ const ProfileScreen = () => {
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 32 },
+          { paddingTop: insets.top + 16 },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -163,6 +195,21 @@ const ProfileScreen = () => {
                 .filter(Boolean)
                 .join(' · ') || '—'}
             </Text>
+            <View
+              style={[styles.syncBadge, queued && styles.syncBadgeQueued]}
+            >
+              <View
+                style={[
+                  styles.syncDot,
+                  { backgroundColor: queued ? colors.warning : colors.green },
+                ]}
+              />
+              <Text
+                style={[styles.syncBadgeText, queued && styles.syncBadgeTextQueued]}
+              >
+                {queued ? 'CHANGES QUEUED' : 'ALL SYNCED'}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -190,15 +237,31 @@ const ProfileScreen = () => {
             onPress: () => navigation.navigate('ChangePassword'),
           })}
           <View style={styles.divider} />
-          {row('Phone', member?.phone ?? 'Not set')}
+          {row('Phone', member?.phone ?? 'Not set', {
+            onPress: openPhone,
+            muted: !member?.phone,
+          })}
         </View>
 
         {/* Work setup */}
         <Text style={styles.section}>WORK SETUP</Text>
         <View style={styles.card}>
-          {row('Working hours', summariseHours(member?.workingHours))}
+          {row('Working hours', summariseHours(member?.workingHours), {
+            onPress: () => navigation.navigate('WorkingHours'),
+          })}
           <View style={styles.divider} />
-          {row('Service area', summariseArea(member?.serviceArea))}
+          {row('Service area', summariseArea(member?.serviceArea), {
+            onPress: () => navigation.navigate('ServiceArea'),
+          })}
+          {areaMapUrl ? (
+            <Pressable onPress={() => navigation.navigate('ServiceArea')}>
+              <Image
+                source={{ uri: areaMapUrl }}
+                style={styles.areaMap}
+                resizeMode="cover"
+              />
+            </Pressable>
+          ) : null}
         </View>
 
         {/* Sync + notifications */}
@@ -248,6 +311,10 @@ const ProfileScreen = () => {
             phone.
           </Text>
         </View>
+
+        <Text style={styles.buildInfo}>
+          {`Trayd v${APP_VERSION}`}
+        </Text>
       </ScrollView>
 
       <Modal
@@ -262,6 +329,7 @@ const ProfileScreen = () => {
             onPress={() => setConfirmLogout(false)}
           />
           <View style={[styles.modalCard, { paddingBottom: insets.bottom + 20 }]}>
+            <View style={styles.handle} />
             <View style={styles.modalIcon}>
               <Ionicons name="log-out-outline" size={26} color={colors.secondary} />
             </View>
@@ -296,6 +364,53 @@ const ProfileScreen = () => {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={phoneModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPhoneModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setPhoneModal(false)}
+          />
+          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 20 }]}>
+            <View style={styles.handle} />
+            <View style={styles.modalIcon}>
+              <Ionicons name="call-outline" size={24} color={colors.secondary} />
+            </View>
+            <Text style={styles.modalTitle}>Phone number</Text>
+            <Text style={styles.modalText}>
+              The office uses this to reach you about jobs.
+            </Text>
+            <View style={styles.phoneField}>
+              <Input
+                value={phoneDraft}
+                onChangeText={setPhoneDraft}
+                keyboardType="phone-pad"
+                placeholder="+353 …"
+                autoFocus
+              />
+            </View>
+            <Button
+              label="Save"
+              fullWidth
+              loading={phoneSaving}
+              onPress={savePhone}
+            />
+            <Pressable
+              onPress={() => setPhoneModal(false)}
+              style={styles.cancelBtn}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <AppToast />
     </View>
   );
 };
@@ -304,7 +419,7 @@ export const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     flex: { flex: 1, backgroundColor: theme.colors.background },
     centered: { alignItems: 'center', justifyContent: 'center' },
-    content: { paddingHorizontal: 20 },
+    content: { paddingHorizontal: 20, paddingBottom: 16, flexGrow: 1 },
     eyebrow: {
       fontSize: 11,
       fontFamily: theme.fonts.monoBold,
@@ -334,6 +449,25 @@ export const makeStyles = (theme: Theme) =>
       fontSize: theme.typography.size.sm,
       color: theme.colors.textMuted,
     },
+    syncBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 5,
+      marginTop: 4,
+      backgroundColor: '#E5F0E9',
+      borderRadius: theme.radii.sm,
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+    },
+    syncBadgeQueued: { backgroundColor: theme.colors.warningBg },
+    syncBadgeText: {
+      fontSize: 9,
+      fontFamily: theme.fonts.monoBold,
+      letterSpacing: 0.6,
+      color: theme.colors.green,
+    },
+    syncBadgeTextQueued: { color: theme.colors.warning },
 
     statsCard: {
       flexDirection: 'row',
@@ -399,6 +533,15 @@ export const makeStyles = (theme: Theme) =>
       color: theme.colors.text,
     },
     rowMuted: { color: theme.colors.textMuted },
+    areaMap: {
+      width: '100%',
+      height: 120,
+      borderRadius: theme.radii.md,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      backgroundColor: theme.colors.surfaceMuted,
+      marginBottom: 14,
+    },
     divider: {
       height: 1,
       backgroundColor: theme.colors.divider,
@@ -406,12 +549,21 @@ export const makeStyles = (theme: Theme) =>
     syncRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     syncDot: { width: 8, height: 8, borderRadius: 4 },
 
+    phoneField: { alignSelf: 'stretch', marginTop: 4 },
     logoutWrap: { marginTop: 28, gap: 10 },
     logoutHint: {
       fontSize: theme.typography.size.xs,
       color: theme.colors.textMuted,
       textAlign: 'center',
       lineHeight: 17,
+    },
+    buildInfo: {
+      marginTop: 'auto',
+      paddingTop: 16,
+      textAlign: 'center',
+      fontSize: theme.typography.size.xs,
+      fontFamily: theme.fonts.mono,
+      color: theme.colors.placeholder,
     },
 
     modalBackdrop: {
@@ -420,12 +572,28 @@ export const makeStyles = (theme: Theme) =>
       justifyContent: 'flex-end',
     },
     modalCard: {
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.surface,
       borderTopLeftRadius: theme.radii.lg,
       borderTopRightRadius: theme.radii.lg,
-      padding: 24,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      paddingHorizontal: 24,
+      paddingTop: 12,
+      paddingBottom: 24,
       gap: 12,
       alignItems: 'center',
+      shadowColor: '#000',
+      shadowOpacity: 0.18,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: -4 },
+      elevation: 16,
+    },
+    handle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: theme.colors.borderMuted,
+      marginBottom: 4,
     },
     modalIcon: {
       width: 52,

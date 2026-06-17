@@ -24,11 +24,11 @@ export const makeStyles = (theme: Theme) =>
     avatar: {
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.secondary,
     },
     text: {
       fontFamily: theme.fonts.bold,
-      color: theme.colors.secondary,
+      color: theme.colors.primary,
     },
   });
 
