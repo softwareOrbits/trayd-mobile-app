@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { GOOGLE_MAPS_API_KEY } from '@env';
 
@@ -19,8 +19,7 @@ export const LocationMap = ({ query, onPress, height = 150 }: Props) => {
 
   if (!query) return null;
 
-  const canRenderMap =
-    !!GOOGLE_MAPS_API_KEY && !failed && Platform.OS !== 'ios';
+  const canRenderMap = !!GOOGLE_MAPS_API_KEY && !failed;
 
   const marker = `color:0xE89B2D|${encodeURIComponent(query)}`;
   const url =
