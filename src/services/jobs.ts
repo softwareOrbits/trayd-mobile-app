@@ -31,6 +31,7 @@ type DetailRow = ListRow & {
   is_callout: boolean;
   total_hours: number | string | null;
   summary: string | null;
+  created_by_member_id: string | null;
   created_by_name: string | null;
   customer_phone: string | null;
   customer_email: string | null;
@@ -74,6 +75,7 @@ const mapDetail = (r: DetailRow): JobDetail => ({
   isCallout: r.is_callout,
   totalHours: r.total_hours == null ? null : num(r.total_hours),
   summary: r.summary,
+  createdById: r.created_by_member_id ?? null,
   createdByName: r.created_by_name,
   customerId: r.customer_id,
   customerName: r.customer_name,
@@ -852,14 +854,13 @@ export function segmentsElapsedHours(
       earliestStart = s.startTime;
     }
     if (s.finishTime == null) {
-      openStart = s.startTime;
-      hours += Math.max(
-        0,
-        (nowMs - new Date(s.startTime).getTime()) / 3_600_000,
-      );
+      if (!openStart || s.startTime < openStart) openStart = s.startTime;
     } else {
       hours += s.hours ?? 0;
     }
+  }
+  if (openStart) {
+    hours += Math.max(0, (nowMs - new Date(openStart).getTime()) / 3_600_000);
   }
   return { hours, openStart, earliestStart };
 }

@@ -396,10 +396,7 @@ export const makeStyles = (theme: Theme) =>
     flex: { flex: 1, backgroundColor: theme.colors.surface },
     header: {
       paddingHorizontal: 20,
-      paddingBottom: 8,
       backgroundColor: theme.colors.background,
-      borderBottomWidth: 0.5,
-      borderBottomColor: theme.colors.textMuted,
     },
     eyebrow: {
       fontSize: 11,
@@ -408,7 +405,7 @@ export const makeStyles = (theme: Theme) =>
       color: theme.colors.textMuted,
     },
     title: titleStyles,
-    tabs: { marginTop: 14 },
+    tabs: { marginTop: 14, marginHorizontal: -20 },
     banner: { paddingTop: 16, paddingBottom: 4 },
     offlineWrap: { paddingHorizontal: 20, paddingTop: 12 },
     offlineCard: {
