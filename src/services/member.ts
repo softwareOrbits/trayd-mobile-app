@@ -90,7 +90,7 @@ export async function updatePassword(
   if (error) throw new Error(error.message);
 }
 
-export type MemberStats = { jobs: number; hours: number; materials: number };
+export type MemberStats = { jobs: number; hours: number };
 
 export async function fetchMemberStats(
   memberId: string,
@@ -98,7 +98,7 @@ export async function fetchMemberStats(
   const num = (v: number | string | null) =>
     v == null ? 0 : typeof v === 'string' ? parseFloat(v) || 0 : v;
 
-  const [assign, segs, mats] = await Promise.all([
+  const [assign, segs] = await Promise.all([
     supabase
       .from('job_assignments')
       .select('job_id', { count: 'exact', head: true })
@@ -107,20 +107,13 @@ export async function fetchMemberStats(
       .from('job_time_entries')
       .select('hours')
       .eq('business_member_id', memberId),
-    supabase
-      .from('job_materials')
-      .select('quantity, unit_cost')
-      .eq('added_by', memberId),
   ]);
 
   const hours = (
     (segs.data ?? []) as { hours: number | string | null }[]
   ).reduce((s, r) => s + num(r.hours), 0);
-  const materials = (
-    (mats.data ?? []) as { quantity: number | string | null; unit_cost: number | string | null }[]
-  ).reduce((s, r) => s + num(r.quantity) * num(r.unit_cost), 0);
 
-  return { jobs: assign.count ?? 0, hours, materials };
+  return { jobs: assign.count ?? 0, hours };
 }
 
 
@@ -154,6 +147,18 @@ export async function uploadProfilePhoto(asset: {
   if (rpcError) throw new Error(rpcError.message);
 
   return path;
+}
+
+/** Resolves a stored profile-photo path to a signed URL for display. */
+export async function profilePhotoUrl(
+  path: string | null,
+): Promise<string | null> {
+  if (!path) return null;
+  const { data, error } = await supabase.storage
+    .from(PROFILE_BUCKET)
+    .createSignedUrl(path, 3600);
+  if (error) return null;
+  return data?.signedUrl ?? null;
 }
 
 export type RosterEntry = {

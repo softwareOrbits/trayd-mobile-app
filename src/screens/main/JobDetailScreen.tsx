@@ -12,8 +12,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Ionicons from '@react-native-vector-icons/ionicons';
 import { Menu } from 'react-native-paper';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import {
   useNavigation,
   useRoute,
@@ -88,14 +88,10 @@ import { isNetworkError } from '@/utils/errors';
 import { toastError, toastSuccess } from '@/utils/toast';
 import {
   JOB_TYPE_LABEL,
-  type IconName,
   type JobDetail,
   type JobStatus,
   type MainStackParamList,
 } from '@/types';
-
-const menuIcon = (name: IconName, color: string) => () =>
-  <Ionicons name={name} size={18} color={color} />;
 
 const fmtDate = (d: string | null) =>
   d
@@ -472,8 +468,8 @@ const JobDetailScreen = () => {
 
 
   const manageState = detail ? detailStateFor(detail.status) : null;
-  const ownsJob =
-    !!detail && !!myMemberId && detail.primaryMemberId === myMemberId;
+  const ownerId = detail?.createdById ?? detail?.primaryMemberId ?? null;
+  const ownsJob = !!detail && !!myMemberId && ownerId === myMemberId;
   const menuEdit = ownsJob && manageState === 'scheduled';
   const menuCancel =
     ownsJob &&
@@ -493,6 +489,8 @@ const JobDetailScreen = () => {
           <Menu
             visible={menuOpen}
             onDismiss={() => setMenuOpen(false)}
+            anchorPosition="bottom"
+            contentStyle={styles.menuContent}
             anchor={
               <Pressable onPress={() => setMenuOpen(true)} hitSlop={8}>
                 <Ionicons
@@ -505,9 +503,19 @@ const JobDetailScreen = () => {
           >
             {menuEdit ? (
               <Menu.Item
-                onPress={() => goEdit()}
+                onPress={() => {
+                  setMenuOpen(false);
+                  goEdit();
+                }}
+                leadingIcon={() => (
+                  <Ionicons
+                    name="create-outline"
+                    size={18}
+                    color={colors.secondary}
+                  />
+                )}
                 title="Edit job"
-                leadingIcon={menuIcon('create-outline', colors.secondary)}
+                titleStyle={styles.menuItemText}
               />
             ) : null}
             {menuCancel ? (
@@ -516,8 +524,15 @@ const JobDetailScreen = () => {
                   setMenuOpen(false);
                   setConfirm('cancel');
                 }}
+                leadingIcon={() => (
+                  <Ionicons
+                    name="close-circle-outline"
+                    size={18}
+                    color={colors.secondary}
+                  />
+                )}
                 title="Cancel job"
-                leadingIcon={menuIcon('close-circle-outline', colors.secondary)}
+                titleStyle={styles.menuItemText}
               />
             ) : null}
             {menuDelete ? (
@@ -526,9 +541,15 @@ const JobDetailScreen = () => {
                   setMenuOpen(false);
                   setConfirm('delete');
                 }}
+                leadingIcon={() => (
+                  <Ionicons
+                    name="trash-outline"
+                    size={18}
+                    color={colors.error}
+                  />
+                )}
                 title="Delete job"
-                titleStyle={{ color: colors.error }}
-                leadingIcon={menuIcon('trash-outline', colors.error)}
+                titleStyle={[styles.menuItemText, { color: colors.error }]}
               />
             ) : null}
           </Menu>
@@ -719,7 +740,7 @@ const JobDetailScreen = () => {
     });
   const placeholder = (
     <Text style={styles.placeholder}>
-      Logged items, photos &amp; crew appear here once work starts.
+      Logged items &amp; photos appear here once work starts.
     </Text>
   );
 
@@ -730,15 +751,21 @@ const JobDetailScreen = () => {
       <StatusBadge status={detail.status} />
     );
 
+  const assignedValue = crew.length
+    ? crew.map(c => c.name).join(', ')
+    : detail.primaryMemberName
+    ? joinDot(detail.primaryMemberName, detail.primaryMemberRole)
+    : null;
+
   const detailsRows = [
     { label: 'Type', value: JOB_TYPE_LABEL[detail.jobType] },
     detail.customerPhone
       ? { label: 'Customer phone', value: detail.customerPhone }
       : null,
-    detail.primaryMemberName
+    assignedValue
       ? {
-          label: 'Assigned to',
-          value: joinDot(detail.primaryMemberName, detail.primaryMemberRole),
+          label: crew.length > 1 ? 'Crew' : 'Assigned to',
+          value: assignedValue,
         }
       : null,
   ].filter(Boolean) as { label: string; value: string }[];
@@ -1367,6 +1394,7 @@ const JobDetailScreen = () => {
           </View>
         </View>
       </Modal>
+
     </View>
   );
 };
@@ -1484,6 +1512,17 @@ export const makeStyles = (theme: Theme) =>
     },
     notesStack: { gap: 10 },
 
+    menuContent: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radii.md,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+    },
+    menuItemText: {
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.text,
+    },
     modalBackdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.45)',

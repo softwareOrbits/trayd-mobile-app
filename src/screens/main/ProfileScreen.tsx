@@ -14,6 +14,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import {
+  launchCamera,
+  launchImageLibrary,
+  type Asset,
+} from 'react-native-image-picker';
 
 import Toast from 'react-native-toast-message';
 
@@ -24,7 +29,9 @@ import {
   fetchMyMember,
   parseServiceArea,
   parseWorkingHours,
+  profilePhotoUrl,
   updateMyPhone,
+  uploadProfilePhoto,
   type MemberProfile,
   type MemberStats,
 } from '@/services/member';
@@ -66,7 +73,6 @@ const summariseArea = (raw: unknown): string => {
 };
 
 const fmtHours = (h: number) => `${Math.round(h)}h`;
-const fmtMoney = (n: number) => `€${Math.round(n)}`;
 
 const ProfileScreen = () => {
   const { colors } = useTheme();
@@ -78,6 +84,7 @@ const ProfileScreen = () => {
 
   const [member, setMember] = useState<MemberProfile | null>(null);
   const [stats, setStats] = useState<MemberStats | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [queued, setQueued] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notify, setNotify] = useState(true);
@@ -85,6 +92,8 @@ const ProfileScreen = () => {
   const [phoneModal, setPhoneModal] = useState(false);
   const [phoneDraft, setPhoneDraft] = useState('');
   const [phoneSaving, setPhoneSaving] = useState(false);
+  const [photoSheet, setPhotoSheet] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -93,6 +102,9 @@ const ProfileScreen = () => {
         .then(m => {
           if (!active) return;
           setMember(m);
+          profilePhotoUrl(m.photoPath)
+            .then(url => active && setPhotoUrl(url))
+            .catch(() => {});
           fetchMemberStats(m.id)
             .then(s => active && setStats(s))
             .catch(() => {});
@@ -136,6 +148,66 @@ const ProfileScreen = () => {
     } finally {
       setPhoneSaving(false);
     }
+  };
+
+  const handlePhotoAsset = async (asset: Asset | undefined) => {
+    if (!asset?.base64) {
+      Toast.show({ type: 'error', text1: "Couldn't read that image." });
+      return;
+    }
+    setPhotoUploading(true);
+    try {
+      const path = await uploadProfilePhoto({
+        base64: asset.base64,
+        type: asset.type,
+      });
+      setMember(m => (m ? { ...m, photoPath: path } : m));
+      setPhotoUrl(asset.uri ?? null);
+      Toast.show({ type: 'success', text1: 'Profile photo updated.' });
+    } catch (e) {
+      Toast.show({
+        type: 'error',
+        text1: e instanceof Error ? e.message : "Couldn't upload photo.",
+      });
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
+  const takePhoto = async () => {
+    setPhotoSheet(false);
+    const res = await launchCamera({
+      mediaType: 'photo',
+      includeBase64: true,
+      quality: 0.7,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      cameraType: 'front',
+    });
+    if (res.didCancel) return;
+    if (res.errorCode) {
+      Toast.show({ type: 'error', text1: res.errorMessage ?? 'Camera error.' });
+      return;
+    }
+    handlePhotoAsset(res.assets?.[0]);
+  };
+
+  const pickPhoto = async () => {
+    setPhotoSheet(false);
+    const res = await launchImageLibrary({
+      mediaType: 'photo',
+      includeBase64: true,
+      quality: 0.7,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      selectionLimit: 1,
+    });
+    if (res.didCancel) return;
+    if (res.errorCode) {
+      Toast.show({ type: 'error', text1: res.errorMessage ?? 'Library error.' });
+      return;
+    }
+    handlePhotoAsset(res.assets?.[0]);
   };
 
   const serviceArea = parseServiceArea(member?.serviceArea);
@@ -187,7 +259,24 @@ const ProfileScreen = () => {
 
         {/* Identity */}
         <View style={styles.identity}>
-          <Avatar name={member?.fullName ?? 'U'} size={52} />
+          <Pressable
+            onPress={() => setPhotoSheet(true)}
+            disabled={photoUploading}
+            style={styles.avatarWrap}
+          >
+            {photoUrl ? (
+              <Image source={{ uri: photoUrl }} style={styles.avatarImage} />
+            ) : (
+              <Avatar name={member?.fullName ?? 'U'} size={52} />
+            )}
+            <View style={styles.avatarBadge}>
+              {photoUploading ? (
+                <ActivityIndicator size="small" color={colors.secondary} />
+              ) : (
+                <Ionicons name="camera" size={12} color={colors.secondary} />
+              )}
+            </View>
+          </Pressable>
           <View style={styles.identityText}>
             <Text style={styles.name}>{member?.fullName ?? 'You'}</Text>
             <Text style={styles.sub}>
@@ -218,7 +307,6 @@ const ProfileScreen = () => {
           {[
             { label: 'JOBS', value: String(stats?.jobs ?? 0) },
             { label: 'HOURS', value: fmtHours(stats?.hours ?? 0) },
-            { label: 'MATERIALS', value: fmtMoney(stats?.materials ?? 0) },
           ].map((s, i) => (
             <View key={s.label} style={styles.statCell}>
               {i > 0 ? <View style={styles.statDivider} /> : null}
@@ -410,6 +498,44 @@ const ProfileScreen = () => {
         </View>
       </Modal>
 
+      <Modal
+        visible={photoSheet}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPhotoSheet(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setPhotoSheet(false)}
+          />
+          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 20 }]}>
+            <View style={styles.handle} />
+            <View style={styles.modalIcon}>
+              <Ionicons name="camera-outline" size={24} color={colors.secondary} />
+            </View>
+            <Text style={styles.modalTitle}>Profile photo</Text>
+            <Text style={styles.modalText}>
+              Helps your crew recognise you on chat and on the site.
+            </Text>
+            <Button label="Take a photo" fullWidth onPress={takePhoto} />
+            <Button
+              label="Choose from library"
+              variant="outlined"
+              color="secondary"
+              fullWidth
+              onPress={pickPhoto}
+            />
+            <Pressable
+              onPress={() => setPhotoSheet(false)}
+              style={styles.cancelBtn}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       <AppToast />
     </View>
   );
@@ -438,6 +564,26 @@ export const makeStyles = (theme: Theme) =>
       alignItems: 'center',
       gap: 14,
       marginTop: 16,
+    },
+    avatarWrap: { width: 52, height: 52 },
+    avatarImage: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: theme.colors.borderMuted,
+    },
+    avatarBadge: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: theme.colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: theme.colors.background,
     },
     identityText: { flex: 1, gap: 2 },
     name: {

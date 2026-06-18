@@ -52,6 +52,7 @@ export type JobDetail = {
   isCallout: boolean;
   totalHours: number | null;
   summary: string | null;
+  createdById: string | null;
   createdByName: string | null;
   customerId: string | null;
   customerName: string | null;
