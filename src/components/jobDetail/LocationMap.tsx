@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { GOOGLE_MAPS_API_KEY } from '@env';
 
@@ -17,13 +17,16 @@ export const LocationMap = ({ query, onPress, height = 150 }: Props) => {
   const styles = useThemedStyles(makeStyles);
   const [failed, setFailed] = useState(false);
 
-  if (!query || !GOOGLE_MAPS_API_KEY || failed) return null;
+  if (!query) return null;
+
+  const canRenderMap =
+    !!GOOGLE_MAPS_API_KEY && !failed && Platform.OS !== 'ios';
 
   const marker = `color:0xE89B2D|${encodeURIComponent(query)}`;
   const url =
     'https://maps.googleapis.com/maps/api/staticmap' +
     `?center=${encodeURIComponent(query)}` +
-    '&zoom=15&size=640x320&scale=2' +
+    '&zoom=15&size=640x320&scale=2&maptype=roadmap' +
     `&markers=${marker}` +
     `&key=${GOOGLE_MAPS_API_KEY}`;
 
@@ -34,12 +37,21 @@ export const LocationMap = ({ query, onPress, height = 150 }: Props) => {
       accessibilityRole="imagebutton"
       accessibilityLabel="Open job location in Maps"
     >
-      <Image
-        source={{ uri: url }}
-        style={styles.img}
-        resizeMode="cover"
-        onError={() => setFailed(true)}
-      />
+      {canRenderMap ? (
+        <Image
+          source={{ uri: url }}
+          style={styles.img}
+          resizeMode="cover"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <View style={styles.placeholder}>
+          <Ionicons name="map-outline" size={26} color={colors.secondary} />
+          <Text style={styles.placeholderText} numberOfLines={2}>
+            {query}
+          </Text>
+        </View>
+      )}
       <View style={styles.overlay}>
         <Ionicons name="navigate" size={13} color={colors.primary} />
         <Text style={styles.overlayText}>Open in Maps</Text>
@@ -57,6 +69,20 @@ export const makeStyles = (theme: Theme) =>
       backgroundColor: theme.colors.surfaceMuted,
     },
     img: { width: '100%', height: '100%' },
+    placeholder: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingHorizontal: 20,
+      backgroundColor: theme.colors.background,
+    },
+    placeholderText: {
+      textAlign: 'center',
+      color: theme.colors.textMuted,
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.semibold,
+    },
     overlay: {
       position: 'absolute',
       right: 10,
