@@ -326,19 +326,68 @@ export const DayRow = ({ day, last }: { day: DayEntry; last?: boolean }) => {
 
 /* ---------- Photo strip ---------- */
 
-export const PhotoStrip = ({ photos }: { photos: PhotoTag[] }) => {
+const PHOTO_PHASES = [
+  { match: 'BEFORE', label: 'Before' },
+  { match: 'MID', label: 'Mid-job' },
+  { match: 'AFTER', label: 'After' },
+] as const;
+
+const Thumb = ({ photo }: { photo: PhotoTag }) => {
   const styles = useThemedStyles(makeStyles);
   return (
-    <View style={styles.photoRow}>
-      {photos.map((p, i) => (
-        <View key={`${p.label}-${i}`} style={styles.photo}>
-          {p.uri ? (
-            <Image source={{ uri: p.uri }} style={styles.photoImg} />
-          ) : (
-            <Text style={styles.photoText}>{p.label}</Text>
-          )}
-        </View>
-      ))}
+    <View style={styles.photo}>
+      {photo.uri ? (
+        <Image source={{ uri: photo.uri }} style={styles.photoImg} />
+      ) : (
+        <Text style={styles.photoText}>{photo.label}</Text>
+      )}
+    </View>
+  );
+};
+
+export const PhotoStrip = ({
+  photos,
+  grouped,
+}: {
+  photos: PhotoTag[];
+  grouped?: boolean;
+}) => {
+  const styles = useThemedStyles(makeStyles);
+
+  if (!grouped) {
+    return (
+      <View style={styles.photoRow}>
+        {photos.map((p, i) => (
+          <Thumb key={`${p.label}-${i}`} photo={p} />
+        ))}
+      </View>
+    );
+  }
+
+  const groups = PHOTO_PHASES.map(phase => ({
+    label: phase.label,
+    items: photos.filter(p => p.label.startsWith(phase.match)),
+  }));
+  const known = new Set(groups.flatMap(g => g.items));
+  const other = photos.filter(p => !known.has(p));
+  if (other.length) groups.push({ label: 'Other', items: other });
+
+  return (
+    <View style={styles.photoGroups}>
+      {groups
+        .filter(g => g.items.length > 0)
+        .map(group => (
+          <View key={group.label} style={styles.photoGroup}>
+            <Text style={styles.photoGroupLabel}>
+              {`${group.label} · ${group.items.length}`}
+            </Text>
+            <View style={styles.photoRow}>
+              {group.items.map((p, i) => (
+                <Thumb key={`${group.label}-${i}`} photo={p} />
+              ))}
+            </View>
+          </View>
+        ))}
     </View>
   );
 };
@@ -672,6 +721,15 @@ export const makeStyles = (theme: Theme) =>
       color: theme.colors.textMuted,
     },
 
+    photoGroups: { gap: 16 },
+    photoGroup: { gap: 8 },
+    photoGroupLabel: {
+      fontSize: 10,
+      fontFamily: theme.fonts.monoBold,
+      letterSpacing: 1.2,
+      textTransform: 'uppercase',
+      color: theme.colors.textMuted,
+    },
     photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
     photo: {
       width: 64,
