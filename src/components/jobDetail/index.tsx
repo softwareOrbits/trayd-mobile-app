@@ -92,6 +92,7 @@ export const LocationCard = ({
   const styles = useThemedStyles(makeStyles);
 
   const destination = [eircode, address].filter(Boolean).join(', ');
+  const mapQuery = address || destination;
 
   const openDirections = () => {
     if (!destination) return;
@@ -105,9 +106,9 @@ export const LocationCard = ({
 
   return (
     <View style={styles.locationCard}>
-      {destination ? (
+      {mapQuery ? (
         <View style={styles.locationMap}>
-          <LocationMap query={destination} onPress={openDirections} />
+          <LocationMap query={mapQuery} onPress={openDirections} />
         </View>
       ) : null}
       <View style={styles.locationTop}>
