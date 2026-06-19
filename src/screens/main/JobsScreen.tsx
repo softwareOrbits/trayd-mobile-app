@@ -8,6 +8,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-worklets';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -246,6 +248,29 @@ const JobsScreen = () => {
   const showTimer = activeTab === 'live' || activeTab === 'resume';
   const isDone = activeTab === 'done';
 
+  const goToAdjacentTab = (dir: number) =>
+    setActiveTab(prev => {
+      const order = tabs.map(t => t.key);
+      const next = order.indexOf(prev) + dir;
+      return next < 0 || next >= order.length ? prev : order[next];
+    });
+
+  const swipeTabs = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetX([-20, 20])
+        .failOffsetY([-15, 15])
+        .onEnd(e => {
+          if (e.translationX <= -50 || e.velocityX <= -500) {
+            runOnJS(goToAdjacentTab)(1);
+          } else if (e.translationX >= 50 || e.velocityX >= 500) {
+            runOnJS(goToAdjacentTab)(-1);
+          }
+        }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tabs],
+  );
+
   const sections = useMemo(() => {
     switch (activeTab) {
       case 'today':
@@ -311,7 +336,8 @@ const JobsScreen = () => {
         </View>
       ) : null}
 
-      <SectionList<Job>
+      <GestureDetector gesture={swipeTabs}>
+        <SectionList<Job>
         sections={sections}
         keyExtractor={item => item.id}
         renderItem={({ item }) =>
@@ -379,7 +405,8 @@ const JobsScreen = () => {
             <Text style={styles.emptyText}>{emptyLabel}</Text>
           </View>
         }
-      />
+        />
+      </GestureDetector>
 
       <Button
         label="Start a new job"

@@ -891,6 +891,7 @@ const WrapUpJobScreen = () => {
               label: p.time ? `AFTER · ${p.time}` : 'AFTER',
               uri: p.uri,
             }))}
+            grouped
           />
         ) : null}
 
@@ -910,16 +911,10 @@ const WrapUpJobScreen = () => {
         </Pressable>
 
         {refPhotos.length ? (
-          <View>
-            <Text style={styles.refLabel}>
-              {`BEFORE · ${refPhotos.length} PHOTO${
-                refPhotos.length === 1 ? '' : 'S'
-              }`}
-            </Text>
-            <PhotoStrip
-              photos={refPhotos.map(p => ({ label: p.label, uri: p.uri }))}
-            />
-          </View>
+          <PhotoStrip
+            photos={refPhotos.map(p => ({ label: p.label, uri: p.uri }))}
+            grouped
+          />
         ) : null}
       </View>
     );
@@ -1375,13 +1370,6 @@ export const makeStyles = (theme: Theme) =>
     presetTextOn: { color: theme.colors.onSecondary },
     reasonInput: { minHeight: 80, textAlignVertical: 'top' },
 
-    refLabel: {
-      marginBottom: 8,
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.2,
-      color: theme.colors.textMuted,
-    },
     quickAddLabel: {
       marginBottom: 8,
       fontSize: 11,

@@ -507,10 +507,10 @@ const JobDetailScreen = () => {
                   setMenuOpen(false);
                   goEdit();
                 }}
-                leadingIcon={() => (
+                leadingIcon={({ size }) => (
                   <Ionicons
                     name="create-outline"
-                    size={18}
+                    size={size}
                     color={colors.secondary}
                   />
                 )}
@@ -524,10 +524,10 @@ const JobDetailScreen = () => {
                   setMenuOpen(false);
                   setConfirm('cancel');
                 }}
-                leadingIcon={() => (
+                leadingIcon={({ size }) => (
                   <Ionicons
                     name="close-circle-outline"
-                    size={18}
+                    size={size}
                     color={colors.secondary}
                   />
                 )}
@@ -541,10 +541,10 @@ const JobDetailScreen = () => {
                   setMenuOpen(false);
                   setConfirm('delete');
                 }}
-                leadingIcon={() => (
+                leadingIcon={({ size }) => (
                   <Ionicons
                     name="trash-outline"
-                    size={18}
+                    size={size}
                     color={colors.error}
                   />
                 )}
@@ -820,7 +820,7 @@ const JobDetailScreen = () => {
         card={false}
       >
         {photoTags.length ? (
-          <PhotoStrip photos={photoTags} />
+          <PhotoStrip photos={photoTags} grouped />
         ) : (
           <Text style={styles.emptyText}>No photos yet.</Text>
         )}
@@ -1014,7 +1014,7 @@ const JobDetailScreen = () => {
               card={false}
             >
               {photoTags.length ? (
-                <PhotoStrip photos={photoTags} />
+                <PhotoStrip photos={photoTags} grouped />
               ) : (
                 <Text style={styles.emptyText}>No photos yet.</Text>
               )}
