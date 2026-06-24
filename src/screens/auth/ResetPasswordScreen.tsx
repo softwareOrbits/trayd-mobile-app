@@ -4,7 +4,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -18,9 +17,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { BackButton, Button, Input } from '@/components/ui';
 import { supabase } from '@/services/supabase';
-import { type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
-import { subtitleStyles, titleStyles } from '@/theme/constants';
+import { makeResetPasswordStyles } from '@/styles/resetPassword.styles';
 import type { AuthStackParamList } from '@/types';
 
 const schema = z.object({
@@ -30,7 +28,7 @@ const schema = z.object({
 type ResetForm = z.infer<typeof schema>;
 
 const ResetPasswordScreen = () => {
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeResetPasswordStyles);
   const insets = useSafeAreaInsets();
   const navigation =
     useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
@@ -116,17 +114,5 @@ const ResetPasswordScreen = () => {
     </KeyboardAvoidingView>
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    flex: { flex: 1, backgroundColor: theme.colors.background },
-    content: { flexGrow: 1, paddingHorizontal: 24 },
-    header: { alignItems: 'center', marginTop: 12 },
-    logo: { width: 56, height: 44, marginBottom: 16 },
-    title: titleStyles,
-    subtitle: subtitleStyles,
-    form: { marginTop: 28, gap: 16 },
-    footer: { marginTop: 'auto' },
-  });
 
 export default ResetPasswordScreen;

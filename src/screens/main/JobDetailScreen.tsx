@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   AppState,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -21,8 +18,7 @@ import {
 } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
-
-import { Button, Input, JobHeader } from '@/components/ui';
+import { Button, JobHeader } from '@/components/ui';
 import { StatusBadge, LiveStateBadge } from '@/components/jobs';
 import {
   ActionGrid,
@@ -30,6 +26,7 @@ import {
   DayRow,
   EmployerNote,
   InfoRow,
+  LineItem,
   LineItemRow,
   LocationCard,
   PausedCard,
@@ -37,8 +34,6 @@ import {
   RosterChips,
   Section,
   TimerCard,
-  toLineItem,
-  type LineItem,
   type PhotoTag,
   type RosterMember,
 } from '@/components/jobDetail';
@@ -46,6 +41,7 @@ import {
   addJobMaterial,
   buildDayBreakdown,
   deleteJobMaterial,
+  deleteJobPhoto,
   editSegmentStartTime,
   fetchJobDays,
   fetchJobDetail,
@@ -72,54 +68,56 @@ import {
   type JobSegment,
 } from '@/services/jobs';
 import { enqueueAction, flushOutbox } from '@/services/outbox';
+import { loadJobCache, saveJobCache } from '@/services/jobCache';
+import { enqueue } from '@/offline';
+import type { SelectedMaterial } from '@/components/MaterialSelect';
 import {
-  MaterialSelect,
-  type SelectedMaterial,
-} from '@/components/MaterialSelect';
+  MaterialSheet,
+  TimeEditSheet,
+  ConfirmActionModal,
+} from '@/components/jobDetail/DetailModals';
 import { fetchMyMember } from '@/services/member';
 import { signOut } from '@/store/authSlice';
-import { detailStateFor } from '@/data/jobDetails';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
-import { useTheme, type Theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { dayNumberFor, formatElapsed } from '@/utils/liveMeta';
+import { formatDuration } from '@/utils/duration';
 import { isNetworkError } from '@/utils/errors';
 import { toastError, toastSuccess } from '@/utils/toast';
 import {
+  detailStateFor,
   JOB_TYPE_LABEL,
   type JobDetail,
   type JobStatus,
   type MainStackParamList,
 } from '@/types';
-
-const fmtDate = (d: string | null) =>
-  d
-    ? new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-      })
-    : null;
-
-const fmtTime = (t: string | null) => (t ? t.slice(0, 5) : null);
-
-const joinDot = (...parts: (string | null | undefined)[]) =>
-  parts.filter(Boolean).join(' · ');
-
-const money = (n: number) => `€${n.toFixed(2)}`;
+import { makeJobDetailStyles } from '@/styles/jobDetail.styles';
+import {
+  detailFromCachedJob,
+  fmtDate,
+  fmtTime,
+  joinDot,
+  money,
+  toLineItem,
+} from '@/components/jobDetail/detailScreen.helpers';
 
 const JobDetailScreen = () => {
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeJobDetailStyles);
   const insets = useSafeAreaInsets();
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const { params } = useRoute<RouteProp<MainStackParamList, 'JobDetail'>>();
 
   const dispatch = useAppDispatch();
+  const cachedJob = useAppSelector(s =>
+    s.jobs.items.find(j => j.id === params.jobId),
+  );
   const [detail, setDetail] = useState<JobDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [offline, setOffline] = useState(false);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -163,39 +161,83 @@ const JobDetailScreen = () => {
   }, [isActive]);
 
   const loadSession = useCallback((jobId: string) => {
-    fetchJobMaterials(jobId)
-      .then(setMaterials)
-      .catch(e => console.warn('job_materials:', e?.message));
     fetchJobPhotos(jobId)
       .then(setPhotos)
       .catch(e => console.warn('job_photos:', e?.message));
-    fetchJobNotes(jobId)
-      .then(setNotes)
-      .catch(e => console.warn('job_notes:', e?.message));
-    fetchJobRoster(jobId)
-      .then(setCrew)
-      .catch(e => console.warn('job_assignments:', e?.message));
-    fetchJobSegments(jobId)
-      .then(setSegments)
-      .catch(e => console.warn('job_time_entries:', e?.message));
-    fetchJobDays(jobId)
-      .then(setDays)
-      .catch(e => console.warn('job_days:', e?.message));
+    Promise.allSettled([
+      fetchJobMaterials(jobId),
+      fetchJobNotes(jobId),
+      fetchJobRoster(jobId),
+      fetchJobSegments(jobId),
+      fetchJobDays(jobId),
+    ]).then(async ([mats, nts, rost, segs, dys]) => {
+      const val = <T,>(r: PromiseSettledResult<T>) =>
+        r.status === 'fulfilled' ? r.value : null;
+      if (mats.status === 'fulfilled') setMaterials(mats.value);
+      if (nts.status === 'fulfilled') setNotes(nts.value);
+      if (rost.status === 'fulfilled') setCrew(rost.value);
+      if (segs.status === 'fulfilled') setSegments(segs.value);
+      if (dys.status === 'fulfilled') setDays(dys.value);
+
+      const anyFailed = [mats, nts, rost, segs, dys].some(
+        r => r.status === 'rejected',
+      );
+      if (!anyFailed) {
+        saveJobCache(jobId, {
+          materials: val(mats) ?? undefined,
+          notes: val(nts) ?? undefined,
+          crew: val(rost) ?? undefined,
+          segments: val(segs) ?? undefined,
+          days: val(dys) ?? undefined,
+        });
+        return;
+      }
+      const cached = await loadJobCache(jobId);
+      if (!cached) return;
+      if (mats.status === 'rejected' && cached.materials)
+        setMaterials(cached.materials);
+      if (nts.status === 'rejected' && cached.notes) setNotes(cached.notes);
+      if (rost.status === 'rejected' && cached.crew) setCrew(cached.crew);
+      if (segs.status === 'rejected' && cached.segments)
+        setSegments(cached.segments);
+      if (dys.status === 'rejected' && cached.days) setDays(cached.days);
+    });
   }, []);
+
+  const loadDetail = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    setOffline(false);
+    fetchJobDetail(params.jobId)
+      .then(d => {
+        setDetail(d);
+        saveJobCache(params.jobId, { detail: d });
+      })
+      .catch(async e => {
+        if (isNetworkError(e)) {
+          setOffline(true);
+          const cached = await loadJobCache(params.jobId);
+          const fallback =
+            cached?.detail ??
+            (cachedJob ? detailFromCachedJob(cachedJob) : null);
+          if (fallback) setDetail(prev => prev ?? fallback);
+        } else {
+          setError(e?.message ?? 'Something went wrong.');
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [params.jobId, cachedJob]);
 
   useEffect(() => {
     let active = true;
-    fetchJobDetail(params.jobId)
-      .then(d => active && setDetail(d))
-      .catch(e => active && setError(e?.message ?? 'Something went wrong.'))
-      .finally(() => active && setLoading(false));
+    loadDetail();
     fetchMyMember()
       .then(m => active && setMyMemberId(m.id))
       .catch(() => {});
     return () => {
       active = false;
     };
-  }, [params.jobId]);
+  }, [params.jobId, loadDetail]);
 
   // Replay any offline-queued lifecycle actions, then refresh on success.
   const flushAndRefresh = useCallback(() => {
@@ -250,7 +292,22 @@ const JobDetailScreen = () => {
         setDetail(await fetchJobDetail(detail.id));
       }
     } catch (e) {
-      toastError(e, 'Could not update job.');
+      if (isNetworkError(e)) {
+        await enqueue({
+          id: `${detail.id}:status:${next}:${Date.now()}`,
+          kind: 'job.status',
+          payload: { jobId: detail.id, status: next },
+        });
+        dispatch(fetchJobs());
+        Toast.show({ type: 'info', text1: 'Saved offline — will sync.' });
+        if (goBackAfter) {
+          navigation.goBack();
+        } else {
+          setDetail({ ...detail, status: next });
+        }
+      } else {
+        toastError(e, 'Could not update job.');
+      }
     } finally {
       setActing(false);
     }
@@ -569,6 +626,27 @@ const JobDetailScreen = () => {
     );
   }
 
+  if (offline && !detail) {
+    return (
+      <View style={styles.flex}>
+        {header}
+        <View style={styles.centered}>
+          <Ionicons
+            name="cloud-offline-outline"
+            size={40}
+            color={colors.textMuted}
+          />
+          <Text style={styles.offlineTitle}>You’re offline</Text>
+          <Text style={styles.missingText}>
+            Reconnect to load this job. Anything you log meanwhile will sync
+            when you’re back online.
+          </Text>
+          <Button label="Try again" onPress={loadDetail} style={styles.retryBtn} />
+        </View>
+      </View>
+    );
+  }
+
   if (error || !detail) {
     return (
       <View style={styles.flex}>
@@ -660,12 +738,6 @@ const JobDetailScreen = () => {
       })
       .toUpperCase()} · ${fmtTime(iso.slice(11, 16))}`;
   };
-  const hoursLabel = (h: number) => {
-    const hh = Math.floor(h);
-    const mm = Math.round((h - hh) * 60);
-    return mm ? `${hh}h ${mm}m` : `${hh}h`;
-  };
-
   // "Days so far" — only meaningful once a job spans days or is paused.
   const daysSoFar =
     days.length > 1 || state === 'paused' ? (
@@ -676,7 +748,7 @@ const JobDetailScreen = () => {
             day={{
               label: `Day ${d.dayNumber} · ${fmtDayDate(d.workDate)}`,
               sub: joinDot(
-                hoursLabel(d.hours),
+                formatDuration(d.hours),
                 d.crew <= 1 ? 'Just you' : `${d.crew} on site`,
                 money(d.materialsTotal),
               ),
@@ -731,7 +803,32 @@ const JobDetailScreen = () => {
     // DB stores before/during/after; the design's label for "during" is MID.
     label: p.phase === 'during' ? 'MID' : p.phase.toUpperCase(),
     uri: p.url ?? undefined,
+    id: p.id,
   }));
+
+  const onDeletePhoto = (id: string) => {
+    const target = photos.find(p => p.id === id);
+    if (!target) return;
+    Alert.alert('Remove photo?', 'This permanently deletes the photo.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteJobPhoto({
+              id: target.id,
+              storagePath: target.storagePath,
+            });
+            setPhotos(prev => prev.filter(p => p.id !== id));
+            toastSuccess('Photo removed.');
+          } catch (e) {
+            toastError(e, 'Could not remove the photo.');
+          }
+        },
+      },
+    ]);
+  };
 
   const fmtNoteTime = (iso: string) =>
     new Date(iso).toLocaleTimeString('en-GB', {
@@ -820,7 +917,7 @@ const JobDetailScreen = () => {
         card={false}
       >
         {photoTags.length ? (
-          <PhotoStrip photos={photoTags} grouped />
+          <PhotoStrip photos={photoTags} grouped onDelete={onDeletePhoto} />
         ) : (
           <Text style={styles.emptyText}>No photos yet.</Text>
         )}
@@ -981,11 +1078,7 @@ const JobDetailScreen = () => {
             <Section
               title="Logged so far"
               action={
-                materials.some(m => m.addedBy === myMemberId)
-                  ? editingLogs
-                    ? 'Done'
-                    : 'Edit'
-                  : undefined
+                materials.length ? (editingLogs ? 'Done' : 'Edit') : undefined
               }
               onAction={() => setEditingLogs(v => !v)}
             >
@@ -993,9 +1086,7 @@ const JobDetailScreen = () => {
                 materials.map((m, i) => {
                   const it = lineItems[i];
                   const last = i === materials.length - 1;
-                  // RLS only lets you edit/delete rows you logged.
-                  const mine = !!myMemberId && m.addedBy === myMemberId;
-                  return editingLogs && mine ? (
+                  return editingLogs ? (
                     <Pressable key={m.id} onPress={() => openEditMaterial(m)}>
                       <LineItemRow item={it} last={last} editable />
                     </Pressable>
@@ -1014,7 +1105,7 @@ const JobDetailScreen = () => {
               card={false}
             >
               {photoTags.length ? (
-                <PhotoStrip photos={photoTags} grouped />
+                <PhotoStrip photos={photoTags} grouped onDelete={onDeletePhoto} />
               ) : (
                 <Text style={styles.emptyText}>No photos yet.</Text>
               )}
@@ -1075,7 +1166,7 @@ const JobDetailScreen = () => {
                 {pausedSince ? (
                   <PausedCard
                     since={fmtPausedSince(pausedSince)}
-                    summary={`${hoursLabel(segElapsed.hours)} logged · resume when you’re back`}
+                    summary={`${formatDuration(segElapsed.hours)} logged · resume when you’re back`}
                   />
                 ) : (
                   <Callout variant="info" icon="time-outline">
@@ -1215,462 +1306,43 @@ const JobDetailScreen = () => {
         {footer()}
       </View>
 
-      <Modal
-        visible={matSheet !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setMatSheet(null)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.modalBackdrop}
-        >
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setMatSheet(null)}
-          />
-          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 20 }]}>
-            <Text style={styles.modalTitle}>
-              {matSheet === 'new' ? 'Log van stock' : 'Edit item'}
-            </Text>
-            <MaterialSelect
-              value={
-                itemName
-                  ? {
-                      materialId: null,
-                      name: itemName,
-                      unit: itemUnit,
-                      sellPrice: null,
-                    }
-                  : null
-              }
-              onChange={onPickMaterial}
-            />
-            <View style={styles.modalRow}>
-              <Input
-                label="Qty"
-                keyboardType="numeric"
-                value={itemQty}
-                onChangeText={setItemQty}
-                containerStyle={styles.modalRowItem}
-              />
-              <Input
-                label="Unit price (€)"
-                keyboardType="decimal-pad"
-                placeholder="0.00"
-                value={itemCost}
-                onChangeText={setItemCost}
-                containerStyle={styles.modalRowItem}
-              />
-            </View>
-            <Button
-              label={matSheet === 'new' ? 'Log item' : 'Save changes'}
-              fullWidth
-              loading={saving}
-              disabled={!itemName.trim()}
-              onPress={saveMaterial}
-            />
-            {matSheet !== 'new' ? (
-              <Pressable
-                onPress={removeMaterial}
-                hitSlop={8}
-                style={styles.modalDeleteBtn}
-              >
-                <Text style={styles.modalDeleteText}>Remove item</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <MaterialSheet
+        mode={matSheet}
+        itemName={itemName}
+        itemUnit={itemUnit}
+        itemQty={itemQty}
+        itemCost={itemCost}
+        saving={saving}
+        onPick={onPickMaterial}
+        onChangeQty={setItemQty}
+        onChangeCost={setItemCost}
+        onSave={saveMaterial}
+        onRemove={removeMaterial}
+        onClose={() => setMatSheet(null)}
+      />
 
-      <Modal
+      <TimeEditSheet
         visible={timeSheet}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setTimeSheet(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.modalBackdrop}
-        >
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setTimeSheet(false)}
-          />
-          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 20 }]}>
-            <Text style={styles.modalTitle}>Edit start time</Text>
-            <Text style={styles.modalHint}>
-              Adjust when the job started — we log the edit for your office.
-            </Text>
-            <View style={styles.timeRow}>
-              <Input
-                keyboardType="number-pad"
-                maxLength={2}
-                value={timeHH}
-                onChangeText={setTimeHH}
-                style={styles.timeBox}
-                containerStyle={styles.timeBoxWrap}
-              />
-              <Text style={styles.timeColon}>:</Text>
-              <Input
-                keyboardType="number-pad"
-                maxLength={2}
-                value={timeMM}
-                onChangeText={setTimeMM}
-                style={styles.timeBox}
-                containerStyle={styles.timeBoxWrap}
-              />
-            </View>
-            <View style={styles.presetRow}>
-              {[
-                { k: 'down5' as const, label: 'Round down 5m' },
-                { k: 'down15' as const, label: 'Round down 15m' },
-                { k: 'now' as const, label: 'Now' },
-              ].map(p => (
-                <Pressable
-                  key={p.k}
-                  style={styles.presetChip}
-                  onPress={() => applyTimePreset(p.k)}
-                >
-                  <Text style={styles.presetChipText}>{p.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <Input
-              label="Reason for edit (optional)"
-              placeholder="e.g. Forgot to start the timer on arrival."
-              value={timeReason}
-              onChangeText={setTimeReason}
-            />
-            <Button
-              label={`Save · ${timeHH}:${timeMM}`}
-              fullWidth
-              loading={savingTime}
-              onPress={saveTimeEdit}
-            />
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        hh={timeHH}
+        mm={timeMM}
+        reason={timeReason}
+        saving={savingTime}
+        onChangeHH={setTimeHH}
+        onChangeMM={setTimeMM}
+        onChangeReason={setTimeReason}
+        onPreset={applyTimePreset}
+        onSave={saveTimeEdit}
+        onClose={() => setTimeSheet(false)}
+      />
 
-      <Modal
-        visible={confirm !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setConfirm(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setConfirm(null)}
-          />
-          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 20 }]}>
-            <Text style={styles.modalTitle}>
-              {confirm === 'delete' ? 'Delete this job?' : 'Cancel this job?'}
-            </Text>
-            <Text style={styles.modalHint}>
-              {confirm === 'delete'
-                ? 'This permanently removes the job and can’t be undone.'
-                : 'This marks the job as cancelled. It stays visible under Done.'}
-            </Text>
-            <Pressable
-              style={styles.dangerBtn}
-              disabled={actioning}
-              onPress={confirm === 'delete' ? runDelete : runCancel}
-            >
-              {actioning ? (
-                <ActivityIndicator color={colors.error} />
-              ) : (
-                <Text style={styles.dangerText}>
-                  {confirm === 'delete' ? 'Yes, delete job' : 'Yes, cancel job'}
-                </Text>
-              )}
-            </Pressable>
-            <Pressable
-              style={styles.keepBtn}
-              onPress={() => setConfirm(null)}
-            >
-              <Text style={styles.keepText}>Keep job</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
+      <ConfirmActionModal
+        mode={confirm}
+        actioning={actioning}
+        onConfirm={confirm === 'delete' ? runDelete : runCancel}
+        onClose={() => setConfirm(null)}
+      />
     </View>
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    flex: { flex: 1, backgroundColor: theme.colors.background },
-    dangerBtn: {
-      alignSelf: 'stretch',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: theme.colors.error,
-      borderRadius: theme.radii.md,
-      paddingVertical: 14,
-      marginTop: 4,
-    },
-    dangerText: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.error,
-    },
-    keepBtn: {
-      alignSelf: 'stretch',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      borderRadius: theme.radii.md,
-      paddingVertical: 14,
-      marginTop: 10,
-    },
-    keepText: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-    missingText: { color: theme.colors.textMuted, textAlign: 'center' },
-
-    content: {
-      paddingHorizontal: 20,
-      paddingTop: 16,
-      paddingBottom: 24,
-      flexGrow: 1,
-    },
-    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    metaText: {
-      fontSize: theme.typography.size.xs,
-      fontFamily: theme.fonts.mono,
-      color: theme.colors.textMuted,
-    },
-    title: {
-      marginTop: 8,
-      fontSize: theme.typography.size.xxl,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-    },
-    subtitle: {
-      marginTop: 2,
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-    },
-
-    block: { marginTop: 18 },
-    calloutText: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.text,
-      lineHeight: 20,
-    },
-    calloutStrong: {
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-      fontSize: theme.typography.size.sm,
-    },
-    calloutMuted: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-    },
-    cardText: {
-      paddingVertical: 14,
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.text,
-      lineHeight: 20,
-    },
-    placeholder: {
-      marginTop: 18,
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-      fontStyle: 'italic',
-    },
-    footnote: {
-      marginTop: 16,
-      fontSize: theme.typography.size.xs,
-      color: theme.colors.textMuted,
-      lineHeight: 18,
-    },
-    waitingText: {
-      textAlign: 'center',
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.mono,
-      color: theme.colors.textMuted,
-      paddingVertical: 12,
-    },
-    footer: {
-      paddingHorizontal: 20,
-      paddingTop: 14,
-      backgroundColor: theme.colors.surface,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.borderMuted,
-    },
-    footerStack: { gap: 12 },
-
-    emptyText: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-    },
-    notesStack: { gap: 10 },
-
-    menuContent: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.md,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-    },
-    menuItemText: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-    modalBackdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
-      justifyContent: 'flex-end',
-    },
-    modalCard: {
-      backgroundColor: theme.colors.background,
-      borderTopLeftRadius: theme.radii.lg,
-      borderTopRightRadius: theme.radii.lg,
-      padding: 20,
-      gap: 14,
-    },
-    modalTitle: {
-      fontSize: theme.typography.size.lg,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-    },
-    modalRow: { flexDirection: 'row', gap: 12 },
-    modalRowItem: { flex: 1 },
-
-    selectContainer: { gap: 6 },
-    selectLabel: {
-      color: theme.colors.black,
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-    },
-    selectField: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 8,
-      backgroundColor: theme.colors.inputBackground,
-      borderColor: theme.colors.inputBorder,
-      borderWidth: 1,
-      borderRadius: theme.radii.md,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-    },
-    selectValue: {
-      flex: 1,
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.regular,
-      color: theme.colors.black,
-    },
-    selectPlaceholder: { color: theme.colors.placeholder },
-    selectDropdown: { gap: 8 },
-    selectList: {
-      maxHeight: 200,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      borderRadius: theme.radii.md,
-    },
-    selectLoading: { paddingVertical: 20 },
-    selectOption: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 10,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.divider,
-    },
-    selectOptionName: {
-      flex: 1,
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.medium,
-      color: theme.colors.text,
-    },
-    selectOptionMeta: {
-      fontSize: theme.typography.size.xs,
-      fontFamily: theme.fonts.mono,
-      color: theme.colors.textMuted,
-    },
-    selectEmpty: {
-      padding: 14,
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-    },
-    modalDeleteBtn: { alignSelf: 'center', paddingVertical: 4 },
-    modalDeleteText: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.error,
-    },
-    modalHint: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-      lineHeight: 19,
-    },
-    timeRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 10,
-    },
-    timeBoxWrap: { width: 80 },
-    timeBox: {
-      fontSize: 30,
-      fontFamily: theme.fonts.monoBold,
-      textAlign: 'center',
-      color: theme.colors.text,
-    },
-    timeColon: {
-      fontSize: 30,
-      fontFamily: theme.fonts.monoBold,
-      color: theme.colors.text,
-    },
-    presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    presetChip: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.pill,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 14,
-      paddingVertical: 9,
-    },
-    presetChipText: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.medium,
-      color: theme.colors.text,
-    },
-
-    scopeRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      paddingVertical: 13,
-    },
-    scopeDivider: {
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.divider,
-    },
-    scopeText: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.medium,
-      color: theme.colors.text,
-    },
-    scopeTextOff: {
-      color: theme.colors.textMuted,
-      textDecorationLine: 'line-through',
-    },
-    linkBtn: { alignSelf: 'center', paddingVertical: 4 },
-    linkText: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-  });
 
 export default JobDetailScreen;

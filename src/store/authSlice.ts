@@ -4,6 +4,7 @@ import {
   type PayloadAction,
 } from '@reduxjs/toolkit';
 import { supabase } from '@/services/supabase';
+import { clearMemberCache } from '@/services/member';
 import { getJwtClaims } from '@/utils/jwt';
 import type {
   AuthState,
@@ -69,7 +70,8 @@ export const restoreSession = createAsyncThunk<SetCredentialsPayload | null>(
 );
 
 export const signOut = createAsyncThunk('auth/signOut', async () => {
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: 'local' });
+  clearMemberCache();
 });
 
 const applyCredentials = (

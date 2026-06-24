@@ -4,7 +4,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -20,9 +19,9 @@ import Toast from 'react-native-toast-message';
 
 import { BackButton, Button, Input } from '@/components/ui';
 import { supabase } from '@/services/supabase';
-import { useTheme, type Theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
-import { subtitleStyles, titleStyles } from '@/theme/constants';
+import { makeCreatePasswordStyles } from '@/styles/createPassword.styles';
 import type { AuthStackParamList } from '@/types';
 
 const RULES = [
@@ -36,7 +35,7 @@ const STRENGTH_LABELS = ['Weak', 'Weak', 'Fair', 'Good', 'Strong'];
 
 const CreatePasswordScreen = () => {
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeCreatePasswordStyles);
   const insets = useSafeAreaInsets();
   const navigation =
     useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
@@ -181,36 +180,5 @@ const CreatePasswordScreen = () => {
     </KeyboardAvoidingView>
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    flex: { flex: 1, backgroundColor: theme.colors.background },
-    content: { flexGrow: 1, paddingHorizontal: 24 },
-    header: { alignItems: 'center', marginTop: 12 },
-    logo: { width: 56, height: 44, marginBottom: 16 },
-    title: titleStyles,
-    subtitle: subtitleStyles,
-    subtitleStrong: {
-      color: theme.colors.text,
-      fontFamily: theme.fonts.semibold,
-    },
-    form: { marginTop: 28, gap: 14 },
-    strengthBlock: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
-    strengthBar: { flex: 1, flexDirection: 'row', gap: 6 },
-    strengthSegment: { flex: 1, height: 4, borderRadius: 2 },
-    strengthLabel: {
-      color: theme.colors.text,
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-    },
-    checklist: { gap: 10, marginTop: 4 },
-    checkRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    checkText: { fontSize: theme.typography.size.sm },
-    footer: { marginTop: 'auto' },
-  });
 
 export default CreatePasswordScreen;

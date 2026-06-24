@@ -1,7 +1,6 @@
 import {
   PermissionsAndroid,
   Platform,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -10,14 +9,15 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { Button, TextLink } from '@/components/ui';
-import { useTheme, type Theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { makeOnboardingLocationStyles } from '@/styles/onboardingLocation.styles';
 import type { AuthStackParamList } from '@/types';
 import OnboardingScaffold from './OnboardingScaffold';
 
 const LocationScreen = () => {
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeOnboardingLocationStyles);
   const navigation =
     useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
   const next = () => navigation.navigate('OnboardPhoto');
@@ -60,21 +60,5 @@ const LocationScreen = () => {
     />
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    iconBox: {
-      width: 88,
-      height: 88,
-      borderRadius: 22,
-      backgroundColor: theme.colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    bold: {
-      color: theme.colors.text,
-      fontFamily: theme.fonts.bold,
-    },
-  });
 
 export default LocationScreen;

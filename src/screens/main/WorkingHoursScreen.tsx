@@ -22,8 +22,11 @@ import {
   updateMyWorkingHours,
   type WorkingHours,
 } from '@/services/member';
-import { useTheme, type Theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { makeWorkingHoursStyles } from '@/styles/workingHours.styles';
+import { toastError } from '@/utils/toast';
+import { isNetworkError } from '@/utils/errors';
 import type { MainStackParamList } from '@/types';
 
 const pad = (n: number) => n.toString().padStart(2, '0');
@@ -45,7 +48,7 @@ const sameHours = (a: WorkingHours, b: WorkingHours) =>
 
 const WorkingHoursScreen = () => {
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeWorkingHoursStyles);
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
 
@@ -67,7 +70,12 @@ const WorkingHoursScreen = () => {
         setHours(parsed);
         setOriginal(parsed);
       })
-      .catch(() => active && Toast.show({ type: 'error', text1: 'Could not load your hours.' }))
+      .catch(
+        e =>
+          active &&
+          !isNetworkError(e) &&
+          Toast.show({ type: 'error', text1: 'Could not load your hours.' }),
+      )
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
@@ -112,10 +120,7 @@ const WorkingHoursScreen = () => {
       Toast.show({ type: 'success', text1: 'Working hours saved.' });
       navigation.goBack();
     } catch (e) {
-      Toast.show({
-        type: 'error',
-        text1: e instanceof Error ? e.message : 'Could not save your hours.',
-      });
+      toastError(e, 'Could not save your hours.');
       setSaving(false);
     }
   };
@@ -266,129 +271,12 @@ const TimeChip = ({
   label: string;
   value: string;
   onPress: () => void;
-  styles: ReturnType<typeof makeStyles>;
+  styles: ReturnType<typeof makeWorkingHoursStyles>;
 }) => (
   <Pressable style={styles.timeChip} onPress={onPress}>
     <Text style={styles.timeChipLabel}>{label}</Text>
     <Text style={styles.timeChipValue}>{value}</Text>
   </Pressable>
 );
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    flex: { flex: 1, backgroundColor: theme.colors.background },
-    centered: { alignItems: 'center', justifyContent: 'center' },
-    content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28, gap: 12 },
-    subtitle: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-      lineHeight: 20,
-      marginBottom: 4,
-    },
-    dayCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      gap: 12,
-    },
-    dayTop: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    dayLabel: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-    dayRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    dayState: {
-      fontSize: 10,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 0.8,
-    },
-    timeRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 10,
-    },
-    timeChip: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: theme.radii.md,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-    },
-    timeChipLabel: {
-      fontSize: 10,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 0.8,
-      color: theme.colors.textMuted,
-    },
-    timeChipValue: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-    },
-    copyBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      paddingVertical: 12,
-    },
-    copyText: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.secondary,
-    },
-
-    pickerBackdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
-      justifyContent: 'center',
-      paddingHorizontal: 40,
-    },
-    pickerCard: {
-      backgroundColor: theme.colors.background,
-      borderRadius: theme.radii.lg,
-      paddingVertical: 16,
-      paddingHorizontal: 8,
-      maxHeight: '60%',
-    },
-    pickerTitle: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-      textAlign: 'center',
-      marginBottom: 8,
-    },
-    pickerList: { paddingHorizontal: 8 },
-    pickerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 12,
-      paddingHorizontal: 12,
-    },
-    pickerRowText: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.medium,
-      color: theme.colors.text,
-    },
-    pickerRowActive: {
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.primary,
-    },
-  });
 
 export default WorkingHoursScreen;

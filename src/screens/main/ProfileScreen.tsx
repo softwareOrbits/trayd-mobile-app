@@ -36,12 +36,14 @@ import {
   type MemberStats,
 } from '@/services/member';
 import { staticMapUrl } from '@/services/places';
-import { APP_VERSION } from '@/config/appInfo';
+import { APP_VERSION } from '@/utils/appInfo';
 import { hasQueuedActions } from '@/services/outbox';
 import { useAppDispatch } from '@/store/hooks';
 import { signOut } from '@/store/authSlice';
-import { useTheme, type Theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { makeProfileStyles } from '@/styles/profile.styles';
+import { toastError } from '@/utils/toast';
 import type { MainStackParamList } from '@/types';
 
 /** Compact summary of the working-hours column for the profile row. */
@@ -76,7 +78,7 @@ const fmtHours = (h: number) => `${Math.round(h)}h`;
 
 const ProfileScreen = () => {
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeProfileStyles);
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const navigation =
@@ -141,10 +143,7 @@ const ProfileScreen = () => {
       setPhoneModal(false);
       Toast.show({ type: 'success', text1: 'Phone updated.' });
     } catch (e) {
-      Toast.show({
-        type: 'error',
-        text1: e instanceof Error ? e.message : 'Could not update phone.',
-      });
+      toastError(e, 'Could not update phone.');
     } finally {
       setPhoneSaving(false);
     }
@@ -165,10 +164,7 @@ const ProfileScreen = () => {
       setPhotoUrl(asset.uri ?? null);
       Toast.show({ type: 'success', text1: 'Profile photo updated.' });
     } catch (e) {
-      Toast.show({
-        type: 'error',
-        text1: e instanceof Error ? e.message : "Couldn't upload photo.",
-      });
+      toastError(e, "Couldn't upload photo.");
     } finally {
       setPhotoUploading(false);
     }
@@ -540,266 +536,5 @@ const ProfileScreen = () => {
     </View>
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    flex: { flex: 1, backgroundColor: theme.colors.background },
-    centered: { alignItems: 'center', justifyContent: 'center' },
-    content: { paddingHorizontal: 20, paddingBottom: 16, flexGrow: 1 },
-    eyebrow: {
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.4,
-      color: theme.colors.textMuted,
-    },
-    title: {
-      marginTop: 4,
-      fontSize: theme.typography.size.xxl,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-    },
-
-    identity: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 14,
-      marginTop: 16,
-    },
-    avatarWrap: { width: 52, height: 52 },
-    avatarImage: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
-      backgroundColor: theme.colors.borderMuted,
-    },
-    avatarBadge: {
-      position: 'absolute',
-      bottom: -2,
-      right: -2,
-      width: 22,
-      height: 22,
-      borderRadius: 11,
-      backgroundColor: theme.colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 2,
-      borderColor: theme.colors.background,
-    },
-    identityText: { flex: 1, gap: 2 },
-    name: {
-      fontSize: theme.typography.size.lg,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-    },
-    sub: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-    },
-    syncBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      alignSelf: 'flex-start',
-      gap: 5,
-      marginTop: 4,
-      backgroundColor: '#E5F0E9',
-      borderRadius: theme.radii.sm,
-      paddingHorizontal: 7,
-      paddingVertical: 3,
-    },
-    syncBadgeQueued: { backgroundColor: theme.colors.warningBg },
-    syncBadgeText: {
-      fontSize: 9,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 0.6,
-      color: theme.colors.green,
-    },
-    syncBadgeTextQueued: { color: theme.colors.warning },
-
-    statsCard: {
-      flexDirection: 'row',
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.radii.lg,
-      paddingVertical: 18,
-      marginTop: 18,
-    },
-    statCell: { flex: 1, alignItems: 'center', gap: 4 },
-    statDivider: {
-      position: 'absolute',
-      left: 0,
-      top: '15%',
-      height: '70%',
-      width: 1,
-      backgroundColor: 'rgba(255,255,255,0.15)',
-    },
-    statValue: {
-      fontSize: theme.typography.size.xxl,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.onSecondary,
-    },
-    statLabel: {
-      fontSize: 10,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1,
-      color: theme.colors.onSecondary,
-      opacity: 0.7,
-    },
-
-    section: {
-      marginTop: 24,
-      marginBottom: 8,
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.2,
-      color: theme.colors.textMuted,
-    },
-    card: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 16,
-    },
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 14,
-      gap: 12,
-    },
-    rowBody: { flex: 1, gap: 3 },
-    rowLabel: {
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1,
-      color: theme.colors.textMuted,
-    },
-    rowValue: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-    rowMuted: { color: theme.colors.textMuted },
-    areaMap: {
-      width: '100%',
-      height: 120,
-      borderRadius: theme.radii.md,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.surfaceMuted,
-      marginBottom: 14,
-    },
-    divider: {
-      height: 1,
-      backgroundColor: theme.colors.divider,
-    },
-    syncRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    syncDot: { width: 8, height: 8, borderRadius: 4 },
-
-    phoneField: { alignSelf: 'stretch', marginTop: 4 },
-    logoutWrap: { marginTop: 28, gap: 10 },
-    logoutHint: {
-      fontSize: theme.typography.size.xs,
-      color: theme.colors.textMuted,
-      textAlign: 'center',
-      lineHeight: 17,
-    },
-    buildInfo: {
-      marginTop: 'auto',
-      paddingTop: 16,
-      textAlign: 'center',
-      fontSize: theme.typography.size.xs,
-      fontFamily: theme.fonts.mono,
-      color: theme.colors.placeholder,
-    },
-
-    modalBackdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
-      justifyContent: 'flex-end',
-    },
-    modalCard: {
-      backgroundColor: theme.colors.surface,
-      borderTopLeftRadius: theme.radii.lg,
-      borderTopRightRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 24,
-      paddingTop: 12,
-      paddingBottom: 24,
-      gap: 12,
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOpacity: 0.18,
-      shadowRadius: 18,
-      shadowOffset: { width: 0, height: -4 },
-      elevation: 16,
-    },
-    handle: {
-      width: 40,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: theme.colors.borderMuted,
-      marginBottom: 4,
-    },
-    modalIcon: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
-      backgroundColor: theme.colors.surfaceMuted,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    modalTitle: {
-      fontSize: theme.typography.size.lg,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-    },
-    modalText: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-      textAlign: 'center',
-      lineHeight: 20,
-    },
-    modalWarn: {
-      flexDirection: 'row',
-      gap: 8,
-      alignItems: 'flex-start',
-      backgroundColor: theme.colors.warningBg,
-      borderRadius: theme.radii.md,
-      padding: 12,
-    },
-    modalWarnText: {
-      flex: 1,
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.text,
-      lineHeight: 18,
-    },
-    logoutConfirm: {
-      alignSelf: 'stretch',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: theme.colors.error,
-      borderRadius: theme.radii.md,
-      paddingVertical: 14,
-    },
-    logoutConfirmText: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.error,
-    },
-    cancelBtn: {
-      alignSelf: 'stretch',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      borderRadius: theme.radii.md,
-      paddingVertical: 14,
-    },
-    modalCancelText: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-  });
 
 export default ProfileScreen;

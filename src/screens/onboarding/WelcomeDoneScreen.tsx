@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Toast from 'react-native-toast-message';
 
@@ -13,8 +13,9 @@ import {
   type MemberProfile,
   type NextJob,
 } from '@/services/member';
-import { useTheme, type Theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { makeWelcomeDoneStyles } from '@/styles/welcomeDone.styles';
 import OnboardingScaffold from './OnboardingScaffold';
 
 const firstName = (fullName: string | null | undefined) =>
@@ -22,7 +23,7 @@ const firstName = (fullName: string | null | undefined) =>
 
 const WelcomeDoneScreen = () => {
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeWelcomeDoneStyles);
   const dispatch = useAppDispatch();
 
   const [member, setMember] = useState<MemberProfile | null>(null);
@@ -113,56 +114,5 @@ const WelcomeDoneScreen = () => {
     </OnboardingScaffold>
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    check: {
-      width: 88,
-      height: 88,
-      borderRadius: 44,
-      backgroundColor: theme.colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    bold: {
-      color: theme.colors.text,
-      fontFamily: theme.fonts.bold,
-    },
-    jobCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      alignSelf: 'stretch',
-      marginTop: 8,
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.md,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      padding: 12,
-    },
-    jobBadge: {
-      width: 28,
-      height: 28,
-      borderRadius: 8,
-      backgroundColor: theme.colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    jobBadgeText: {
-      color: theme.colors.onPrimary,
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.bold,
-    },
-    jobInfo: { flex: 1, gap: 2 },
-    jobTitle: {
-      color: theme.colors.text,
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-    },
-    jobMeta: {
-      color: theme.colors.textMuted,
-      fontSize: theme.typography.size.sm,
-    },
-  });
 
 export default WelcomeDoneScreen;

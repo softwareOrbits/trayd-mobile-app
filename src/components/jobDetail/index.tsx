@@ -1,34 +1,30 @@
 import { type ReactNode } from 'react';
-import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, Text, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Toast from 'react-native-toast-message';
 
-import { useTheme, type Theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
-import type { JobMaterial } from '@/services/jobs';
 import type { IconName } from '@/types';
 import LocationMap from './LocationMap';
+import { makeStyles } from './styles';
+import type {
+  InfoEntry,
+  LineItem,
+  DayEntry,
+  PhotoTag,
+  RosterMember,
+} from './types';
 
 export { default as LocationMap } from './LocationMap';
-
-// Local presentational types (kept here so these reusable blocks don't depend
-// on any mock module). Used now by Section/InfoRow/Callout; the rest are ready
-// for the deep-detail pass (materials/photos/roster/days).
-export type InfoEntry = { label: string; value: string };
-export type LineItemTag = 'VAN STOCK' | 'RECEIPT';
-export type LineItem = { name: string; tag: LineItemTag; amount: string };
-export type DayEntry = { label: string; sub: string; active?: boolean };
-export type PhotoTag = { label: string; uri?: string };
-export type RosterMember = { name: string; confirmed: boolean };
-
-export const toLineItem = (m: JobMaterial): LineItem => ({
-  name:
-    m.source === 'receipt'
-      ? m.description
-      : `${m.description} × ${m.quantity}${m.unit ?? ''}`,
-  tag: m.source === 'receipt' ? 'RECEIPT' : 'VAN STOCK',
-  amount: `€${(m.quantity * m.unitCost).toFixed(2)}`,
-});
+export type {
+  InfoEntry,
+  LineItemTag,
+  LineItem,
+  DayEntry,
+  PhotoTag,
+  RosterMember,
+} from './types';
 
 /* ---------- Section (small-caps header + white card) ---------- */
 
@@ -333,7 +329,14 @@ const PHOTO_PHASES = [
   { match: 'AFTER', label: 'After' },
 ] as const;
 
-const Thumb = ({ photo }: { photo: PhotoTag }) => {
+const Thumb = ({
+  photo,
+  onDelete,
+}: {
+  photo: PhotoTag;
+  onDelete?: () => void;
+}) => {
+  const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.photo}>
@@ -342,6 +345,11 @@ const Thumb = ({ photo }: { photo: PhotoTag }) => {
       ) : (
         <Text style={styles.photoText}>{photo.label}</Text>
       )}
+      {onDelete ? (
+        <Pressable style={styles.photoRemove} onPress={onDelete} hitSlop={10}>
+          <Ionicons name="close" size={13} color={colors.white} />
+        </Pressable>
+      ) : null}
     </View>
   );
 };
@@ -349,26 +357,32 @@ const Thumb = ({ photo }: { photo: PhotoTag }) => {
 export const PhotoStrip = ({
   photos,
   grouped,
+  onDelete,
 }: {
   photos: PhotoTag[];
   grouped?: boolean;
+  onDelete?: (id: string) => void;
 }) => {
   const styles = useThemedStyles(makeStyles);
+  const deleteFor = (p: PhotoTag) =>
+    onDelete && p.id ? () => onDelete(p.id as string) : undefined;
 
   if (!grouped) {
     return (
       <View style={styles.photoRow}>
         {photos.map((p, i) => (
-          <Thumb key={`${p.label}-${i}`} photo={p} />
+          <Thumb key={p.id ?? `${p.label}-${i}`} photo={p} onDelete={deleteFor(p)} />
         ))}
       </View>
     );
   }
 
-  const groups = PHOTO_PHASES.map(phase => ({
-    label: phase.label,
-    items: photos.filter(p => p.label.startsWith(phase.match)),
-  }));
+  const groups: { label: string; items: PhotoTag[] }[] = PHOTO_PHASES.map(
+    phase => ({
+      label: phase.label,
+      items: photos.filter(p => p.label.startsWith(phase.match)),
+    }),
+  );
   const known = new Set(groups.flatMap(g => g.items));
   const other = photos.filter(p => !known.has(p));
   if (other.length) groups.push({ label: 'Other', items: other });
@@ -384,7 +398,11 @@ export const PhotoStrip = ({
             </Text>
             <View style={styles.photoRow}>
               {group.items.map((p, i) => (
-                <Thumb key={`${group.label}-${i}`} photo={p} />
+                <Thumb
+                  key={p.id ?? `${group.label}-${i}`}
+                  photo={p}
+                  onDelete={deleteFor(p)}
+                />
               ))}
             </View>
           </View>
@@ -436,362 +454,3 @@ export const ActionGrid = ({
     </View>
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    section: { marginTop: 18 },
-    sectionHead: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 10,
-    },
-    sectionLabel: {
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.5,
-      color: theme.colors.textMuted,
-    },
-    sectionAction: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.primary,
-    },
-    card: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 16,
-    },
-
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 14,
-      gap: 12,
-    },
-    rowDivider: {
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.divider,
-    },
-    rowLabel: {
-      color: theme.colors.textMuted,
-      fontSize: theme.typography.size.sm,
-    },
-    rowValue: {
-      color: theme.colors.text,
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      flexShrink: 1,
-      textAlign: 'right',
-    },
-
-    locationCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      padding: 16,
-    },
-    locationMap: { marginBottom: 14 },
-    locationTop: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
-    locationPin: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      backgroundColor: theme.colors.warningBg,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    locationText: { flex: 1, gap: 4 },
-    locationLabel: {
-      fontSize: 10,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.2,
-      color: theme.colors.textMuted,
-    },
-    locationAddress: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-      lineHeight: 21,
-    },
-    eircodeChip: {
-      alignSelf: 'flex-start',
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: theme.radii.sm,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      marginTop: 2,
-    },
-    eircodeText: {
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 0.6,
-      color: theme.colors.secondary,
-    },
-    directionsBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      marginTop: 14,
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.radii.md,
-      paddingVertical: 13,
-    },
-    directionsText: {
-      color: theme.colors.onSecondary,
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-    },
-    directionsExt: { opacity: 0.7 },
-
-    tag: {
-      alignSelf: 'flex-start',
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: theme.radii.sm,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-    },
-    tagText: {
-      fontSize: 9,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 0.6,
-      color: theme.colors.textMuted,
-    },
-
-    lineItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 14,
-      gap: 12,
-    },
-    lineItemMain: { flex: 1, gap: 6, alignItems: 'flex-start' },
-    lineItemName: {
-      color: theme.colors.text,
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.medium,
-    },
-    lineItemAmount: {
-      color: theme.colors.text,
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-    },
-    lineItemEdit: { marginLeft: 10 },
-
-    rosterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    rosterFilled: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.radii.pill,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-    },
-    rosterFilledText: {
-      color: theme.colors.onSecondary,
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-    },
-    rosterOutline: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.pill,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-    },
-    rosterOutlineText: {
-      color: theme.colors.textMuted,
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-    },
-
-    callout: {
-      flexDirection: 'row',
-      gap: 10,
-      alignItems: 'flex-start',
-      borderWidth: 1,
-      borderRadius: theme.radii.md,
-      paddingVertical: 12,
-      paddingHorizontal: 14,
-    },
-    calloutIconBox: {
-      width: 28,
-      height: 28,
-      borderRadius: theme.radii.sm,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    calloutBody: { flex: 1 },
-
-    timerCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.radii.lg,
-      padding: 14,
-    },
-    timerIconBox: {
-      width: 40,
-      height: 40,
-      borderRadius: theme.radii.md,
-      backgroundColor: 'rgba(0,0,0,0.12)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    timerBody: { flex: 1, gap: 2 },
-    timerLabel: {
-      fontSize: 10,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.2,
-      color: theme.colors.onPrimary,
-      opacity: 0.8,
-    },
-    timerValue: {
-      fontSize: theme.typography.size.xxl,
-      fontFamily: theme.fonts.monoBold,
-      color: theme.colors.onPrimary,
-      letterSpacing: 1,
-    },
-    timerEdit: {
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.radii.sm,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-    },
-    timerEditText: {
-      color: theme.colors.onSecondary,
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-    },
-
-    pausedCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      padding: 14,
-    },
-    pausedIconBox: {
-      width: 36,
-      height: 36,
-      borderRadius: theme.radii.md,
-      backgroundColor: theme.colors.surfaceMuted,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    pausedBody: { flex: 1, gap: 2 },
-    pausedLabel: {
-      fontSize: 10,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1,
-      color: theme.colors.textMuted,
-    },
-    pausedSummary: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-
-    dayRow: { paddingVertical: 14, gap: 2 },
-    dayActive: {
-      backgroundColor: theme.colors.warningBg,
-      borderRadius: theme.radii.md,
-      paddingHorizontal: 12,
-      marginVertical: 4,
-    },
-    dayLabel: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-    daySub: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-    },
-
-    photoGroups: { gap: 16 },
-    photoGroup: { gap: 8 },
-    photoGroupLabel: {
-      fontSize: 10,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.2,
-      textTransform: 'uppercase',
-      color: theme.colors.textMuted,
-    },
-    photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    photo: {
-      width: 64,
-      height: 64,
-      borderRadius: theme.radii.md,
-      backgroundColor: theme.colors.surfaceMuted,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden',
-    },
-    photoImg: { width: '100%', height: '100%' },
-    photoText: {
-      fontSize: 9,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 0.6,
-      color: theme.colors.textMuted,
-    },
-
-    employerNote: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.md,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      padding: 14,
-      gap: 8,
-    },
-    employerHead: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    employerTime: {
-      fontSize: theme.typography.size.xs,
-      fontFamily: theme.fonts.mono,
-      color: theme.colors.textMuted,
-    },
-    employerText: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.text,
-      lineHeight: 20,
-    },
-
-    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-    gridItem: {
-      flexGrow: 1,
-      flexBasis: '47%',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.md,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingVertical: 14,
-      paddingHorizontal: 14,
-    },
-    gridLabel: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-  });

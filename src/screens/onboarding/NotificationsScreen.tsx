@@ -1,17 +1,18 @@
-import { PermissionsAndroid, Platform, StyleSheet, Text, View } from 'react-native';
+import { PermissionsAndroid, Platform, Text, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { Button, TextLink } from '@/components/ui';
-import { useTheme, type Theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { makeOnboardingNotificationsStyles } from '@/styles/onboardingNotifications.styles';
 import type { AuthStackParamList } from '@/types';
 import OnboardingScaffold from './OnboardingScaffold';
 
 const NotificationsScreen = () => {
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeOnboardingNotificationsStyles);
   const navigation =
     useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
 
@@ -56,36 +57,5 @@ const NotificationsScreen = () => {
     />
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    iconBox: {
-      width: 88,
-      height: 88,
-      borderRadius: 22,
-      backgroundColor: theme.colors.secondary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    badge: {
-      position: 'absolute',
-      top: 18,
-      right: 20,
-      minWidth: 18,
-      height: 18,
-      paddingHorizontal: 4,
-      borderRadius: 9,
-      backgroundColor: theme.colors.error,
-      borderWidth: 2,
-      borderColor: theme.colors.secondary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    badgeText: {
-      color: theme.colors.white,
-      fontSize: 10,
-      fontFamily: theme.fonts.bold,
-    },
-  });
 
 export default NotificationsScreen;

@@ -19,7 +19,7 @@ import Toast from 'react-native-toast-message';
 import { AppToast, Avatar, Button, Input, JobFooter, JobHeader } from '@/components/ui';
 import { RadioCard } from '@/components/wizard';
 import { MaterialSelect, type SelectedMaterial } from '@/components/MaterialSelect';
-import { JOB_TYPE_OPTIONS } from '@/data/startJobMock';
+import { JOB_TYPE_OPTIONS } from '@/utils/constants';
 import {
   addJobAssignment,
   addJobMaterial,
@@ -35,7 +35,8 @@ import {
 import { fetchActiveRoster, type RosterEntry } from '@/services/member';
 import { useAppDispatch } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
-import { useTheme, type Theme } from '@/theme';
+import { useTheme } from '@/theme';
+import { makeEditJobStyles } from '@/styles/editJob.styles';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import type { JobType, MainStackParamList } from '@/types';
 
@@ -69,7 +70,7 @@ const dayLabel = (key: string) => {
 
 const EditJobScreen = () => {
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeEditJobStyles);
   const dispatch = useAppDispatch();
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
@@ -560,174 +561,5 @@ const EditJobScreen = () => {
     </View>
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    flex: { flex: 1, backgroundColor: theme.colors.background },
-    centered: { alignItems: 'center', justifyContent: 'center' },
-    content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },
-    section: {
-      marginTop: 20,
-      marginBottom: 10,
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.2,
-      color: theme.colors.textMuted,
-    },
-    sectionHead: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    addLink: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.primary,
-    },
-    addLinkOff: { color: theme.colors.placeholder },
-    typeStack: { gap: 10 },
-    dateRow: { gap: 10, paddingRight: 20 },
-    dateChip: {
-      minWidth: 70,
-      alignItems: 'center',
-      gap: 2,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      borderRadius: theme.radii.md,
-      paddingVertical: 12,
-      paddingHorizontal: 12,
-    },
-    dateChipOn: {
-      backgroundColor: theme.colors.secondary,
-      borderColor: theme.colors.secondary,
-    },
-    dateTop: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-    },
-    dateBottom: {
-      fontSize: theme.typography.size.xs,
-      color: theme.colors.textMuted,
-    },
-    dateTextOn: { color: theme.colors.onSecondary },
-    timeField: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      borderRadius: theme.radii.md,
-      paddingHorizontal: 16,
-      paddingVertical: 15,
-    },
-    timeValue: {
-      flex: 1,
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-    card: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 16,
-    },
-    itemRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 12,
-      paddingVertical: 14,
-    },
-    itemDivider: {
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.divider,
-    },
-    itemMain: { flex: 1, gap: 3 },
-    itemName: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-    itemSub: {
-      fontSize: theme.typography.size.xs,
-      color: theme.colors.textMuted,
-    },
-    memberLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-    emptyRow: {
-      paddingVertical: 16,
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-    },
-    pickerBackdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
-      justifyContent: 'center',
-      paddingHorizontal: 40,
-    },
-    pickerCard: {
-      backgroundColor: theme.colors.background,
-      borderRadius: theme.radii.lg,
-      paddingVertical: 16,
-      paddingHorizontal: 8,
-      maxHeight: '60%',
-    },
-    pickerTitle: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-      textAlign: 'center',
-      marginBottom: 8,
-    },
-    pickerList: { paddingHorizontal: 8 },
-    pickerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 12,
-      paddingHorizontal: 12,
-    },
-    pickerRowText: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.medium,
-      color: theme.colors.text,
-    },
-    pickerRowActive: {
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.primary,
-    },
-    sheetBackdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
-      justifyContent: 'flex-end',
-    },
-    sheetCard: {
-      backgroundColor: theme.colors.background,
-      borderTopLeftRadius: theme.radii.lg,
-      borderTopRightRadius: theme.radii.lg,
-      padding: 20,
-      paddingBottom: 28,
-      gap: 14,
-    },
-    sheetTitle: {
-      fontSize: theme.typography.size.lg,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-    },
-    sheetRow: { flexDirection: 'row', gap: 12 },
-    sheetRowItem: { flex: 1 },
-    memberList: { maxHeight: 320 },
-    memberOption: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      paddingVertical: 12,
-    },
-    memberInfo: { flex: 1, gap: 2 },
-  });
 
 export default EditJobScreen;

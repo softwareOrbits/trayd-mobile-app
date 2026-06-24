@@ -4,7 +4,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -17,15 +16,16 @@ import { Avatar } from '@/components/ui';
 import { ChatBubble, ChatInputBar } from '@/components/chat';
 import { LiveStateBadge } from '@/components/jobs';
 import { useAppSelector } from '@/store/hooks';
-import { useTheme, type Theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { liveMetaFor } from '@/utils/liveMeta';
 import { demoChat } from '@/data/chatMessages';
+import { makeChatStyles } from '@/styles/chat.styles';
 import type { ChatMessage, MainStackParamList } from '@/types';
 
 const ChatScreen = () => {
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeChatStyles);
   const insets = useSafeAreaInsets();
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
@@ -108,53 +108,5 @@ const ChatScreen = () => {
     </KeyboardAvoidingView>
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    flex: { flex: 1, backgroundColor: theme.colors.background },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      paddingHorizontal: 14,
-      paddingBottom: 12,
-      backgroundColor: theme.colors.background,
-      borderBottomWidth: 0.5,
-      borderBottomColor: theme.colors.textMuted,
-    },
-    iconBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: theme.radii.pill,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    avatar: { backgroundColor: theme.colors.primary },
-    titleCol: { flex: 1 },
-    title: {
-      fontSize: theme.typography.size.lg,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-    },
-    subtitle: {
-      marginTop: 1,
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.regular,
-      color: theme.colors.textMuted,
-    },
-    timer: {
-      fontFamily: theme.fonts.monoBold,
-      color: theme.colors.primary,
-    },
-    content: { padding: 16, paddingBottom: 24 },
-    startedNote: {
-      alignSelf: 'center',
-      marginBottom: 18,
-      fontSize: 10,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1,
-      color: theme.colors.textMuted,
-    },
-  });
 
 export default ChatScreen;

@@ -3,7 +3,6 @@ import {
   Pressable,
   RefreshControl,
   SectionList,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -26,8 +25,7 @@ import {
 import { useSync } from '@/offline';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
-import { useTheme, type Theme } from '@/theme';
-import { titleStyles } from '@/theme/constants';
+import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { formatElapsed } from '@/utils/liveMeta';
 import {
@@ -36,93 +34,26 @@ import {
   type JobSegment,
 } from '@/services/jobs';
 import {
-  STATUS_GROUP,
   type Job,
-  type JobStatusGroup,
   type JobTabItem,
   type JobTabKey,
   type MainStackParamList,
 } from '@/types';
-
-const EMPTY_LABEL: Record<JobTabKey, string> = {
-  today: 'jobs scheduled today',
-  week: 'jobs scheduled this week',
-  live: 'live jobs',
-  resume: 'jobs to resume',
-  done: 'completed jobs',
-};
-
-const RANGE = 'This week';
-
-const groupOf = (job: Job): JobStatusGroup | null => STATUS_GROUP[job.status];
-
-/** Local YYYY-MM-DD key (ISO dates sort/compare lexicographically). */
-const dateKey = (d: Date) => {
-  const m = `${d.getMonth() + 1}`.padStart(2, '0');
-  const day = `${d.getDate()}`.padStart(2, '0');
-  return `${d.getFullYear()}-${m}-${day}`;
-};
-
-/** Monday-anchored bounds of the week containing `base`. */
-const weekBounds = (base: Date) => {
-  const start = new Date(base);
-  start.setHours(0, 0, 0, 0);
-  const offset = (start.getDay() + 6) % 7; // 0 = Monday
-  start.setDate(start.getDate() - offset);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  return { start: dateKey(start), end: dateKey(end) };
-};
-
-const fmtSectionLabel = (date: string | null) => {
-  if (!date) return 'Unscheduled';
-  const value = new Date(`${date}T00:00:00`);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const days = Math.round((value.getTime() - today.getTime()) / 86400000);
-  const formatted = value.toLocaleDateString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  });
-  if (days === 0) return `Today · ${formatted}`;
-  if (days === 1) return `Tomorrow · ${formatted}`;
-  if (days === -1) return `Yesterday · ${formatted}`;
-  return formatted;
-};
-
-const buildDateSections = (jobs: Job[]) => {
-  const byDate = new Map<string, Job[]>();
-  jobs.forEach(job => {
-    const key = job.scheduledDate ?? '';
-    const bucket = byDate.get(key) ?? [];
-    bucket.push(job);
-    byDate.set(key, bucket);
-  });
-  return [...byDate.keys()]
-    .sort()
-    .map(date => ({
-      title: fmtSectionLabel(date || null),
-      data: byDate.get(date) ?? [],
-    }));
-};
-
-const liveSections = (active: Job[], paused: Job[]) =>
-  [
-    { title: 'Live', data: active },
-    { title: 'Paused', data: paused },
-  ].filter(s => s.data.length > 0);
-
-const weekdayLabel = (date: string | null) =>
-  date
-    ? new Date(`${date}T00:00:00`).toLocaleDateString('en-GB', {
-        weekday: 'short',
-      })
-    : '';
+import { makeJobsStyles } from '@/styles/jobs.styles';
+import {
+  EMPTY_LABEL,
+  RANGE,
+  groupOf,
+  dateKey,
+  weekBounds,
+  buildDateSections,
+  liveSections,
+  weekdayLabel,
+} from '@/components/jobs/jobsScreen.helpers';
 
 const JobsScreen = () => {
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeJobsStyles);
   const insets = useSafeAreaInsets();
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
@@ -417,82 +348,5 @@ const JobsScreen = () => {
     </View>
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    flex: { flex: 1, backgroundColor: theme.colors.surface },
-    header: {
-      paddingHorizontal: 20,
-      backgroundColor: theme.colors.background,
-    },
-    eyebrow: {
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.5,
-      color: theme.colors.textMuted,
-    },
-    title: titleStyles,
-    tabs: { marginTop: 14, marginHorizontal: -20 },
-    banner: { paddingTop: 16, paddingBottom: 4 },
-    offlineWrap: { paddingHorizontal: 20, paddingTop: 12 },
-    offlineCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      backgroundColor: theme.colors.warningBg,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.warning,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-    },
-    offlineIcon: {
-      width: 34,
-      height: 34,
-      borderRadius: theme.radii.md,
-      backgroundColor: theme.colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    offlineBody: { flex: 1, gap: 2 },
-    offlineTitle: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-    },
-    offlineSub: {
-      fontSize: theme.typography.size.xs,
-      color: theme.colors.textMuted,
-    },
-    offlineAction: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.primary,
-    },
-    content: {
-      paddingHorizontal: 20,
-      paddingBottom: 120,
-      backgroundColor: theme.colors.surface,
-      flexGrow: 1,
-    },
-    empty: { paddingTop: 64, alignItems: 'center' },
-    emptyText: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.medium,
-      color: theme.colors.textMuted,
-      textTransform: 'capitalize',
-    },
-    fab: {
-      position: 'absolute',
-      right: 16,
-      borderRadius: theme.radii.pill,
-      paddingHorizontal: 22,
-      shadowColor: theme.colors.black,
-      shadowOpacity: 0.18,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 6,
-    },
-  });
 
 export default JobsScreen;

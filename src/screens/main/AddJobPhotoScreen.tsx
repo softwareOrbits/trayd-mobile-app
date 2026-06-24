@@ -1,11 +1,5 @@
 import { useState } from 'react';
-import {
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   useNavigation,
@@ -16,11 +10,15 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { AppToast, Button } from '@/components/ui';
-import { addJobPhoto, type JobPhotoPhase } from '@/services/jobs';
-import { useTheme, type Theme } from '@/theme';
+import { addJobPhotos, type JobPhotoPhase } from '@/services/jobs';
+import { enqueue } from '@/offline';
+import { isNetworkError } from '@/offline/errors';
+import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { makeAddJobPhotoStyles } from '@/styles/addJobPhoto.styles';
 import { capturePhoto } from '@/utils/capturePhoto';
 import { toastError, toastSuccess } from '@/utils/toast';
+import { withTimeout } from '@/utils/withTimeout';
 import type { MainStackParamList } from '@/types';
 
 const PHASES: { key: JobPhotoPhase; label: string }[] = [
@@ -29,11 +27,18 @@ const PHASES: { key: JobPhotoPhase; label: string }[] = [
   { key: 'after', label: 'After' },
 ];
 
-type PhotoAsset = { uri: string; base64?: string; type?: string | null };
+const PHOTO_UPLOAD_TIMEOUT_MS = 20_000;
+
+type PhotoAsset = {
+  uri: string;
+  base64?: string;
+  type?: string | null;
+  phase: JobPhotoPhase;
+};
 
 const AddJobPhotoScreen = () => {
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeAddJobPhotoStyles);
   const insets = useSafeAreaInsets();
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
@@ -42,29 +47,60 @@ const AddJobPhotoScreen = () => {
   const [phase, setPhase] = useState<JobPhotoPhase>(
     params.photoCount === 0 ? 'before' : 'during',
   );
-  const [photo, setPhoto] = useState<PhotoAsset | null>(null);
+  const [photos, setPhotos] = useState<PhotoAsset[]>([]);
   const [saving, setSaving] = useState(false);
 
   const openCamera = async () => {
     const asset = await capturePhoto({ quality: 0.7, maxSize: 1600 });
-    if (asset) setPhoto(asset);
+    if (asset) setPhotos(prev => [...prev, { ...asset, phase }]);
   };
 
+  const removePhoto = (idx: number) =>
+    setPhotos(prev => prev.filter((_, i) => i !== idx));
+
   const save = async () => {
-    if (!photo?.base64 || saving) return;
+    const pending = photos.filter(p => p.base64);
+    if (!pending.length || saving) return;
     setSaving(true);
-    try {
-      await addJobPhoto({
-        jobId: params.jobId,
-        phase,
-        base64: photo.base64,
-        type: photo.type,
+    const items = pending.map(p => ({
+      phase: p.phase,
+      base64: p.base64 as string,
+      type: p.type,
+    }));
+    const queueOffline = async () => {
+      await enqueue({
+        id: `${params.jobId}:photos:${Date.now()}`,
+        kind: 'job.addPhotos',
+        payload: { clientId: `${params.jobId}:${Date.now()}`, jobId: params.jobId, photos: items },
       });
-      toastSuccess('Photo added.');
+      toastSuccess('Saved offline — photos upload when you’re back online.');
+      navigation.goBack();
+    };
+    try {
+      const { uploaded, failed } = await withTimeout(
+        addJobPhotos({ jobId: params.jobId, photos: items }),
+        PHOTO_UPLOAD_TIMEOUT_MS,
+      );
+      if (!uploaded) {
+        await queueOffline();
+        return;
+      }
+      if (failed) {
+        toastError(
+          new Error('partial_upload'),
+          `${failed} photo${failed === 1 ? '' : 's'} didn’t upload.`,
+        );
+      } else {
+        toastSuccess(uploaded === 1 ? 'Photo added.' : 'Photos added.');
+      }
       navigation.goBack();
     } catch (e) {
-      toastError(e, 'Could not upload the photo.');
-      setSaving(false);
+      if (isNetworkError(e)) {
+        await queueOffline();
+      } else {
+        toastError(e, 'Could not upload the photos.');
+        setSaving(false);
+      }
     }
   };
 
@@ -76,11 +112,15 @@ const AddJobPhotoScreen = () => {
         </Pressable>
         <Text style={styles.headerTitle}>Job photo</Text>
         <Text style={styles.counter}>
-          {params.photoCount + (photo ? 1 : 0)} so far
+          {params.photoCount + photos.length} so far
         </Text>
       </View>
 
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentInner}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.phaseRow}>
           {PHASES.map(p => {
             const selected = phase === p.key;
@@ -91,10 +131,7 @@ const AddJobPhotoScreen = () => {
                 onPress={() => setPhase(p.key)}
               >
                 <Text
-                  style={[
-                    styles.phaseText,
-                    selected && styles.phaseTextOn,
-                  ]}
+                  style={[styles.phaseText, selected && styles.phaseTextOn]}
                 >
                   {p.label}
                 </Text>
@@ -103,129 +140,67 @@ const AddJobPhotoScreen = () => {
           })}
         </View>
 
-        <Pressable style={styles.photoTile} onPress={openCamera}>
-          {photo ? (
-            <Image source={{ uri: photo.uri }} style={styles.photoImg} />
-          ) : (
-            <>
-              <Ionicons
-                name="camera-outline"
-                size={32}
-                color={colors.textMuted}
-              />
-              <Text style={styles.photoText}>Tap to open the camera</Text>
-            </>
-          )}
-        </Pressable>
-        {photo ? (
-          <Text style={styles.retakeHint}>Tap the photo to retake.</Text>
-        ) : null}
-      </View>
+        {PHASES.map(p => {
+          const inPhase = photos
+            .map((photo, idx) => ({ photo, idx }))
+            .filter(x => x.photo.phase === p.key);
+          const isActive = phase === p.key;
+          if (!inPhase.length && !isActive) return null;
+          return (
+            <View key={p.key} style={styles.phaseSection}>
+              <Text style={styles.sectionLabel}>
+                {`${p.label.toUpperCase()} · ${inPhase.length}`}
+              </Text>
+              <View style={styles.photoGrid}>
+                {inPhase.map(({ photo, idx }) => (
+                  <View key={photo.uri} style={styles.photoThumb}>
+                    <Image source={{ uri: photo.uri }} style={styles.photoImg} />
+                    <Pressable
+                      style={styles.photoRemove}
+                      onPress={() => removePhoto(idx)}
+                      hitSlop={12}
+                      disabled={saving}
+                    >
+                      <Ionicons name="close" size={15} color={colors.white} />
+                    </Pressable>
+                  </View>
+                ))}
+                {isActive ? (
+                  <Pressable
+                    style={styles.photoAddTile}
+                    onPress={openCamera}
+                    disabled={saving}
+                  >
+                    <Ionicons
+                      name="camera-outline"
+                      size={26}
+                      color={colors.textMuted}
+                    />
+                    <Text style={styles.photoText}>
+                      {inPhase.length ? 'Add another' : 'Add photo'}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
+          );
+        })}
+      </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
-        {photo ? (
-          <Button
-            label="Save photo"
-            fullWidth
-            loading={saving}
-            onPress={save}
-          />
-        ) : (
-          <Button
-            label="Open camera"
-            leftIcon="camera"
-            fullWidth
-            onPress={openCamera}
-          />
-        )}
+        <Button
+          label={
+            photos.length > 1 ? `Save ${photos.length} photos` : 'Save photo'
+          }
+          fullWidth
+          loading={saving}
+          disabled={!photos.length}
+          onPress={save}
+        />
       </View>
       <AppToast />
     </View>
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    flex: { flex: 1, backgroundColor: theme.colors.background },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingBottom: 12,
-    },
-    cancel: {
-      width: 70,
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-    },
-    headerTitle: {
-      flex: 1,
-      textAlign: 'center',
-      fontSize: theme.typography.size.lg,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-    },
-    counter: {
-      width: 70,
-      textAlign: 'right',
-      fontSize: theme.typography.size.xs,
-      fontFamily: theme.fonts.mono,
-      color: theme.colors.textMuted,
-    },
-
-    content: { flex: 1, paddingHorizontal: 20 },
-    phaseRow: {
-      flexDirection: 'row',
-      gap: 10,
-      marginTop: 8,
-      marginBottom: 16,
-    },
-    phasePill: {
-      flex: 1,
-      alignItems: 'center',
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.pill,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingVertical: 10,
-    },
-    phasePillOn: {
-      backgroundColor: theme.colors.primary,
-      borderColor: theme.colors.primary,
-    },
-    phaseText: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.textMuted,
-    },
-    phaseTextOn: { color: theme.colors.onPrimary },
-
-    photoTile: {
-      height: 320,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      borderStyle: 'dashed',
-      backgroundColor: theme.colors.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 10,
-      overflow: 'hidden',
-    },
-    photoImg: { width: '100%', height: '100%' },
-    photoText: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-      fontFamily: theme.fonts.medium,
-    },
-    retakeHint: {
-      marginTop: 10,
-      textAlign: 'center',
-      fontSize: theme.typography.size.xs,
-      color: theme.colors.textMuted,
-    },
-
-    footer: { paddingHorizontal: 20, paddingTop: 12 },
-  });
 
 export default AddJobPhotoScreen;
