@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import {
   useNavigation,
   useRoute,
@@ -39,62 +33,33 @@ import {
   type JobSegment,
 } from '@/services/jobs';
 import { enqueueAction, queueFinish } from '@/services/outbox';
+import { loadJobCache, saveJobCache } from '@/services/jobCache';
 import { useAppDispatch } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
 import { signOut } from '@/store/authSlice';
-import { useTheme, type Theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { makeWrapUpStyles } from '@/styles/wrapUp.styles';
 import { capturePhoto } from '@/utils/capturePhoto';
 import { isNetworkError } from '@/utils/errors';
 import { toastError, toastSuccess } from '@/utils/toast';
+import {
+  WRAP_UP_TOTAL,
+  SUMMARY_CHIPS,
+  two,
+  fmtClock,
+  fmtMoney,
+  fmtDateLong,
+  diffLabelFor,
+  fmtHoursMin,
+} from '@/components/wrapUp/helpers';
 import type { JobDetail, MainStackParamList } from '@/types';
 
-const TOTAL = 5;
-
-const two = (n: number) => String(n).padStart(2, '0');
-const fmtClock = (d: Date) => `${two(d.getHours())}:${two(d.getMinutes())}`;
-const fmtMoney = (n: number) => `€${n.toFixed(2)}`;
-const fmtDateLong = (d: Date) =>
-  d.toLocaleDateString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-
-const diffLabelFor = (mins: number) =>
-  mins === 0
-    ? 'No change'
-    : `${mins > 0 ? '+' : '−'}${fmtHoursMinShort(Math.abs(mins))}`;
-
-function fmtHoursMinShort(mins: number) {
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  if (h && m) return `${h}h ${m}m`;
-  if (h) return `${h}h`;
-  return `${m}m`;
-}
-
-const fmtHoursMin = (h: number) => {
-  let hh = Math.floor(h);
-  let mm = Math.round((h - hh) * 60);
-  if (mm === 60) {
-    hh += 1;
-    mm = 0;
-  }
-  return mm ? `${hh}h ${mm}m` : `${hh}h`;
-};
-
-const SUMMARY_CHIPS = [
-  'Tested under pressure',
-  'No further leaks',
-  'Customer happy on completion',
-  'Follow-up needed',
-];
+const TOTAL = WRAP_UP_TOTAL;
 
 const WrapUpJobScreen = () => {
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeWrapUpStyles);
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const { params } = useRoute<RouteProp<MainStackParamList, 'WrapUpJob'>>();
@@ -186,6 +151,31 @@ const WrapUpJobScreen = () => {
 
   useEffect(() => {
     let active = true;
+    const hydrate = (
+      d: JobDetail,
+      segs: JobSegment[],
+      mats: JobMaterial[],
+      rateMap: Map<string, number>,
+      vat: number,
+      jobNotes: JobNote[],
+    ) => {
+      setDetail(d);
+      setNotes(jobNotes);
+      if (d.jobType === 'standard' || d.jobType === 'multi_day') {
+        setPhase('decision');
+      }
+      setSegments(segs);
+      setMaterials(mats);
+      setRates(rateMap);
+      setVatRate(vat);
+      setFinishDate(new Date());
+      const earliest = segs.reduce<string | null>(
+        (min, s) => (!min || s.startTime < min ? s.startTime : min),
+        null,
+      );
+      if (earliest) setStartDate(new Date(earliest));
+    };
+
     (async () => {
       try {
         const [d, segs, mats, rateMap, vat, jobNotes] = await Promise.all([
@@ -197,25 +187,35 @@ const WrapUpJobScreen = () => {
           fetchJobNotes(params.jobId).catch(() => [] as JobNote[]),
         ]);
         if (!active) return;
-        setDetail(d);
-        setNotes(jobNotes);
-        // End-of-day decision only applies to jobs that can span days.
-        if (d.jobType === 'standard' || d.jobType === 'multi_day') {
-          setPhase('decision');
-        }
-        setSegments(segs);
-        setMaterials(mats);
-        setRates(rateMap);
-        setVatRate(vat);
-        setFinishDate(new Date());
-        const earliest = segs.reduce<string | null>(
-          (min, s) => (!min || s.startTime < min ? s.startTime : min),
-          null,
-        );
-        if (earliest) setStartDate(new Date(earliest));
+        hydrate(d, segs, mats, rateMap, vat, jobNotes);
+        saveJobCache(params.jobId, {
+          detail: d,
+          segments: segs,
+          materials: mats,
+          rates: [...rateMap],
+          vat,
+          notes: jobNotes,
+        });
       } catch (e) {
-        toastError(e, 'Could not load the job.');
-        navigation.goBack();
+        if (!isNetworkError(e)) {
+          toastError(e, 'Could not load the job.');
+          navigation.goBack();
+          return;
+        }
+        const cached = await loadJobCache(params.jobId);
+        if (!active) return;
+        if (!cached?.detail || !cached.segments) {
+          navigation.goBack();
+          return;
+        }
+        hydrate(
+          cached.detail,
+          cached.segments,
+          cached.materials ?? [],
+          new Map(cached.rates ?? []),
+          cached.vat ?? 0,
+          cached.notes ?? [],
+        );
       } finally {
         if (active) setLoading(false);
       }
@@ -1129,7 +1129,7 @@ const DraftRow = ({
   value: string;
   last?: boolean;
 }) => {
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeWrapUpStyles);
   return (
     <View style={[styles.draftRow, last && styles.draftRowLast]}>
       <Text style={styles.draftRowLabel}>{label}</Text>
@@ -1137,684 +1137,5 @@ const DraftRow = ({
     </View>
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    flex: { flex: 1, backgroundColor: theme.colors.background },
-    centered: { alignItems: 'center', justifyContent: 'center' },
-    gap12: { gap: 12 },
-    gap16: { gap: 16 },
-    flexRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-
-    // step 1 time cards
-    timeCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      padding: 16,
-      gap: 4,
-    },
-    timeCardActive: { borderColor: theme.colors.primary },
-    timeLabel: {
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.4,
-      color: theme.colors.textMuted,
-    },
-    timeValue: {
-      fontSize: theme.typography.size.xxl,
-      fontFamily: theme.fonts.monoBold,
-      color: theme.colors.text,
-      letterSpacing: 1,
-    },
-    editLink: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.primary,
-    },
-    totalCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.md,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-    },
-    totalLabel: {
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.2,
-      color: theme.colors.textMuted,
-    },
-    totalValue: {
-      fontSize: theme.typography.size.lg,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-    },
-    warnBox: {
-      flexDirection: 'row',
-      gap: 10,
-      alignItems: 'flex-start',
-      backgroundColor: theme.colors.warningBg,
-      borderRadius: theme.radii.md,
-      padding: 12,
-    },
-    warnText: {
-      flex: 1,
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.text,
-      lineHeight: 19,
-    },
-    warnStrong: { fontFamily: theme.fonts.bold },
-
-    // time editor
-    segToggle: {
-      flexDirection: 'row',
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: theme.radii.md,
-      padding: 4,
-      gap: 4,
-    },
-    segItem: {
-      flex: 1,
-      alignItems: 'center',
-      paddingVertical: 9,
-      borderRadius: theme.radii.sm,
-    },
-    segItemOn: { backgroundColor: theme.colors.secondary },
-    segText: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.textMuted,
-    },
-    segTextOn: { color: theme.colors.onSecondary },
-    dateStepper: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 14,
-    },
-    dateRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.md,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 14,
-      paddingVertical: 13,
-    },
-    dateLabel: {
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.2,
-      color: theme.colors.textMuted,
-    },
-    dateValue: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-    timeEditCard: {
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.primary,
-      borderRadius: theme.radii.lg,
-      padding: 16,
-      gap: 12,
-    },
-    timeEditFoot: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.divider,
-      paddingTop: 12,
-    },
-    timeEditFootLabel: {
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.2,
-      color: theme.colors.textMuted,
-    },
-    timeEditFootValue: {
-      fontSize: theme.typography.size.lg,
-      fontFamily: theme.fonts.monoBold,
-      color: theme.colors.text,
-    },
-    presetHeading: {
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.2,
-      color: theme.colors.textMuted,
-    },
-    detailList: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.md,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 14,
-    },
-    detailRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.divider,
-    },
-    detailRowLast: { borderBottomWidth: 0 },
-    detailLabel: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-    },
-    detailMuted: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.mono,
-      color: theme.colors.textMuted,
-    },
-    detailStrong: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.monoBold,
-      color: theme.colors.text,
-    },
-    detailDiff: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.monoBold,
-      color: theme.colors.primary,
-    },
-    timeEditRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 10,
-    },
-    timeBoxWrap: { width: 88 },
-    timeBox: {
-      fontSize: 32,
-      fontFamily: theme.fonts.monoBold,
-      textAlign: 'center',
-      color: theme.colors.text,
-    },
-    timeColon: {
-      fontSize: 32,
-      fontFamily: theme.fonts.monoBold,
-      color: theme.colors.text,
-    },
-    presetWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    preset: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.pill,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 14,
-      paddingVertical: 9,
-    },
-    presetOn: {
-      backgroundColor: theme.colors.secondary,
-      borderColor: theme.colors.secondary,
-    },
-    presetText: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.medium,
-      color: theme.colors.text,
-    },
-    presetTextOn: { color: theme.colors.onSecondary },
-    reasonInput: { minHeight: 80, textAlignVertical: 'top' },
-
-    quickAddLabel: {
-      marginBottom: 8,
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.2,
-      color: theme.colors.textMuted,
-    },
-    infoBox: {
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: theme.radii.md,
-      padding: 12,
-    },
-    infoText: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-      lineHeight: 19,
-    },
-
-    // step 2 photos
-    photoTile: {
-      height: 120,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      borderStyle: 'dashed',
-      backgroundColor: theme.colors.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-    },
-    photoTileText: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-      fontFamily: theme.fonts.medium,
-    },
-
-    // step 3 summary
-    summaryInput: { minHeight: 130, textAlignVertical: 'top' },
-    chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    chip: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.pill,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 14,
-      paddingVertical: 9,
-    },
-    chipText: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.medium,
-      color: theme.colors.primary,
-    },
-
-    // step 4/5 card
-    card: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 16,
-    },
-    emptyText: {
-      paddingVertical: 16,
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-    },
-    matRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 12,
-      paddingVertical: 13,
-    },
-    matDivider: {
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.divider,
-    },
-    matMain: { flex: 1, gap: 6 },
-    matName: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.medium,
-      color: theme.colors.text,
-    },
-    matMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    matChip: {
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: theme.radii.sm,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-    },
-    matChipText: {
-      fontSize: 9,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 0.6,
-      color: theme.colors.textMuted,
-    },
-    matQty: {
-      fontSize: theme.typography.size.xs,
-      fontFamily: theme.fonts.mono,
-      color: theme.colors.textMuted,
-    },
-    matAmount: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-    addItemBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      paddingVertical: 14,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.divider,
-    },
-    addItemText: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.primary,
-    },
-    materialsTotalBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.radii.lg,
-      paddingHorizontal: 16,
-      paddingVertical: 16,
-    },
-    materialsTotalBarLabel: {
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.2,
-      color: theme.colors.onPrimary,
-    },
-    materialsTotalBarValue: {
-      fontSize: theme.typography.size.xl,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.onPrimary,
-    },
-
-    // step 5 draft
-    draftName: {
-      fontSize: theme.typography.size.lg,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-    },
-    draftCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-    },
-    draftHead: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    draftEyebrow: {
-      fontSize: 10,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.2,
-      color: theme.colors.textMuted,
-    },
-    reviewBadge: {
-      backgroundColor: theme.colors.warningBg,
-      borderRadius: theme.radii.sm,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-    },
-    reviewBadgeText: {
-      fontSize: 9,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 0.6,
-      color: theme.colors.warning,
-    },
-    draftCustomer: {
-      marginTop: 6,
-      fontSize: theme.typography.size.lg,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-    },
-    draftMeta: {
-      marginTop: 2,
-      fontSize: theme.typography.size.xs,
-      fontFamily: theme.fonts.mono,
-      color: theme.colors.textMuted,
-    },
-    draftDivider: {
-      height: 1,
-      backgroundColor: theme.colors.divider,
-      marginTop: 12,
-    },
-    draftRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingVertical: 13,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.divider,
-    },
-    draftRowLast: { borderBottomWidth: 0 },
-    draftRowLabel: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-    },
-    draftRowValue: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-    draftTotalRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingTop: 14,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.divider,
-    },
-    draftTotalLabel: {
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.4,
-      color: theme.colors.textMuted,
-    },
-    draftTotalSub: {
-      marginTop: 2,
-      fontSize: 9,
-      fontFamily: theme.fonts.mono,
-      color: theme.colors.textMuted,
-    },
-    draftTotalValue: {
-      fontSize: theme.typography.size.xxl,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-    },
-    draftCaveat: {
-      marginTop: 8,
-      fontSize: theme.typography.size.xs,
-      color: theme.colors.textMuted,
-    },
-    metaLine: {
-      fontSize: theme.typography.size.xs,
-      color: theme.colors.textMuted,
-    },
-
-    linkBtn: { alignSelf: 'center', paddingVertical: 4 },
-    linkText: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-
-    // result screens
-    resultWrap: { paddingHorizontal: 24 },
-    resultTop: { paddingTop: 8, paddingHorizontal: 24, alignItems: 'flex-start' },
-    resultLogo: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.bold,
-      letterSpacing: 1.5,
-      color: theme.colors.secondary,
-    },
-    resultBody: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 10,
-      paddingHorizontal: 24,
-    },
-    resultIcon: {
-      width: 88,
-      height: 88,
-      borderRadius: 24,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 6,
-    },
-    resultEyebrow: {
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.2,
-      color: theme.colors.primary,
-    },
-    resultTitle: {
-      fontSize: theme.typography.size.xxl,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-      textAlign: 'center',
-    },
-    resultText: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-      textAlign: 'center',
-      lineHeight: 20,
-      paddingHorizontal: 12,
-    },
-    resultCard: {
-      alignSelf: 'stretch',
-      marginTop: 10,
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      gap: 6,
-    },
-    resultCardHead: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 8,
-    },
-    resultCardName: {
-      flex: 1,
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1,
-      color: theme.colors.textMuted,
-    },
-    resultCardStat: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-    syncRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.md,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-    },
-    syncText: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.text,
-    },
-    resultFooter: { gap: 12, paddingTop: 12 },
-
-    // decision screen
-    decisionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingBottom: 12,
-    },
-    decisionHeaderTitle: {
-      flex: 1,
-      textAlign: 'center',
-      fontSize: theme.typography.size.lg,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-    },
-    decisionHeaderSpacer: { width: 22 },
-    decisionBody: { flex: 1, paddingHorizontal: 24, paddingTop: 8 },
-    decisionEyebrow: {
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.5,
-      color: theme.colors.textMuted,
-    },
-    decisionTitle: {
-      marginTop: 8,
-      fontSize: theme.typography.size.xxl,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.text,
-    },
-    decisionSubtitle: {
-      marginTop: 8,
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-      lineHeight: 20,
-    },
-    recommendCard: {
-      marginTop: 20,
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.radii.lg,
-      padding: 16,
-      gap: 8,
-    },
-    recommendTop: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    recommendBadge: {
-      fontSize: 10,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.2,
-      color: theme.colors.onPrimary,
-      opacity: 0.85,
-    },
-    recommendTitle: {
-      fontSize: theme.typography.size.lg,
-      fontFamily: theme.fonts.bold,
-      color: theme.colors.onPrimary,
-    },
-    recommendText: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.onPrimary,
-      lineHeight: 19,
-      opacity: 0.95,
-    },
-    recommendStrong: { fontFamily: theme.fonts.bold },
-    recommendStat: {
-      marginTop: 4,
-      backgroundColor: 'rgba(0,0,0,0.12)',
-      borderRadius: theme.radii.sm,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-    },
-    recommendStatText: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.monoBold,
-      color: theme.colors.onPrimary,
-    },
-    finishCard: {
-      marginTop: 14,
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      padding: 16,
-      gap: 6,
-    },
-    finishCardHead: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    finishCardTitle: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-    finishCardText: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-      lineHeight: 19,
-    },
-    decisionFooter: { paddingHorizontal: 24, paddingTop: 12, gap: 12 },
-  });
 
 export default WrapUpJobScreen;

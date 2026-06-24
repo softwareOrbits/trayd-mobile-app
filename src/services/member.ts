@@ -72,6 +72,22 @@ export async function fetchMyMember(): Promise<MemberProfile> {
   };
 }
 
+export type MemberRef = { id: string; businessId: string };
+
+let cachedRef: MemberRef | null = null;
+
+export async function getMyMemberRef(): Promise<MemberRef> {
+  if (cachedRef) return cachedRef;
+  const me = await fetchMyMember();
+  if (!me.businessId) throw new Error('No business context');
+  cachedRef = { id: me.id, businessId: me.businessId };
+  return cachedRef;
+}
+
+export function clearMemberCache(): void {
+  cachedRef = null;
+}
+
 export async function updatePassword(
   currentPassword: string,
   newPassword: string,

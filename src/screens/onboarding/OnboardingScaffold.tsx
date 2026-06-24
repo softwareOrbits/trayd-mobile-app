@@ -1,8 +1,7 @@
 import { type ReactNode } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { type Theme } from '@/theme';
-import { subtitleStyles, titleStyles } from '@/theme/constants';
+import { makeOnboardingScaffoldStyles } from '@/styles/onboardingScaffold.styles';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 
 type OnboardingScaffoldProps = {
@@ -24,7 +23,7 @@ export const OnboardingScaffold = ({
   children,
   footer,
 }: OnboardingScaffoldProps) => {
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeOnboardingScaffoldStyles);
   const insets = useSafeAreaInsets();
 
   return (
@@ -83,42 +82,5 @@ export const OnboardingScaffold = ({
     </View>
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    flex: { flex: 1, backgroundColor: theme.colors.background },
-    content: { flexGrow: 1, paddingHorizontal: 24 },
-    progressRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    segments: { flex: 1, flexDirection: 'row', gap: 6 },
-    segment: { flex: 1, height: 4, borderRadius: 2 },
-    segmentOn: { backgroundColor: theme.colors.primary },
-    segmentOff: { backgroundColor: theme.colors.borderMuted },
-    stepLabel: {
-      color: theme.colors.textMuted,
-      fontSize: theme.typography.size.xs,
-      fontFamily: theme.fonts.semibold,
-      letterSpacing: 0.5,
-    },
-    logo: { width: 62, height: 40, alignSelf: 'center', marginTop: 24 },
-    iconArea: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: 160,
-    },
-    textBlock: { alignItems: 'center' },
-    centeredGroup: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 16,
-    },
-    title: titleStyles,
-    subtitle: {
-      ...subtitleStyles,
-      paddingHorizontal: 12,
-    },
-    footer: { gap: 12, marginTop: 28 },
-  });
 
 export default OnboardingScaffold;

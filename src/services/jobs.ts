@@ -1,5 +1,5 @@
 ﻿import { supabase } from './supabase';
-import { fetchMyMember } from './member';
+import { getMyMemberRef } from './member';
 import { base64ToUint8Array } from '@/utils/base64';
 import { imageExtFromType, imageMimeFromType } from '@/utils/image';
 import type { Job, JobDetail, JobStatus, JobType } from '@/types';
@@ -91,7 +91,7 @@ const mapDetail = (r: DetailRow): JobDetail => ({
 
 /** Jobs where the signed-in employee is the primary assignee. */
 export async function fetchMyJobs(): Promise<Job[]> {
-  const me = await fetchMyMember();
+  const me = await getMyMemberRef();
   const { data, error } = await supabase.rpc('list_jobs', {
     p_tab: 'all',
     p_employee_id: me.id,
@@ -292,7 +292,7 @@ export async function addJobMaterial(input: {
   source: MaterialSource;
   unit?: string | null;
 }): Promise<void> {
-  const me = await fetchMyMember();
+  const me = await getMyMemberRef();
   const dayId = await fetchCurrentJobDayId(input.jobId).catch(() => null);
   const { error } = await supabase.from('job_materials').insert({
     job_id: input.jobId,
@@ -341,7 +341,7 @@ export async function addJobAssignment(
   jobId: string,
   memberId: string,
 ): Promise<void> {
-  const me = await fetchMyMember();
+  const me = await getMyMemberRef();
   const { error } = await supabase.from('job_assignments').insert({
     job_id: jobId,
     business_id: me.businessId,
@@ -385,6 +385,7 @@ export type JobPhoto = {
   phase: string;
   takenAt: string | null;
   url: string | null;
+  storagePath: string;
 };
 
 type PhotoRow = {
@@ -418,7 +419,24 @@ export async function fetchJobPhotos(jobId: string): Promise<JobPhoto[]> {
     phase: r.phase,
     takenAt: r.taken_at,
     url: urlFor.get(r.storage_path) ?? null,
+    storagePath: r.storage_path,
   }));
+}
+
+export async function deleteJobPhoto(input: {
+  id: string;
+  storagePath: string;
+}): Promise<void> {
+  const { data, error } = await supabase
+    .from('job_photos')
+    .delete()
+    .eq('id', input.id)
+    .select('id');
+  if (error) throw new Error(error.message);
+  if (!data?.length) {
+    throw new Error('You don’t have permission to delete this photo.');
+  }
+  await supabase.storage.from(JOB_PHOTO_BUCKET).remove([input.storagePath]);
 }
 
 
@@ -432,35 +450,74 @@ const uuidv4 = () =>
  * Storage RLS keys on the first path segment being the caller's business id,
  * so the path convention is `{business_id}/{job_id}/{phase}/{uuid}.{ext}`.
  */
+export type JobPhotoInput = {
+  phase: JobPhotoPhase;
+  base64: string;
+  type?: string | null;
+};
+
+/**
+ * Uploads N photos to Storage (one transfer per file — binary objects can't be
+ * batched) but resolves the member + job day once and writes all the metadata
+ * rows in a single `job_photos` insert. Returns per-photo upload counts so a
+ * partial failure doesn't sink the whole batch.
+ */
+export async function addJobPhotos(input: {
+  jobId: string;
+  photos: JobPhotoInput[];
+}): Promise<{ uploaded: number; failed: number }> {
+  if (!input.photos.length) return { uploaded: 0, failed: 0 };
+  const me = await getMyMemberRef();
+  const dayId = await fetchCurrentJobDayId(input.jobId).catch(() => null);
+
+  const uploads = await Promise.allSettled(
+    input.photos.map(async p => {
+      const path = `${me.businessId}/${input.jobId}/${p.phase}/${uuidv4()}.${imageExtFromType(p.type)}`;
+      const { error } = await supabase.storage
+        .from(JOB_PHOTO_BUCKET)
+        .upload(path, base64ToUint8Array(p.base64), {
+          contentType: imageMimeFromType(p.type),
+          cacheControl: '31536000',
+        });
+      if (error) throw new Error(error.message);
+      return { path, phase: p.phase };
+    }),
+  );
+
+  const ok = uploads.flatMap(r => (r.status === 'fulfilled' ? [r.value] : []));
+  const failed = uploads.length - ok.length;
+
+  if (ok.length) {
+    const takenAt = new Date().toISOString();
+    const { error } = await supabase.from('job_photos').insert(
+      ok.map(o => ({
+        job_id: input.jobId,
+        business_id: me.businessId,
+        business_member_id: me.id,
+        job_day_id: dayId,
+        storage_path: o.path,
+        phase: o.phase,
+        taken_at: takenAt,
+        sync_state: 'synced',
+      })),
+    );
+    if (error) throw new Error(error.message);
+  }
+
+  return { uploaded: ok.length, failed };
+}
+
 export async function addJobPhoto(input: {
   jobId: string;
   phase: JobPhotoPhase;
   base64: string;
   type?: string | null;
 }): Promise<void> {
-  const me = await fetchMyMember();
-  const path = `${me.businessId}/${input.jobId}/${input.phase}/${uuidv4()}.${imageExtFromType(input.type)}`;
-  const dayId = await fetchCurrentJobDayId(input.jobId).catch(() => null);
-
-  const { error: uploadError } = await supabase.storage
-    .from(JOB_PHOTO_BUCKET)
-    .upload(path, base64ToUint8Array(input.base64), {
-      contentType: imageMimeFromType(input.type),
-      cacheControl: '31536000',
-    });
-  if (uploadError) throw new Error(uploadError.message);
-
-  const { error } = await supabase.from('job_photos').insert({
-    job_id: input.jobId,
-    business_id: me.businessId,
-    business_member_id: me.id,
-    job_day_id: dayId,
-    storage_path: path,
-    phase: input.phase,
-    taken_at: new Date().toISOString(),
-    sync_state: 'synced',
+  const { failed } = await addJobPhotos({
+    jobId: input.jobId,
+    photos: [{ phase: input.phase, base64: input.base64, type: input.type }],
   });
-  if (error) throw new Error(error.message);
+  if (failed) throw new Error('Could not upload the photo.');
 }
 
 export type NoteVisibility = 'employer_only' | 'customer_visible';
@@ -499,7 +556,7 @@ export async function addJobNote(
   body: string,
   visibility: NoteVisibility = 'employer_only',
 ): Promise<void> {
-  const me = await fetchMyMember();
+  const me = await getMyMemberRef();
   const { error } = await supabase.from('job_notes').insert({
     job_id: jobId,
     business_id: me.businessId,
@@ -550,7 +607,7 @@ export async function uploadAndExtractReceipt(input: {
   base64: string;
   type?: string | null;
 }): Promise<ReceiptExtraction> {
-  const me = await fetchMyMember();
+  const me = await getMyMemberRef();
   const path = `${me.businessId}/${input.jobId}/${uuidv4()}.${imageExtFromType(input.type)}`;
 
   const { error: uploadError } = await supabase.storage
@@ -648,7 +705,7 @@ export async function addReceiptLine(input: {
   unitPrice: number;
   vat?: number | null;
 }): Promise<void> {
-  const me = await fetchMyMember();
+  const me = await getMyMemberRef();
   const { error } = await supabase.from('receipt_line_items').insert({
     business_id: me.businessId,
     receipt_id: input.receiptId,

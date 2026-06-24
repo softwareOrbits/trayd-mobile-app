@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import {
   launchCamera,
@@ -12,14 +12,15 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { Button, TextLink } from '@/components/ui';
 import { uploadProfilePhoto } from '@/services/member';
-import { useTheme, type Theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { makeProfilePhotoStyles } from '@/styles/profilePhoto.styles';
 import type { AuthStackParamList } from '@/types';
 import OnboardingScaffold from './OnboardingScaffold';
 
 const ProfilePhotoScreen = () => {
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeProfilePhotoStyles);
   const navigation =
     useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
 
@@ -123,32 +124,5 @@ const ProfilePhotoScreen = () => {
     />
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    avatar: {
-      width: 104,
-      height: 104,
-      borderRadius: 52,
-      backgroundColor: theme.colors.borderMuted,
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden',
-    },
-    avatarImage: { width: '100%', height: '100%' },
-    cameraBadge: {
-      position: 'absolute',
-      bottom: 2,
-      right: 2,
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      backgroundColor: theme.colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 3,
-      borderColor: theme.colors.background,
-    },
-  });
 
 export default ProfilePhotoScreen;

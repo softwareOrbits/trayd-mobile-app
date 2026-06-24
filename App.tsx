@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StatusBar, StyleSheet } from 'react-native';
+import { LogBox, StatusBar, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Provider } from 'react-redux';
@@ -10,11 +10,15 @@ import Toast from 'react-native-toast-message';
 
 import { persistor, store } from '@/store';
 import { useAppDispatch } from '@/store/hooks';
-import { restoreSession } from '@/store/authSlice';
+import { restoreSession, logout } from '@/store/authSlice';
+import { supabase } from '@/services/supabase';
+import { clearMemberCache } from '@/services/member';
 import { ThemeProvider } from '@/theme';
-import { LoadingScreen } from '@/components/ui';
+import { LoadingScreen, OfflineBanner } from '@/components/ui';
 import { SyncProvider } from '@/offline';
 import AppNavigator from '@/navigation/AppNavigator';
+
+LogBox.ignoreLogs(['Network request failed', 'TypeError: Network request failed']);
 
 const SPLASH_DURATION = 1800;
 
@@ -25,7 +29,16 @@ function Bootstrap() {
   useEffect(() => {
     dispatch(restoreSession());
     const timer = setTimeout(() => setReady(true), SPLASH_DURATION);
-    return () => clearTimeout(timer);
+    const { data: authSub } = supabase.auth.onAuthStateChange(event => {
+      if (event === 'SIGNED_OUT') {
+        clearMemberCache();
+        dispatch(logout());
+      }
+    });
+    return () => {
+      clearTimeout(timer);
+      authSub.subscription.unsubscribe();
+    };
   }, [dispatch]);
 
   if (!ready) {
@@ -43,6 +56,7 @@ function Bootstrap() {
         <SafeAreaProvider>
           <StatusBar barStyle="dark-content" />
           <SyncProvider>
+            <OfflineBanner />
             <AppNavigator />
           </SyncProvider>
           <Toast topOffset={100} />

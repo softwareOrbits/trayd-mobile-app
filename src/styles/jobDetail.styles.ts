@@ -1,0 +1,285 @@
+import { StyleSheet } from 'react-native';
+
+import type { Theme } from '@/theme';
+
+export const makeJobDetailStyles = (theme: Theme) =>
+  StyleSheet.create({
+    flex: { flex: 1, backgroundColor: theme.colors.background },
+    dangerBtn: {
+      alignSelf: 'stretch',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.colors.error,
+      borderRadius: theme.radii.md,
+      paddingVertical: 14,
+      marginTop: 4,
+    },
+    dangerText: {
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.error,
+    },
+    keepBtn: {
+      alignSelf: 'stretch',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      borderRadius: theme.radii.md,
+      paddingVertical: 14,
+      marginTop: 10,
+    },
+    keepText: {
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.text,
+    },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+    missingText: { color: theme.colors.textMuted, textAlign: 'center' },
+    offlineTitle: {
+      marginTop: 12,
+      marginBottom: 6,
+      fontSize: theme.typography.size.lg,
+      fontFamily: theme.fonts.bold,
+      color: theme.colors.text,
+    },
+    retryBtn: { marginTop: 20, alignSelf: 'stretch' },
+
+    content: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 24,
+      flexGrow: 1,
+    },
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    metaText: {
+      fontSize: theme.typography.size.xs,
+      fontFamily: theme.fonts.mono,
+      color: theme.colors.textMuted,
+    },
+    title: {
+      marginTop: 8,
+      fontSize: theme.typography.size.xxl,
+      fontFamily: theme.fonts.bold,
+      color: theme.colors.text,
+    },
+    subtitle: {
+      marginTop: 2,
+      fontSize: theme.typography.size.sm,
+      color: theme.colors.textMuted,
+    },
+
+    block: { marginTop: 18 },
+    calloutText: {
+      fontSize: theme.typography.size.sm,
+      color: theme.colors.text,
+      lineHeight: 20,
+    },
+    calloutStrong: {
+      fontFamily: theme.fonts.bold,
+      color: theme.colors.text,
+      fontSize: theme.typography.size.sm,
+    },
+    calloutMuted: {
+      fontSize: theme.typography.size.sm,
+      color: theme.colors.textMuted,
+    },
+    cardText: {
+      paddingVertical: 14,
+      fontSize: theme.typography.size.sm,
+      color: theme.colors.text,
+      lineHeight: 20,
+    },
+    placeholder: {
+      marginTop: 18,
+      fontSize: theme.typography.size.sm,
+      color: theme.colors.textMuted,
+      fontStyle: 'italic',
+    },
+    footnote: {
+      marginTop: 16,
+      fontSize: theme.typography.size.xs,
+      color: theme.colors.textMuted,
+      lineHeight: 18,
+    },
+    waitingText: {
+      textAlign: 'center',
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.mono,
+      color: theme.colors.textMuted,
+      paddingVertical: 12,
+    },
+    footer: {
+      paddingHorizontal: 20,
+      paddingTop: 14,
+      backgroundColor: theme.colors.surface,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.borderMuted,
+    },
+    footerStack: { gap: 12 },
+
+    emptyText: {
+      fontSize: theme.typography.size.sm,
+      color: theme.colors.textMuted,
+    },
+    notesStack: { gap: 10 },
+
+    menuContent: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radii.md,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+    },
+    menuItemText: {
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.text,
+    },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'flex-end',
+    },
+    modalCard: {
+      backgroundColor: theme.colors.background,
+      borderTopLeftRadius: theme.radii.lg,
+      borderTopRightRadius: theme.radii.lg,
+      padding: 20,
+      gap: 14,
+    },
+    modalTitle: {
+      fontSize: theme.typography.size.lg,
+      fontFamily: theme.fonts.bold,
+      color: theme.colors.text,
+    },
+    modalRow: { flexDirection: 'row', gap: 12 },
+    modalRowItem: { flex: 1 },
+
+    selectContainer: { gap: 6 },
+    selectLabel: {
+      color: theme.colors.black,
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.semibold,
+    },
+    selectField: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      backgroundColor: theme.colors.inputBackground,
+      borderColor: theme.colors.inputBorder,
+      borderWidth: 1,
+      borderRadius: theme.radii.md,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    selectValue: {
+      flex: 1,
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.regular,
+      color: theme.colors.black,
+    },
+    selectPlaceholder: { color: theme.colors.placeholder },
+    selectDropdown: { gap: 8 },
+    selectList: {
+      maxHeight: 200,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      borderRadius: theme.radii.md,
+    },
+    selectLoading: { paddingVertical: 20 },
+    selectOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.divider,
+    },
+    selectOptionName: {
+      flex: 1,
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.medium,
+      color: theme.colors.text,
+    },
+    selectOptionMeta: {
+      fontSize: theme.typography.size.xs,
+      fontFamily: theme.fonts.mono,
+      color: theme.colors.textMuted,
+    },
+    selectEmpty: {
+      padding: 14,
+      fontSize: theme.typography.size.sm,
+      color: theme.colors.textMuted,
+    },
+    modalDeleteBtn: { alignSelf: 'center', paddingVertical: 4 },
+    modalDeleteText: {
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.error,
+    },
+    modalHint: {
+      fontSize: theme.typography.size.sm,
+      color: theme.colors.textMuted,
+      lineHeight: 19,
+    },
+    timeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+    },
+    timeBoxWrap: { width: 80 },
+    timeBox: {
+      fontSize: 30,
+      fontFamily: theme.fonts.monoBold,
+      textAlign: 'center',
+      color: theme.colors.text,
+    },
+    timeColon: {
+      fontSize: 30,
+      fontFamily: theme.fonts.monoBold,
+      color: theme.colors.text,
+    },
+    presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    presetChip: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radii.pill,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+    },
+    presetChipText: {
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.medium,
+      color: theme.colors.text,
+    },
+
+    scopeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 13,
+    },
+    scopeDivider: {
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.divider,
+    },
+    scopeText: {
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.medium,
+      color: theme.colors.text,
+    },
+    scopeTextOff: {
+      color: theme.colors.textMuted,
+      textDecorationLine: 'line-through',
+    },
+    linkBtn: { alignSelf: 'center', paddingVertical: 4 },
+    linkText: {
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.text,
+    },
+  });

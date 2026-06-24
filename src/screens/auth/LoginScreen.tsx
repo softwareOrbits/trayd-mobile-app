@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
@@ -12,10 +12,10 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { useAppDispatch } from '@/store/hooks';
 import { ACCOUNT_SUSPENDED, signInWithPassword } from '@/store/authSlice';
 import { Banner, Button, Input } from '@/components/ui';
-import { useTheme, type Theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import type { AuthStackParamList } from '@/types';
-import { linkTextStyles, subtitleStyles, titleStyles } from '@/theme/constants';
+import { makeLoginStyles } from '@/styles/login.styles';
 
 const schema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email'),
@@ -26,7 +26,7 @@ type LoginForm = z.infer<typeof schema>;
 
 const LoginScreen = () => {
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeLoginStyles);
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const navigation =
@@ -181,22 +181,5 @@ const LoginScreen = () => {
     </KeyboardAvoidingView>
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    flex: { flex: 1, backgroundColor: theme.colors.background },
-    content: { flexGrow: 1, paddingHorizontal: 24 },
-    banner: { marginBottom: 8 },
-    header: { alignItems: 'center', marginTop: 12 },
-    logo: { width: 86, height: 63, marginBottom: 16 },
-    title: titleStyles,
-    subtitle: subtitleStyles,
-    form: { marginTop: 28, gap: 16 },
-    forgotRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    forgotText: { ...linkTextStyles, color: theme.colors.primary },
-    footer: { marginTop: 'auto', gap: 18, alignItems: 'center' },
-    joinButton: { paddingVertical: 4 },
-    joinText: linkTextStyles,
-  });
 
 export default LoginScreen;

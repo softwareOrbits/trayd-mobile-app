@@ -2,7 +2,9 @@ export type MutationKind =
   | 'job.pause'
   | 'job.resume'
   | 'job.finish'
+  | 'job.status'
   | 'job.addNote'
+  | 'job.addPhotos'
   | 'profile.phone'
   | 'profile.workingHours'
   | 'profile.serviceArea';

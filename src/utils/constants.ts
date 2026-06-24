@@ -1,13 +1,6 @@
-import type { IconName } from '@/types';
+import type { JobTypeOption } from '@/types';
 
-export type JobTypeOption = {
-  key: 'standard' | 'quote' | 'callout';
-  icon: IconName;
-  title: string;
-  subtitle: string;
-};
 
-/** Static copy for the Start Job wizard's job-type step. */
 export const JOB_TYPE_OPTIONS: JobTypeOption[] = [
   {
     key: 'standard',

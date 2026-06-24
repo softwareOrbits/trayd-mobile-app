@@ -4,7 +4,6 @@ import {
   Image,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -26,8 +25,11 @@ import {
   staticMapUrl,
   type PlaceSuggestion,
 } from '@/services/places';
-import { useTheme, type Theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { makeServiceAreaStyles } from '@/styles/serviceArea.styles';
+import { toastError } from '@/utils/toast';
+import { isNetworkError } from '@/utils/errors';
 import type { MainStackParamList } from '@/types';
 
 const sameArea = (a: ServiceArea, b: ServiceArea) =>
@@ -37,7 +39,7 @@ const sameArea = (a: ServiceArea, b: ServiceArea) =>
 
 const ServiceAreaScreen = () => {
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeServiceAreaStyles);
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
 
@@ -60,7 +62,12 @@ const ServiceAreaScreen = () => {
         setArea(parsed);
         setOriginal(parsed);
       })
-      .catch(() => active && Toast.show({ type: 'error', text1: 'Could not load your areas.' }))
+      .catch(
+        e =>
+          active &&
+          !isNetworkError(e) &&
+          Toast.show({ type: 'error', text1: 'Could not load your areas.' }),
+      )
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
@@ -155,10 +162,7 @@ const ServiceAreaScreen = () => {
       Toast.show({ type: 'success', text1: 'Service area saved.' });
       navigation.goBack();
     } catch (e) {
-      Toast.show({
-        type: 'error',
-        text1: e instanceof Error ? e.message : 'Could not save your areas.',
-      });
+      toastError(e, 'Could not save your areas.');
       setSaving(false);
     }
   };
@@ -308,123 +312,5 @@ const ServiceAreaScreen = () => {
     </View>
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    flex: { flex: 1, backgroundColor: theme.colors.background },
-    centered: { alignItems: 'center', justifyContent: 'center' },
-    content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },
-    subtitle: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-      lineHeight: 20,
-    },
-    map: {
-      width: '100%',
-      height: 170,
-      marginTop: 16,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.surfaceMuted,
-    },
-    section: {
-      marginTop: 22,
-      marginBottom: 8,
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.2,
-      color: theme.colors.textMuted,
-    },
-    primaryCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 14,
-      paddingVertical: 14,
-    },
-    primaryIcon: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      backgroundColor: theme.colors.warningBg,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    primaryText: {
-      flex: 1,
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
-    emptyCard: {
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      borderStyle: 'dashed',
-      paddingHorizontal: 14,
-      paddingVertical: 18,
-    },
-    emptyText: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-    },
-    card: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 14,
-    },
-    addRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      paddingVertical: 14,
-    },
-    addText: {
-      flex: 1,
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.medium,
-      color: theme.colors.text,
-    },
-    starBtn: { padding: 2 },
-    divider: { height: 1, backgroundColor: theme.colors.divider },
-    searchHint: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      paddingVertical: 10,
-    },
-    searchHintText: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-    },
-    suggestCard: {
-      marginTop: 8,
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      paddingHorizontal: 14,
-    },
-    suggestRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      paddingVertical: 14,
-    },
-    suggestText: {
-      flex: 1,
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.medium,
-      color: theme.colors.text,
-    },
-  });
 
 export default ServiceAreaScreen;

@@ -5,7 +5,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -17,16 +16,12 @@ import Toast from 'react-native-toast-message';
 
 import { BackButton, Banner, Button } from '@/components/ui';
 import { supabase } from '@/services/supabase';
-import { useTheme, type Theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import type { AuthStackParamList } from '@/types';
-import { linkTextStyles, subtitleStyles, titleStyles } from '@/theme/constants';
+import { makeInviteCodeStyles } from '@/styles/inviteCode.styles';
 
 const CODE_LENGTH = 8;
-const SCREEN_PADDING = 24;
-const BOX_GAP = 4;
-const BOX_WIDTH = 36;
-const OTP_WIDTH = (BOX_WIDTH + BOX_GAP) * CODE_LENGTH;
 
 // Maps resolve-employee-invite error codes to friendly copy.
 const errorTextFor = (code: string) => {
@@ -42,7 +37,7 @@ const errorTextFor = (code: string) => {
 
 const InviteCodeScreen = () => {
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeInviteCodeStyles);
   const insets = useSafeAreaInsets();
   const navigation =
     useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
@@ -193,49 +188,5 @@ const InviteCodeScreen = () => {
     </KeyboardAvoidingView>
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    flex: { flex: 1, backgroundColor: theme.colors.background },
-    content: { flexGrow: 1, paddingHorizontal: SCREEN_PADDING },
-    header: { alignItems: 'center', marginTop: 12 },
-    logo: { width: 86, height: 63, marginBottom: 16 },
-    title: titleStyles,
-    subtitle: subtitleStyles,
-    subtitleStrong: { fontFamily: theme.fonts.bold, color: theme.colors.primary },
-    banner: { marginTop: 20 },
-    form: { marginTop: 28 },
-    otpWrap: { width: '100%', alignItems: 'center' },
-    otpContainer: {
-      width: OTP_WIDTH,
-      alignSelf: 'center',
-    },
-    otpBox: {
-      width: BOX_WIDTH,
-      height: 56,
-      marginHorizontal: BOX_GAP / 2,
-      flexGrow: 0,
-      flexShrink: 0,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: theme.radii.md,
-      borderWidth: 1,
-      borderColor: theme.colors.inputBorder,
-      backgroundColor: theme.colors.inputBackground,
-    },
-    otpBoxFocused: { borderColor: theme.colors.secondary },
-    otpText: {
-      color: theme.colors.text,
-      fontSize: theme.typography.size.xl,
-      fontFamily: theme.fonts.monoBold,
-      textAlign: 'center',
-      includeFontPadding: false,
-    },
-    helpLink: { marginTop: 16, alignSelf: 'center' },
-    helpText: linkTextStyles,
-    footer: { marginTop: 'auto', gap: 18, alignItems: 'center' },
-    laterLink: { paddingVertical: 4 },
-    laterText: linkTextStyles,
-  });
 
 export default InviteCodeScreen;

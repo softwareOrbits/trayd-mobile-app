@@ -44,6 +44,7 @@ export async function searchMaterials(
   let q = supabase
     .from('materials')
     .select('id, name, unit, category, cost_price, sell_price')
+    .eq('is_system', false)
     .order('name')
     .limit(50);
 

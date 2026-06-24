@@ -1,22 +1,21 @@
 import { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import { launchCamera } from 'react-native-image-picker';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Toast from 'react-native-toast-message';
 
-import { Button, Input } from '@/components/ui';
+import { Button, Input, ImageThumb } from '@/components/ui';
 import {
   CheckboxRow,
   CustomerCard,
   RadioCard,
   WizardScaffold,
 } from '@/components/wizard';
-import { JOB_TYPE_OPTIONS } from '@/data/startJobMock';
+import { JOB_TYPE_OPTIONS } from '@/utils/constants';
 import {
   findNearestCustomer,
   findSimilarCustomers,
@@ -35,43 +34,38 @@ import {
 } from '@/utils/location';
 import {
   addJobMaterial,
-  addJobPhoto,
+  addJobPhotos,
   startJob,
   DuplicateCustomerError,
 } from '@/services/jobs';
 import { searchMaterials, type CatalogMaterial } from '@/services/materials';
 import { fetchActiveRoster, type RosterEntry } from '@/services/member';
+import { enqueue } from '@/offline';
+import { isNetworkError } from '@/offline/errors';
 import { useAppDispatch } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
-import { useTheme, type Theme } from '@/theme';
+import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { withTimeout } from '@/utils/withTimeout';
+import { makeStartJobStyles } from '@/styles/startJob.styles';
+import {
+  START_JOB_TOTAL,
+  PHOTO_UPLOAD_TIMEOUT_MS,
+  customerSchema,
+  type CustomerForm,
+} from '@/components/startJob/helpers';
+import type {
+  CustomerMode,
+  NewCustomerPayload,
+  PhotoAsset,
+} from '@/components/startJob/types';
 import type { JobType, MainStackParamList } from '@/types';
 
-const TOTAL = 5;
-
-const customerSchema = z.object({
-  fullName: z.string().min(1, 'Full name is required'),
-  phone: z.string().min(6, 'Enter a valid phone'),
-  email: z.string().email('Enter a valid email').optional().or(z.literal('')),
-  address: z.string().min(1, 'Address is required'),
-  eircode: z.string().min(1, 'Eircode is required'),
-});
-type CustomerForm = z.infer<typeof customerSchema>;
-
-type NewCustomerPayload = {
-  name: string;
-  phone: string;
-  email?: string | null;
-  address: string;
-  eircode: string;
-};
-
-type PhotoAsset = { uri: string; base64?: string; type?: string | null };
-type CustomerMode = 'list' | 'new' | 'dedup';
+const TOTAL = START_JOB_TOTAL;
 
 const StartJobScreen = () => {
   const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+  const styles = useThemedStyles(makeStartJobStyles);
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
 
@@ -82,7 +76,7 @@ const StartJobScreen = () => {
   const [search, setSearch] = useState('');
   const [jobType, setJobType] = useState<string | null>(null);
   const [crew, setCrew] = useState<string[]>([]);
-  const [photo, setPhoto] = useState<PhotoAsset | null>(null);
+  const [photos, setPhotos] = useState<PhotoAsset[]>([]);
   const [starting, setStarting] = useState(false);
 
   const [customerId, setCustomerId] = useState<string | null>(null);
@@ -232,12 +226,16 @@ const StartJobScreen = () => {
       return;
     }
     const asset = res.assets?.[0];
-    setPhoto(
-      asset?.uri
-        ? { uri: asset.uri, base64: asset.base64, type: asset.type }
-        : null,
-    );
+    if (asset?.uri) {
+      setPhotos(prev => [
+        ...prev,
+        { uri: asset.uri as string, base64: asset.base64, type: asset.type },
+      ]);
+    }
   };
+
+  const removePhoto = (idx: number) =>
+    setPhotos(prev => prev.filter((_, i) => i !== idx));
 
   const finish = async () => {
     if (starting) return;
@@ -285,19 +283,43 @@ const StartJobScreen = () => {
         }
       }
 
-      if (photo?.base64) {
+      const pendingPhotos = photos.filter(p => p.base64);
+      if (pendingPhotos.length) {
+        const items = pendingPhotos.map(p => ({
+          phase: 'before' as const,
+          base64: p.base64 as string,
+          type: p.type,
+        }));
+        const queuePhotosOffline = () =>
+          enqueue({
+            id: `${jobId}:photos:${Date.now()}`,
+            kind: 'job.addPhotos',
+            payload: { clientId: `${jobId}:${Date.now()}`, jobId, photos: items },
+          });
         try {
-          await addJobPhoto({
-            jobId,
-            phase: 'before',
-            base64: photo.base64,
-            type: photo.type,
-          });
-        } catch {
-          Toast.show({
-            type: 'error',
-            text1: 'Job started, but the photo failed to upload.',
-          });
+          const { uploaded, failed } = await withTimeout(
+            addJobPhotos({ jobId, photos: items }),
+            PHOTO_UPLOAD_TIMEOUT_MS,
+          );
+          if (!uploaded) {
+            await queuePhotosOffline();
+          } else if (failed) {
+            Toast.show({
+              type: 'error',
+              text1: `Job started — ${failed} photo${
+                failed === 1 ? '' : 's'
+              } didn’t upload.`,
+            });
+          }
+        } catch (photoErr) {
+          if (isNetworkError(photoErr)) {
+            await queuePhotosOffline();
+          } else {
+            Toast.show({
+              type: 'error',
+              text1: 'Job started, but the photos didn’t upload.',
+            });
+          }
         }
       }
 
@@ -322,10 +344,17 @@ const StartJobScreen = () => {
           return;
         }
       }
-      Toast.show({
-        type: 'error',
-        text1: e instanceof Error ? e.message : 'Could not start the job.',
-      });
+      if (isNetworkError(e)) {
+        Toast.show({
+          type: 'info',
+          text1: 'You’re offline — start the job when you reconnect.',
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: e instanceof Error ? e.message : 'Could not start the job.',
+        });
+      }
     } finally {
       setStarting(false);
     }
@@ -644,16 +673,17 @@ const StartJobScreen = () => {
     subtitle =
       'Two or three photos of the existing state. They protect both sides if something’s queried.';
     bodyContent = (
-      <Pressable style={styles.photoTile} onPress={openCamera}>
-        {photo ? (
-          <Image source={{ uri: photo.uri }} style={styles.photoImg} />
-        ) : (
-          <>
-            <Ionicons name="camera-outline" size={28} color={colors.textMuted} />
-            <Text style={styles.photoText}>Add photo</Text>
-          </>
-        )}
-      </Pressable>
+      <View style={styles.photoGrid}>
+        {photos.map((p, i) => (
+          <ImageThumb key={p.uri} uri={p.uri} onRemove={() => removePhoto(i)} />
+        ))}
+        <Pressable style={styles.photoAddTile} onPress={openCamera}>
+          <Ionicons name="camera-outline" size={26} color={colors.textMuted} />
+          <Text style={styles.photoText}>
+            {photos.length ? 'Add another' : 'Add photo'}
+          </Text>
+        </Pressable>
+      </View>
     );
     footer = (
       <View style={styles.gap12}>
@@ -673,7 +703,7 @@ const StartJobScreen = () => {
           <Text style={styles.skipText}>
             {starting
               ? 'Starting…'
-              : photo
+              : photos.length
               ? 'Start the job'
               : 'Skip — start the job'}
           </Text>
@@ -696,100 +726,5 @@ const StartJobScreen = () => {
     </WizardScaffold>
   );
 };
-
-export const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    gap16: { gap: 16 },
-    gap12: { gap: 12 },
-    sectionLabel: {
-      fontSize: 11,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1.2,
-      color: theme.colors.textMuted,
-      marginBottom: 8,
-    },
-    hintText: {
-      marginTop: 10,
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-    },
-    matchCard: {
-      backgroundColor: theme.colors.warningBg,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.primary,
-      padding: 14,
-      gap: 8,
-    },
-    matchLabel: {
-      fontSize: 10,
-      fontFamily: theme.fonts.monoBold,
-      letterSpacing: 1,
-      color: theme.colors.textMuted,
-    },
-    noteBox: {
-      backgroundColor: theme.colors.surfaceMuted,
-      borderRadius: theme.radii.md,
-      padding: 12,
-      marginTop: 4,
-    },
-    noteText: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-      lineHeight: 19,
-    },
-    noteStrong: {
-      color: theme.colors.primary,
-      fontFamily: theme.fonts.semibold,
-    },
-    photoTile: {
-      height: 150,
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      borderStyle: 'dashed',
-      backgroundColor: theme.colors.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      overflow: 'hidden',
-    },
-    photoImg: { width: '100%', height: '100%' },
-    photoText: {
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.textMuted,
-      fontFamily: theme.fonts.medium,
-    },
-    suggestBox: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.md,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      marginTop: -8,
-    },
-    suggestRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      paddingVertical: 12,
-      paddingHorizontal: 12,
-    },
-    suggestDivider: {
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.divider,
-    },
-    suggestText: {
-      flex: 1,
-      fontSize: theme.typography.size.sm,
-      color: theme.colors.text,
-    },
-    skipBtn: { alignSelf: 'center', paddingVertical: 4 },
-    skipText: {
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-      textDecorationLine: 'underline',
-    },
-  });
 
 export default StartJobScreen;
