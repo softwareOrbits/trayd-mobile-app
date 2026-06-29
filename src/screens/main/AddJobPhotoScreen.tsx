@@ -12,7 +12,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { AppToast, Button } from '@/components/ui';
 import { addJobPhotos, type JobPhoto, type JobPhotoPhase } from '@/services/jobs';
 import { loadJobCache, saveJobCache } from '@/services/jobCache';
-import { enqueue } from '@/offline';
+import { enqueue, offlineActionBlocked } from '@/offline';
 import { isNetworkError } from '@/offline/errors';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
@@ -63,6 +63,7 @@ const AddJobPhotoScreen = () => {
   const save = async () => {
     const pending = photos.filter(p => p.uri);
     if (!pending.length || saving) return;
+    if (offlineActionBlocked()) return;
     setSaving(true);
     const stamp = Date.now();
     const items = pending.map((p, i) => ({

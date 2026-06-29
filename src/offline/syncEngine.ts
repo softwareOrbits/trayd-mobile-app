@@ -1,5 +1,5 @@
-import { isOnline } from './connectivity';
-import { classifyOutcome, errorMessage } from './errors';
+import { isOfflineLimitExceeded, isOnline } from './connectivity';
+import { classifyOutcome, errorMessage, OfflineLimitError } from './errors';
 import { handlers } from './handlers';
 import { loadIdRemap, resolveId } from './idRemap';
 import {
@@ -40,6 +40,7 @@ export type EnqueueInput<P = unknown> = {
 };
 
 export async function enqueue<P>(input: EnqueueInput<P>): Promise<void> {
+  if (isOfflineLimitExceeded()) throw new OfflineLimitError();
   await appendMutation({
     id: input.id,
     kind: input.kind,

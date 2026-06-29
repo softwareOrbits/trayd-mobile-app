@@ -35,7 +35,7 @@ import {
   type JobSegment,
 } from '@/services/jobs';
 import { enqueueAction, queueFinish } from '@/services/outbox';
-import { enqueue } from '@/offline';
+import { enqueue, offlineActionBlocked } from '@/offline';
 import {
   addMaterial as addMaterialOffline,
   editMaterial as editMaterialOffline,
@@ -382,6 +382,7 @@ const WrapUpJobScreen = () => {
   // ----- Step 2: after photos -----
   const addAfterPhoto = async () => {
     if (capturing) return;
+    if (offlineActionBlocked()) return;
     const asset = await capturePhoto({ quality: 0.7, maxSize: 1600 });
     if (!asset) return;
     setCapturing(true);
@@ -457,6 +458,7 @@ const WrapUpJobScreen = () => {
 
   const saveMaterial = async () => {
     if (!detail || !itemName.trim() || !matSheet || savingItem) return;
+    if (offlineActionBlocked()) return;
     setSavingItem(true);
     const qty = Math.max(1, parseFloat(itemQty.replace(',', '.')) || 1);
     const cost = parseFloat(itemCost.replace(',', '.')) || 0;
@@ -513,6 +515,7 @@ const WrapUpJobScreen = () => {
 
   const removeMaterial = async () => {
     if (!detail || matSheet === 'new' || !matSheet || savingItem) return;
+    if (offlineActionBlocked()) return;
     setSavingItem(true);
     const removedId = matSheet;
     try {
@@ -543,6 +546,7 @@ const WrapUpJobScreen = () => {
   // ----- Step 5: submit -----
   const submit = async () => {
     if (submitting || !finishDate) return;
+    if (offlineActionBlocked()) return;
     setSubmitting(true);
     const finishIso = finishDate.toISOString();
     const reason = editReason.trim() || null;
@@ -629,6 +633,7 @@ const WrapUpJobScreen = () => {
   // "Continue tomorrow" — pause (same RPC as End day, mds §1). Job stays open.
   const continueTomorrow = async () => {
     if (pausing) return;
+    if (offlineActionBlocked()) return;
     setPausing(true);
     const atIso = new Date().toISOString();
     try {

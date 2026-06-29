@@ -40,7 +40,7 @@ import {
 } from '@/services/jobs';
 import { searchMaterials, type CatalogMaterial } from '@/services/materials';
 import { fetchActiveRoster, type RosterEntry } from '@/services/member';
-import { enqueue } from '@/offline';
+import { enqueue, offlineActionBlocked } from '@/offline';
 import { isNetworkError } from '@/offline/errors';
 import { useAppDispatch } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
@@ -255,6 +255,7 @@ const StartJobScreen = () => {
       setStep(1);
       return;
     }
+    if (offlineActionBlocked()) return;
     setStarting(true);
     const selfId = roster.find(r => r.isSelf)?.id;
     const memberIds = crew.length === 1 && crew[0] === selfId ? [] : crew;

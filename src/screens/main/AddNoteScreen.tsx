@@ -11,7 +11,7 @@ import { AppToast, Button, Input } from '@/components/ui';
 import { TagChip } from '@/components/jobDetail';
 import { addJobNote, type JobNote, type NoteVisibility } from '@/services/jobs';
 import { loadJobCache, saveJobCache } from '@/services/jobCache';
-import { enqueue } from '@/offline';
+import { enqueue, offlineActionBlocked } from '@/offline';
 import { isNetworkError } from '@/offline/errors';
 import { withTimeout } from '@/utils/withTimeout';
 import { goBackSafe } from '@/utils/navigation';
@@ -68,6 +68,7 @@ const AddNoteScreen = () => {
   const save = async () => {
     const body = text.trim();
     if (!body || saving) return;
+    if (offlineActionBlocked()) return;
     setSaving(true);
     const queueOffline = async () => {
       const stamp = Date.now();
