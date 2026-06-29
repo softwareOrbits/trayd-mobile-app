@@ -1,9 +1,10 @@
-import { PermissionsAndroid, Platform, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { Button, TextLink } from '@/components/ui';
+import { registerPush } from '@/services/push';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeOnboardingNotificationsStyles } from '@/styles/onboardingNotifications.styles';
@@ -19,15 +20,7 @@ const NotificationsScreen = () => {
   const goNext = () => navigation.navigate('OnboardLocation');
 
   const requestNotifications = async () => {
-    if (Platform.OS === 'android' && Number(Platform.Version) >= 33) {
-      try {
-        await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-        );
-      } catch {
-        // Continue onboarding regardless of the user's choice.
-      }
-    }
+    await registerPush();
     goNext();
   };
 

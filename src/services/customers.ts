@@ -1,5 +1,12 @@
 import { supabase } from './supabase';
 import { distanceMeters, type GpsPoint } from '@/utils/location';
+import { isNetworkError } from '@/offline/errors';
+import { isOnline } from '@/offline/connectivity';
+import {
+  filterCachedCustomers,
+  loadCustomerCache,
+  mergeCustomerCache,
+} from './customerCache';
 
 export type Customer = {
   id: string;
@@ -61,31 +68,44 @@ const CUSTOMER_COLS =
  * optionally filtered by name/phone.
  */
 export async function searchCustomers(query?: string): Promise<Customer[]> {
-  let q = supabase
-    .from('customers')
-    .select(CUSTOMER_COLS)
-    .order('created_at', { ascending: false })
-    .limit(15);
-
-  // Strip PostgREST `or()` syntax characters from the user's term.
   const term = query?.trim().replace(/[,()]/g, '');
-  if (term) {
-    q = q.or(`name.ilike.%${term}%,phone.ilike.%${term}%`);
+  if (!isOnline()) {
+    const cachedHits = filterCachedCustomers(await loadCustomerCache(), term);
+    if (cachedHits.length) return cachedHits;
   }
-
-  const { data, error } = await q;
-  if (error) throw new Error(error.message);
-  return ((data ?? []) as CustomerRow[]).map(mapCustomer);
+  try {
+    let q = supabase
+      .from('customers')
+      .select(CUSTOMER_COLS)
+      .order('created_at', { ascending: false })
+      .limit(15);
+    if (term) {
+      q = q.or(`name.ilike.%${term}%,phone.ilike.%${term}%`);
+    }
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    const out = ((data ?? []) as CustomerRow[]).map(mapCustomer);
+    mergeCustomerCache(out).catch(() => {});
+    return out;
+  } catch (e) {
+    if (!isNetworkError(e)) throw e;
+    return filterCachedCustomers(await loadCustomerCache(), term);
+  }
 }
 
 export async function getCustomer(id: string): Promise<Customer | null> {
-  const { data, error } = await supabase
-    .from('customers')
-    .select(CUSTOMER_COLS)
-    .eq('id', id)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return data ? mapCustomer(data as CustomerRow) : null;
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .select(CUSTOMER_COLS)
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? mapCustomer(data as CustomerRow) : null;
+  } catch (e) {
+    if (!isNetworkError(e)) throw e;
+    return (await loadCustomerCache()).find(c => c.id === id) ?? null;
+  }
 }
 
 /**

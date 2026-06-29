@@ -1,21 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { LogBox, StatusBar, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import {
+  SafeAreaInsetsContext,
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { PaperProvider } from 'react-native-paper';
 import Toast from 'react-native-toast-message';
 
 import { persistor, store } from '@/store';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { restoreSession, logout } from '@/store/authSlice';
 import { supabase } from '@/services/supabase';
 import { clearMemberCache } from '@/services/member';
 import { ThemeProvider } from '@/theme';
 import { LoadingScreen, OfflineBanner } from '@/components/ui';
-import { SyncProvider } from '@/offline';
+import { SyncProvider, useOnline } from '@/offline';
+import { warmCaches } from '@/offline/prefetch';
+import { registerPush } from '@/services/push';
 import AppNavigator from '@/navigation/AppNavigator';
 
 LogBox.ignoreLogs(['Network request failed', 'TypeError: Network request failed']);
@@ -24,6 +30,7 @@ const SPLASH_DURATION = 1800;
 
 function Bootstrap() {
   const dispatch = useAppDispatch();
+  const isLoggedIn = useAppSelector(s => s.auth.isLoggedIn);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -41,6 +48,13 @@ function Bootstrap() {
     };
   }, [dispatch]);
 
+  useEffect(() => {
+    if (isLoggedIn) {
+      warmCaches();
+      registerPush();
+    }
+  }, [isLoggedIn]);
+
   if (!ready) {
     return (
       <>
@@ -56,13 +70,30 @@ function Bootstrap() {
         <SafeAreaProvider>
           <StatusBar barStyle="dark-content" />
           <SyncProvider>
-            <OfflineBanner />
-            <AppNavigator />
+            <AppShell />
           </SyncProvider>
           <Toast topOffset={100} />
         </SafeAreaProvider>
       </BottomSheetModalProvider>
     </PaperProvider>
+  );
+}
+
+function AppShell() {
+  const online = useOnline();
+  const insets = useSafeAreaInsets();
+  const value = useMemo(
+    () => (online ? insets : { ...insets, top: 0 }),
+    [online, insets],
+  );
+
+  return (
+    <>
+      <OfflineBanner />
+      <SafeAreaInsetsContext.Provider value={value}>
+        <AppNavigator />
+      </SafeAreaInsetsContext.Provider>
+    </>
   );
 }
 

@@ -22,8 +22,6 @@ import { MaterialSelect, type SelectedMaterial } from '@/components/MaterialSele
 import { JOB_TYPE_OPTIONS } from '@/utils/constants';
 import {
   addJobAssignment,
-  addJobMaterial,
-  deleteJobMaterial,
   fetchJobDetail,
   fetchJobMaterials,
   fetchJobRoster,
@@ -32,12 +30,17 @@ import {
   type JobCrewMember,
   type JobMaterial,
 } from '@/services/jobs';
+import {
+  addMaterial as addMaterialOffline,
+  removeMaterial as removeMaterialOffline,
+} from '@/offline/materialActions';
 import { fetchActiveRoster, type RosterEntry } from '@/services/member';
 import { useAppDispatch } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
 import { useTheme } from '@/theme';
 import { makeEditJobStyles } from '@/styles/editJob.styles';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { goBackSafe } from '@/utils/navigation';
 import type { JobType, MainStackParamList } from '@/types';
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -171,7 +174,7 @@ const EditJobScreen = () => {
       });
       dispatch(fetchJobs());
       Toast.show({ type: 'success', text1: 'Job updated.' });
-      navigation.goBack();
+      goBackSafe(navigation);
     } catch (e) {
       Toast.show({ type: 'error', text1: msg(e, 'Could not update the job.') });
       setSaving(false);
@@ -196,7 +199,7 @@ const EditJobScreen = () => {
     if (!matName.trim() || busy) return;
     setBusy(true);
     try {
-      await addJobMaterial({
+      const { queued, material } = await addMaterialOffline({
         jobId: params.jobId,
         description: matName.trim(),
         quantity: Number(matQty) || 1,
@@ -204,9 +207,16 @@ const EditJobScreen = () => {
         source: 'van_stock',
         unit: matUnit,
       });
-      setMaterials(await fetchJobMaterials(params.jobId));
+      if (queued) {
+        setMaterials(prev => [...prev, material]);
+      } else {
+        setMaterials(await fetchJobMaterials(params.jobId));
+      }
       setMatModal(false);
-      Toast.show({ type: 'success', text1: 'Material added.' });
+      Toast.show({
+        type: 'success',
+        text1: queued ? 'Saved offline — will sync.' : 'Material added.',
+      });
     } catch (e) {
       Toast.show({ type: 'error', text1: msg(e, 'Could not add material.') });
     } finally {
@@ -218,8 +228,12 @@ const EditJobScreen = () => {
     if (busy) return;
     setBusy(true);
     try {
-      await deleteJobMaterial(id);
-      setMaterials(await fetchJobMaterials(params.jobId));
+      const { queued } = await removeMaterialOffline(id);
+      if (queued) {
+        setMaterials(prev => prev.filter(m => m.id !== id));
+      } else {
+        setMaterials(await fetchJobMaterials(params.jobId));
+      }
     } catch (e) {
       Toast.show({ type: 'error', text1: msg(e, 'Could not remove material.') });
     } finally {

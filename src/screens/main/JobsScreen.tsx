@@ -22,7 +22,8 @@ import {
   LiveJobItem,
   LiveNowBanner,
 } from '@/components/jobs';
-import { useSync } from '@/offline';
+import { useOnline, useSync } from '@/offline';
+import { getMappedId } from '@/offline/idRemap';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
 import { useTheme } from '@/theme';
@@ -33,6 +34,8 @@ import {
   segmentsElapsedHours,
   type JobSegment,
 } from '@/services/jobs';
+import { loadJobCache, saveJobCache } from '@/services/jobCache';
+import { fetchActiveRoster } from '@/services/member';
 import {
   type Job,
   type JobTabItem,
@@ -58,10 +61,21 @@ const JobsScreen = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const dispatch = useAppDispatch();
-  const items = useAppSelector(state => state.jobs.items);
+  const serverItems = useAppSelector(state => state.jobs.items);
+  const pendingItems = useAppSelector(state => state.pendingJobs.items);
+  const items = useMemo(() => {
+    const serverIds = new Set(serverItems.map(j => j.id));
+    const visiblePending = pendingItems.filter(p => {
+      if (serverIds.has(p.id)) return false;
+      const realId = getMappedId(p.id);
+      return !(realId && serverIds.has(realId));
+    });
+    return [...visiblePending, ...serverItems];
+  }, [serverItems, pendingItems]);
   const status = useAppSelector(state => state.jobs.status);
   const user = useAppSelector(state => state.auth.user);
   const { pending, flushNow } = useSync();
+  const online = useOnline();
   const [activeTab, setActiveTab] = useState<JobTabKey>('today');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -69,14 +83,18 @@ const JobsScreen = () => {
   // the open segment (active jobs only) keeps ticking. Paused jobs have no open
   // segment, so their timer stops — no more mock time running in the background.
   const [segMeta, setSegMeta] = useState<Map<string, JobSegment[]>>(new Map());
+  const [startMeta, setStartMeta] = useState<Map<string, string>>(new Map());
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     dispatch(fetchJobs());
-  }, [dispatch]);
+    fetchActiveRoster().catch(() => {});
+    flushNow().catch(() => {});
+  }, [dispatch, flushNow]);
 
   const onRefresh = async () => {
     setRefreshing(true);
+    flushNow(true).catch(() => {});
     try {
       await dispatch(fetchJobs()).unwrap();
     } catch {
@@ -131,23 +149,36 @@ const JobsScreen = () => {
   useEffect(() => {
     if (!liveIds.length) {
       setSegMeta(new Map());
+      setStartMeta(new Map());
       return;
     }
     let active = true;
     Promise.all(
-      liveIds.map(id =>
-        fetchJobSegments(id)
-          .then(segs => [id, segs] as const)
-          .catch(() => [id, [] as JobSegment[]] as const),
-      ),
+      liveIds.map(async id => {
+        const fetched = online
+          ? await fetchJobSegments(id).catch(() => null)
+          : null;
+        const cached = await loadJobCache(id);
+        if (fetched) saveJobCache(id, { segments: fetched });
+        const segs = fetched ?? cached?.segments ?? [];
+        return { id, segs, startedAt: cached?.detail?.startedAt ?? null };
+      }),
     ).then(results => {
-      if (active) setSegMeta(new Map(results));
+      if (!active) return;
+      setSegMeta(new Map(results.map(r => [r.id, r.segs] as const)));
+      setStartMeta(
+        new Map(
+          results.flatMap(r =>
+            r.startedAt ? [[r.id, r.startedAt] as const] : [],
+          ),
+        ),
+      );
     });
     return () => {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveIdsKey]);
+  }, [liveIdsKey, online]);
 
   // Tick once a second only while at least one job is actually active.
   useEffect(() => {
@@ -159,10 +190,19 @@ const JobsScreen = () => {
 
   const metaFor = (job: Job) => {
     const segs = segMeta.get(job.id);
-    if (!segs?.length) return { elapsed: '00:00:00', day: 1 };
-    const { hours } = segmentsElapsedHours(segs, now);
-    const days = new Set(segs.map(s => s.jobDayId).filter(Boolean)).size;
-    return { elapsed: formatElapsed(hours * 3_600_000), day: Math.max(1, days) };
+    if (segs?.length) {
+      const { hours } = segmentsElapsedHours(segs, now);
+      const days = new Set(segs.map(s => s.jobDayId).filter(Boolean)).size;
+      return { elapsed: formatElapsed(hours * 3_600_000), day: Math.max(1, days) };
+    }
+    const startedAt = startMeta.get(job.id);
+    if (job.status === 'active' && startedAt) {
+      return {
+        elapsed: formatElapsed(now - new Date(startedAt).getTime()),
+        day: 1,
+      };
+    }
+    return { elapsed: '00:00:00', day: 1 };
   };
 
   const tabs = useMemo<JobTabItem[]>(
@@ -248,21 +288,26 @@ const JobsScreen = () => {
 
       {pending > 0 ? (
         <View style={styles.offlineWrap}>
-          <Pressable style={styles.offlineCard} onPress={() => flushNow()}>
+          <Pressable style={styles.offlineCard} onPress={() => flushNow(true)}>
             <View style={styles.offlineIcon}>
               <Ionicons
-                name="cloud-offline-outline"
+                name={online ? 'sync-outline' : 'cloud-offline-outline'}
                 size={18}
                 color={colors.white}
               />
             </View>
             <View style={styles.offlineBody}>
-              <Text style={styles.offlineTitle}>Working offline</Text>
+              <Text style={styles.offlineTitle}>
+                {online ? 'Syncing…' : 'Working offline'}
+              </Text>
               <Text style={styles.offlineSub} numberOfLines={1}>
-                {`${pending} item${pending === 1 ? '' : 's'} queued · auto-syncs when signal returns`}
+                {online
+                  ? `${pending} item${pending === 1 ? '' : 's'} uploading…`
+                  : `${pending} item${
+                      pending === 1 ? '' : 's'
+                    } queued · auto-syncs when signal returns`}
               </Text>
             </View>
-            <Text style={styles.offlineAction}>Details</Text>
           </Pressable>
         </View>
       ) : null}
@@ -270,6 +315,7 @@ const JobsScreen = () => {
       <GestureDetector gesture={swipeTabs}>
         <SectionList<Job>
         sections={sections}
+        extraData={showTimer ? now : null}
         keyExtractor={item => item.id}
         renderItem={({ item }) =>
           showTimer ? (
@@ -343,7 +389,7 @@ const JobsScreen = () => {
         label="Start a new job"
         leftIcon="add"
         onPress={onCreate}
-        style={[styles.fab, { bottom: insets.bottom - 10 }]}
+        style={styles.fab}
       />
     </View>
   );

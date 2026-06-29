@@ -1,6 +1,7 @@
 import { isOnline } from './connectivity';
-import { errorMessage, isNetworkError } from './errors';
+import { classifyOutcome, errorMessage } from './errors';
 import { handlers } from './handlers';
+import { loadIdRemap, resolveId } from './idRemap';
 import {
   appendDeadLetter,
   appendMutation,
@@ -53,16 +54,25 @@ export async function enqueue<P>(input: EnqueueInput<P>): Promise<void> {
 
 let inFlight: Promise<number> | null = null;
 
-export function flushNow(): Promise<number> {
+export function flushNow(force = false): Promise<number> {
   if (inFlight) return inFlight;
-  inFlight = runFlush().finally(() => {
+  inFlight = runFlush(force).finally(() => {
     inFlight = null;
   });
   return inFlight;
 }
 
-async function runFlush(): Promise<number> {
-  if (!isOnline()) return 0;
+const jobKeyOf = (m: QueuedMutation): string | null => {
+  const p = m.payload as { tempJobId?: unknown; jobId?: unknown };
+  if (p && typeof p.tempJobId === 'string') return p.tempJobId;
+  if (p && typeof p.jobId === 'string') return p.jobId;
+  return null;
+};
+
+async function runFlush(force = false): Promise<number> {
+  if (!force && !isOnline()) return 0;
+
+  await loadIdRemap();
 
   const queue = await readQueue();
   if (!queue.length) {
@@ -72,13 +82,23 @@ async function runFlush(): Promise<number> {
 
   setSnapshot({ syncing: true, lastError: null });
 
-  const remaining: QueuedMutation[] = [...queue];
+  const stillQueued: QueuedMutation[] = [];
   const dead: QueuedMutation[] = [];
+  const blocked = new Set<string>();
   let processed = 0;
   let lastError: string | null = null;
 
-  while (remaining.length) {
-    const m = remaining[0];
+  for (const m of queue) {
+    const key = jobKeyOf(m);
+    if (key && blocked.has(key)) {
+      stillQueued.push(m);
+      continue;
+    }
+
+    const payload = m.payload as { jobId?: unknown };
+    if (payload && typeof payload.jobId === 'string') {
+      payload.jobId = resolveId(payload.jobId);
+    }
     const handler = handlers[m.kind];
 
     let outcome: 'done' | 'retry' | 'drop';
@@ -89,34 +109,34 @@ async function runFlush(): Promise<number> {
         outcome = await handler(m.payload);
       } catch (e) {
         lastError = errorMessage(e);
-        outcome = isNetworkError(e) ? 'retry' : 'drop';
+        outcome = classifyOutcome(e);
       }
     }
 
-    if (outcome === 'retry') {
-      m.attempts += 1;
-      if (m.attempts >= MAX_ATTEMPTS) {
-        remaining.shift();
-        dead.push({ ...m, status: 'failed', lastError: lastError ?? 'Gave up after retries' });
-        continue;
-      }
-      break;
+    if (outcome === 'done') {
+      processed += 1;
+      continue;
     }
-
-    remaining.shift();
     if (outcome === 'drop') {
       dead.push({ ...m, status: 'failed', lastError: lastError ?? 'Rejected' });
+      continue;
+    }
+
+    m.attempts += 1;
+    if (m.attempts >= MAX_ATTEMPTS) {
+      dead.push({ ...m, status: 'failed', lastError: lastError ?? 'Gave up after retries' });
     } else {
-      processed += 1;
+      stillQueued.push(m);
+      if (key) blocked.add(key);
     }
   }
 
-  await replaceQueue(remaining);
+  await replaceQueue(stillQueued);
   await appendDeadLetter(dead);
 
   setSnapshot({
     syncing: false,
-    pending: remaining.length,
+    pending: stillQueued.length,
     lastError: dead.length ? dead[dead.length - 1].lastError ?? lastError : lastError,
   });
   return processed;

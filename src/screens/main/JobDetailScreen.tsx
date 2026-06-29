@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -38,9 +38,7 @@ import {
   type RosterMember,
 } from '@/components/jobDetail';
 import {
-  addJobMaterial,
   buildDayBreakdown,
-  deleteJobMaterial,
   deleteJobPhoto,
   editSegmentStartTime,
   fetchJobDays,
@@ -52,7 +50,6 @@ import {
   fetchJobSegments,
   finishJob,
   isAccessRevoked,
-  updateJobMaterial,
   cancelJob,
   deleteJob,
   pausedSinceFrom,
@@ -67,9 +64,14 @@ import {
   type JobPhoto,
   type JobSegment,
 } from '@/services/jobs';
-import { enqueueAction, flushOutbox } from '@/services/outbox';
+import { enqueueAction, flushOutbox, queueFinish } from '@/services/outbox';
 import { loadJobCache, saveJobCache } from '@/services/jobCache';
 import { enqueue } from '@/offline';
+import {
+  addMaterial as addMaterialOffline,
+  editMaterial as editMaterialOffline,
+  removeMaterial as removeMaterialOffline,
+} from '@/offline/materialActions';
 import type { SelectedMaterial } from '@/components/MaterialSelect';
 import {
   MaterialSheet,
@@ -79,7 +81,12 @@ import {
 import { fetchMyMember } from '@/services/member';
 import { signOut } from '@/store/authSlice';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { fetchJobs } from '@/store/jobsSlice';
+import { fetchJobs, patchJobStatus } from '@/store/jobsSlice';
+import { setPendingJobStatus } from '@/store/pendingJobsSlice';
+import { getMappedId } from '@/offline/idRemap';
+import { isOnline } from '@/offline/connectivity';
+import { goBackSafe } from '@/utils/navigation';
+import { uuidv4 } from '@/utils/uuid';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { dayNumberFor, formatElapsed } from '@/utils/liveMeta';
@@ -115,6 +122,13 @@ const JobDetailScreen = () => {
   const cachedJob = useAppSelector(s =>
     s.jobs.items.find(j => j.id === params.jobId),
   );
+  const isPendingJob = useAppSelector(s =>
+    s.pendingJobs.items.some(j => j.id === params.jobId),
+  );
+  const pendingRef = useRef(false);
+  pendingRef.current = isPendingJob && !getMappedId(params.jobId);
+  const cachedJobRef = useRef(cachedJob);
+  cachedJobRef.current = cachedJob;
   const [detail, setDetail] = useState<JobDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
@@ -161,9 +175,27 @@ const JobDetailScreen = () => {
   }, [isActive]);
 
   const loadSession = useCallback((jobId: string) => {
+    if (pendingRef.current || !isOnline()) {
+      loadJobCache(jobId).then(cached => {
+        if (!cached) return;
+        if (cached.materials) setMaterials(cached.materials);
+        if (cached.notes) setNotes(cached.notes);
+        if (cached.crew) setCrew(cached.crew);
+        if (cached.segments) setSegments(cached.segments);
+        if (cached.days) setDays(cached.days);
+        if (cached.photos) setPhotos(cached.photos);
+      });
+      return;
+    }
     fetchJobPhotos(jobId)
-      .then(setPhotos)
-      .catch(e => console.warn('job_photos:', e?.message));
+      .then(p => {
+        setPhotos(p);
+        saveJobCache(jobId, { photos: p });
+      })
+      .catch(async () => {
+        const cached = await loadJobCache(jobId);
+        if (cached?.photos) setPhotos(cached.photos);
+      });
     Promise.allSettled([
       fetchJobMaterials(jobId),
       fetchJobNotes(jobId),
@@ -204,9 +236,24 @@ const JobDetailScreen = () => {
     });
   }, []);
 
+  const cachedDetail = useCallback(async (): Promise<JobDetail | null> => {
+    const job = cachedJobRef.current;
+    const cached = await loadJobCache(params.jobId);
+    const base = cached?.detail ?? (job ? detailFromCachedJob(job) : null);
+    if (!base) return null;
+    return job ? { ...base, status: job.status } : base;
+  }, [params.jobId]);
+
   const loadDetail = useCallback(() => {
     setLoading(true);
     setError(null);
+    if (pendingRef.current || !isOnline()) {
+      setOffline(!isOnline());
+      cachedDetail()
+        .then(base => base && setDetail(base))
+        .finally(() => setLoading(false));
+      return;
+    }
     setOffline(false);
     fetchJobDetail(params.jobId)
       .then(d => {
@@ -216,17 +263,27 @@ const JobDetailScreen = () => {
       .catch(async e => {
         if (isNetworkError(e)) {
           setOffline(true);
-          const cached = await loadJobCache(params.jobId);
-          const fallback =
-            cached?.detail ??
-            (cachedJob ? detailFromCachedJob(cachedJob) : null);
-          if (fallback) setDetail(prev => prev ?? fallback);
+          const base = await cachedDetail();
+          if (base) setDetail(prev => prev ?? base);
         } else {
           setError(e?.message ?? 'Something went wrong.');
         }
       })
       .finally(() => setLoading(false));
-  }, [params.jobId, cachedJob]);
+  }, [params.jobId, cachedDetail]);
+
+  const refreshDetail = useCallback(() => {
+    if (pendingRef.current || !isOnline()) {
+      cachedDetail().then(base => base && setDetail(base));
+      return;
+    }
+    fetchJobDetail(params.jobId)
+      .then(d => {
+        setDetail(d);
+        saveJobCache(params.jobId, { detail: d });
+      })
+      .catch(() => {});
+  }, [params.jobId, cachedDetail]);
 
   useEffect(() => {
     let active = true;
@@ -243,13 +300,25 @@ const JobDetailScreen = () => {
   const flushAndRefresh = useCallback(() => {
     flushOutbox()
       .then(n => {
+        const mapped = getMappedId(params.jobId);
+        if (mapped && mapped !== params.jobId) {
+          navigation.replace('JobDetail', { jobId: mapped });
+          return;
+        }
         if (n > 0) {
           fetchJobDetail(params.jobId).then(setDetail).catch(() => {});
           dispatch(fetchJobs());
         }
       })
       .catch(() => {});
-  }, [params.jobId, dispatch]);
+  }, [params.jobId, dispatch, navigation]);
+
+  useEffect(() => {
+    const mapped = getMappedId(params.jobId);
+    if (mapped && mapped !== params.jobId) {
+      navigation.replace('JobDetail', { jobId: mapped });
+    }
+  }, [params.jobId, navigation]);
 
   // Fires on mount and again whenever a child screen (wrap-up, add-content)
   // pops back — refresh both the job status and its session data so a pause /
@@ -257,13 +326,11 @@ const JobDetailScreen = () => {
   useEffect(
     () =>
       navigation.addListener('focus', () => {
-        fetchJobDetail(params.jobId)
-          .then(setDetail)
-          .catch(() => {});
+        refreshDetail();
         loadSession(params.jobId);
         flushAndRefresh();
       }),
-    [navigation, params.jobId, loadSession, flushAndRefresh],
+    [navigation, params.jobId, loadSession, flushAndRefresh, refreshDetail],
   );
 
   // Also flush when the app returns to the foreground ("when signal returns").
@@ -282,28 +349,39 @@ const JobDetailScreen = () => {
   ) => {
     if (!detail || acting) return;
     setActing(true);
+    const atIso = new Date().toISOString();
     try {
-      await updateJobStatus(detail.id, next);
+      await updateJobStatus(detail.id, next, atIso);
       dispatch(fetchJobs());
       toastSuccess(label);
       if (goBackAfter) {
-        navigation.goBack();
+        goBackSafe(navigation);
       } else {
-        setDetail(await fetchJobDetail(detail.id));
+        const updated = await fetchJobDetail(detail.id);
+        setDetail(updated);
+        saveJobCache(detail.id, { detail: updated });
       }
     } catch (e) {
       if (isNetworkError(e)) {
         await enqueue({
           id: `${detail.id}:status:${next}:${Date.now()}`,
           kind: 'job.status',
-          payload: { jobId: detail.id, status: next },
+          payload: { jobId: detail.id, status: next, atIso },
         });
-        dispatch(fetchJobs());
+        const optimistic: JobDetail = {
+          ...detail,
+          status: next,
+          startedAt:
+            next === 'active' && !detail.startedAt ? atIso : detail.startedAt,
+        };
+        dispatch(patchJobStatus({ id: detail.id, status: next }));
+        dispatch(setPendingJobStatus({ id: detail.id, status: next }));
+        saveJobCache(detail.id, { detail: optimistic });
         Toast.show({ type: 'info', text1: 'Saved offline — will sync.' });
         if (goBackAfter) {
-          navigation.goBack();
+          goBackSafe(navigation);
         } else {
-          setDetail({ ...detail, status: next });
+          setDetail(optimistic);
         }
       } else {
         toastError(e, 'Could not update job.');
@@ -334,11 +412,39 @@ const JobDetailScreen = () => {
           kind: action,
           atIso,
         });
-        // Optimistically reflect the new status; the queue syncs it for real.
-        setDetail({
-          ...detail,
-          status: action === 'pause' ? 'paused' : 'active',
-        });
+        const nextSegments: JobSegment[] =
+          action === 'pause'
+            ? segments.map(s =>
+                s.finishTime == null
+                  ? {
+                      ...s,
+                      finishTime: atIso,
+                      hours: Math.max(
+                        0,
+                        (Date.parse(atIso) - Date.parse(s.startTime)) /
+                          3_600_000,
+                      ),
+                    }
+                  : s,
+              )
+            : [
+                ...segments,
+                {
+                  id: uuidv4(),
+                  jobDayId: days[days.length - 1]?.id ?? null,
+                  memberId: detail.primaryMemberId ?? '',
+                  startTime: atIso,
+                  finishTime: null,
+                  hours: null,
+                },
+              ];
+        const nextStatus: JobStatus = action === 'pause' ? 'paused' : 'active';
+        const nextDetail = { ...detail, status: nextStatus };
+        setSegments(nextSegments);
+        setDetail(nextDetail);
+        saveJobCache(detail.id, { segments: nextSegments, detail: nextDetail });
+        dispatch(setPendingJobStatus({ id: detail.id, status: nextStatus }));
+        dispatch(patchJobStatus({ id: detail.id, status: nextStatus }));
         Toast.show({ type: 'info', text1: 'Saved offline — will sync.' });
       } else if (isAccessRevoked(e)) {
         dispatch(signOut());
@@ -359,18 +465,38 @@ const JobDetailScreen = () => {
   const submitQuote = async () => {
     if (!detail || acting) return;
     setActing(true);
+    const atIso = new Date().toISOString();
     try {
       await finishJob({
         jobId: detail.id,
         summary: null,
         totalHours: null,
-        atIso: new Date().toISOString(),
+        atIso,
       });
       dispatch(fetchJobs());
       toastSuccess('Quote sent for review.');
-      navigation.goBack();
+      goBackSafe(navigation);
     } catch (e) {
-      if (isAccessRevoked(e)) {
+      if (isNetworkError(e)) {
+        await queueFinish({
+          jobId: detail.id,
+          summary: null,
+          totalHours: null,
+          atIso,
+        });
+        dispatch(patchJobStatus({ id: detail.id, status: 'awaiting_review' }));
+        dispatch(
+          setPendingJobStatus({ id: detail.id, status: 'awaiting_review' }),
+        );
+        saveJobCache(detail.id, {
+          detail: { ...detail, status: 'awaiting_review' },
+        });
+        Toast.show({
+          type: 'info',
+          text1: 'Saved offline — quote syncs when you reconnect.',
+        });
+        goBackSafe(navigation);
+      } else if (isAccessRevoked(e)) {
         dispatch(signOut());
       } else {
         toastError(e, 'Could not submit the quote.');
@@ -483,7 +609,7 @@ const JobDetailScreen = () => {
     const cost = parseFloat(itemCost.replace(',', '.')) || 0;
     try {
       if (matSheet === 'new') {
-        await addJobMaterial({
+        const { queued, material } = await addMaterialOffline({
           jobId: detail.id,
           description: itemName.trim(),
           quantity: qty,
@@ -491,16 +617,40 @@ const JobDetailScreen = () => {
           unit: itemUnit,
           source: 'van_stock',
         });
+        if (queued) {
+          const next = [...materials, material];
+          setMaterials(next);
+          saveJobCache(detail.id, { materials: next });
+        } else {
+          setMaterials(await fetchJobMaterials(detail.id));
+        }
+        setMatSheet(null);
+        toastSuccess(
+          queued ? 'Saved offline — syncs when you’re back online.' : 'Item logged.',
+        );
       } else {
-        await updateJobMaterial(matSheet, {
+        const { queued } = await editMaterialOffline(matSheet, {
           description: itemName.trim(),
           quantity: qty,
           unitCost: cost,
         });
+        if (queued) {
+          const editedId = matSheet;
+          const next = materials.map(m =>
+            m.id === editedId
+              ? { ...m, description: itemName.trim(), quantity: qty, unitCost: cost }
+              : m,
+          );
+          setMaterials(next);
+          saveJobCache(detail.id, { materials: next });
+        } else {
+          setMaterials(await fetchJobMaterials(detail.id));
+        }
+        setMatSheet(null);
+        toastSuccess(
+          queued ? 'Saved offline — syncs when you’re back online.' : 'Item updated.',
+        );
       }
-      setMaterials(await fetchJobMaterials(detail.id));
-      setMatSheet(null);
-      toastSuccess(matSheet === 'new' ? 'Item logged.' : 'Item updated.');
     } catch (e) {
       toastError(e, 'Could not save the item.');
     } finally {
@@ -511,11 +661,20 @@ const JobDetailScreen = () => {
   const removeMaterial = async () => {
     if (!detail || matSheet === 'new' || !matSheet || saving) return;
     setSaving(true);
+    const removedId = matSheet;
     try {
-      await deleteJobMaterial(matSheet);
-      setMaterials(await fetchJobMaterials(detail.id));
+      const { queued } = await removeMaterialOffline(removedId);
+      if (queued) {
+        const next = materials.filter(m => m.id !== removedId);
+        setMaterials(next);
+        saveJobCache(detail.id, { materials: next });
+      } else {
+        setMaterials(await fetchJobMaterials(detail.id));
+      }
       setMatSheet(null);
-      toastSuccess('Item removed.');
+      toastSuccess(
+        queued ? 'Saved offline — syncs when you’re back online.' : 'Item removed.',
+      );
     } catch (e) {
       toastError(e, 'Could not remove the item.');
     } finally {
@@ -693,7 +852,7 @@ const JobDetailScreen = () => {
       dispatch(fetchJobs());
       setConfirm(null);
       toastSuccess('Job deleted.');
-      navigation.goBack();
+      goBackSafe(navigation);
     } catch (e) {
       toastError(e, 'Could not delete the job.');
       setActioning(false);

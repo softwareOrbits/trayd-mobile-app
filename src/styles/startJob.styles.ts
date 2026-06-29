@@ -112,6 +112,7 @@ export const makeStartJobStyles = (theme: Theme) =>
       fontSize: theme.typography.size.sm,
       color: theme.colors.text,
     },
+    listLoader: { alignSelf: 'center', marginVertical: 20 },
     skipBtn: { alignSelf: 'center', paddingVertical: 4 },
     skipText: {
       fontSize: theme.typography.size.md,

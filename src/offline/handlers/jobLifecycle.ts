@@ -1,6 +1,12 @@
-import { finishJob, pauseJob, resumeJob, updateJobStatus } from '@/services/jobs';
+import {
+  confirmJobMaterials,
+  finishJob,
+  pauseJob,
+  resumeJob,
+  updateJobStatus,
+} from '@/services/jobs';
 
-import { isLifecycleAlreadyApplied, isNetworkError } from '../errors';
+import { classifyOutcome, isLifecycleAlreadyApplied } from '../errors';
 import type { FlushOutcome, Handler, MutationKind } from '../types';
 import type { JobStatus } from '@/types';
 
@@ -11,15 +17,16 @@ export type LifecyclePayload = {
   totalHours?: number | null;
 };
 
-export type StatusPayload = { jobId: string; status: JobStatus };
+export type StatusPayload = { jobId: string; status: JobStatus; atIso?: string };
+
+export type ConfirmMaterialsPayload = { jobId: string };
 
 const outcomeFor = (
   kind: 'pause' | 'resume' | 'finish',
   e: unknown,
 ): FlushOutcome => {
   if (isLifecycleAlreadyApplied(kind, e)) return 'done';
-  if (isNetworkError(e)) return 'retry';
-  return 'drop';
+  return classifyOutcome(e);
 };
 
 const run = async (
@@ -36,15 +43,27 @@ const run = async (
 
 const runStatus = async (p: StatusPayload): Promise<FlushOutcome> => {
   try {
-    await updateJobStatus(p.jobId, p.status);
+    await updateJobStatus(p.jobId, p.status, p.atIso);
     return 'done';
   } catch (e) {
-    return isNetworkError(e) ? 'retry' : 'drop';
+    return classifyOutcome(e);
+  }
+};
+
+const runConfirm = async (p: ConfirmMaterialsPayload): Promise<FlushOutcome> => {
+  try {
+    await confirmJobMaterials(p.jobId);
+    return 'done';
+  } catch (e) {
+    return classifyOutcome(e);
   }
 };
 
 export const jobLifecycleHandlers: Record<
-  Extract<MutationKind, `job.${'pause' | 'resume' | 'finish' | 'status'}`>,
+  Extract<
+    MutationKind,
+    `job.${'pause' | 'resume' | 'finish' | 'status' | 'confirmMaterials'}`
+  >,
   Handler
 > = {
   'job.pause': p =>
@@ -61,4 +80,5 @@ export const jobLifecycleHandlers: Record<
       }),
     ),
   'job.status': p => runStatus(p as StatusPayload),
+  'job.confirmMaterials': p => runConfirm(p as ConfirmMaterialsPayload),
 };

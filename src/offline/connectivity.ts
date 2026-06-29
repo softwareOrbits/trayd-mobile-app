@@ -26,12 +26,24 @@ const setOnline = (next: boolean) => {
   listeners.forEach(l => l(online));
 };
 
-const toOnline = (s: NetInfoState) =>
-  !!s.isConnected && s.isInternetReachable !== false;
+const toOnline = (s: NetInfoState) => s.isConnected !== false;
 
 export const isOnline = () => online;
 
-export const reportRequestOutcome = (reachable: boolean) => setOnline(reachable);
+export const reportRequestOutcome = (reachable: boolean) => {
+  if (reachable) {
+    setOnline(true);
+    return;
+  }
+  if (netinfo) {
+    netinfo
+      .fetch()
+      .then(s => setOnline(toOnline(s)))
+      .catch(() => {});
+    return;
+  }
+  setOnline(false);
+};
 
 let netInfoWired = false;
 const wireNetInfo = () => {

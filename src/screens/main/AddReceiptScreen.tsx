@@ -20,7 +20,7 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { AppToast, Button, Input } from '@/components/ui';
+import { AppToast, Button, CalendarModal, Input } from '@/components/ui';
 import { AddressAutocomplete } from '@/components/AddressAutocomplete';
 import { MaterialSelect } from '@/components/MaterialSelect';
 import {
@@ -33,13 +33,18 @@ import {
   updateReceiptLine,
   uploadAndExtractReceipt,
   type ExtractedReceipt,
+  type JobMaterial,
   type ReceiptConfidence,
   type ReceiptLine,
 } from '@/services/jobs';
+import { loadJobCache, saveJobCache } from '@/services/jobCache';
+import { isOnline } from '@/offline/connectivity';
+import { addMaterial as addMaterialOffline } from '@/offline/materialActions';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeAddReceiptStyles } from '@/styles/addReceipt.styles';
 import { capturePhoto } from '@/utils/capturePhoto';
+import { uuidv4 } from '@/utils/uuid';
 import { toastError, toastSuccess } from '@/utils/toast';
 import type { MainStackParamList } from '@/types';
 
@@ -74,6 +79,7 @@ const AddReceiptScreen = () => {
   const { params } = useRoute<RouteProp<MainStackParamList, 'AddReceipt'>>();
 
   const [phase, setPhase] = useState<'extracting' | 'review'>('extracting');
+  const [manual, setManual] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [receiptId, setReceiptId] = useState<string | null>(null);
   const [storagePath, setStoragePath] = useState<string | null>(null);
@@ -82,13 +88,13 @@ const AddReceiptScreen = () => {
   const [vendor, setVendor] = useState('');
   const [location, setLocation] = useState('');
   const [receiptDate, setReceiptDate] = useState<string>(''); // yyyy-mm-dd
-  const [receiptTime, setReceiptTime] = useState('');
   const [lines, setLines] = useState<ReviewLine[]>([]);
 
   const [saving, setSaving] = useState(false);
 
   // Edit sheets
   const [headerSheet, setHeaderSheet] = useState(false);
+  const [datePicker, setDatePicker] = useState(false);
   const [lineSheet, setLineSheet] = useState<'new' | string | null>(null);
   const [lDesc, setLDesc] = useState('');
   const [lQty, setLQty] = useState('1');
@@ -118,7 +124,6 @@ const AddReceiptScreen = () => {
         setVendor(res.extracted.vendor ?? '');
         setLocation(res.extracted.location ?? '');
         setReceiptDate(res.extracted.receipt_date ?? '');
-        setReceiptTime(res.extracted.receipt_time ?? '');
       }
       await loadLines(res.receiptId, res.extracted);
     } catch (e) {
@@ -144,6 +149,11 @@ const AddReceiptScreen = () => {
   useEffect(() => {
     if (launched.current) return;
     launched.current = true;
+    if (!isOnline()) {
+      setManual(true);
+      setPhase('review');
+      return;
+    }
     openCamera(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -175,7 +185,34 @@ const AddReceiptScreen = () => {
   };
 
   const saveLine = async () => {
-    if (!receiptId || !lDesc.trim() || saving) return;
+    if (!lDesc.trim() || saving) return;
+    if (manual || !receiptId) {
+      const qty = Math.max(1, parseMoney(lQty) || 1);
+      const price = parseMoney(lPrice);
+      if (lineSheet === 'new') {
+        setLines(prev => [
+          ...prev,
+          {
+            id: uuidv4(),
+            description: lDesc.trim(),
+            quantity: qty,
+            unitPrice: price,
+            vat: null,
+            confirmed: false,
+          },
+        ]);
+      } else if (lineSheet) {
+        setLines(prev =>
+          prev.map(l =>
+            l.id === lineSheet
+              ? { ...l, description: lDesc.trim(), quantity: qty, unitPrice: price }
+              : l,
+          ),
+        );
+      }
+      setLineSheet(null);
+      return;
+    }
     setSaving(true);
     try {
       if (lineSheet === 'new') {
@@ -202,7 +239,12 @@ const AddReceiptScreen = () => {
   };
 
   const removeLine = async () => {
-    if (!receiptId || lineSheet === 'new' || !lineSheet || saving) return;
+    if (lineSheet === 'new' || !lineSheet || saving) return;
+    if (manual || !receiptId) {
+      setLines(prev => prev.filter(l => l.id !== lineSheet));
+      setLineSheet(null);
+      return;
+    }
     setSaving(true);
     try {
       await deleteReceiptLine(lineSheet);
@@ -216,7 +258,11 @@ const AddReceiptScreen = () => {
   };
 
   const saveHeader = async () => {
-    if (!receiptId || saving) return;
+    if (manual || !receiptId) {
+      setHeaderSheet(false);
+      return;
+    }
+    if (saving) return;
     setSaving(true);
     try {
       await updateReceiptHeader(receiptId, {
@@ -233,7 +279,51 @@ const AddReceiptScreen = () => {
 
   // ----- save to job / discard -----
   const saveToJob = async () => {
-    if (!receiptId || saving) return;
+    if (saving) return;
+    if (manual || !receiptId) {
+      if (!lines.length) {
+        toastError(new Error('no_lines'), 'Add at least one line first.');
+        return;
+      }
+      setSaving(true);
+      try {
+        const results = await Promise.allSettled(
+          lines.map(l =>
+            addMaterialOffline({
+              jobId: params.jobId,
+              description: vendor.trim()
+                ? `${l.description} (${vendor.trim()})`
+                : l.description,
+              quantity: l.quantity,
+              unitCost: l.unitPrice,
+              source: 'receipt',
+            }),
+          ),
+        );
+        const added: JobMaterial[] = results.flatMap(r =>
+          r.status === 'fulfilled' ? [r.value.material] : [],
+        );
+        const queued = results.some(
+          r => r.status === 'fulfilled' && r.value.queued,
+        );
+        if (added.length) {
+          const cached = await loadJobCache(params.jobId);
+          await saveJobCache(params.jobId, {
+            materials: [...(cached?.materials ?? []), ...added],
+          });
+        }
+        toastSuccess(
+          queued
+            ? `Saved offline — ${lines.length} item${lines.length === 1 ? '' : 's'} sync when you reconnect.`
+            : `${lines.length} material${lines.length === 1 ? '' : 's'} added to the job.`,
+        );
+        navigation.goBack();
+      } catch (e) {
+        toastError(e, 'Could not save to job.');
+        setSaving(false);
+      }
+      return;
+    }
     setSaving(true);
     try {
       await updateReceiptHeader(receiptId, {
@@ -269,9 +359,7 @@ const AddReceiptScreen = () => {
     );
   }
 
-  const headerSub = [fmtDate(receiptDate), receiptTime]
-    .filter(Boolean)
-    .join(' · ');
+  const headerDate = fmtDate(receiptDate);
 
   return (
     <View style={[styles.flex, { paddingTop: insets.top + 8 }]}>
@@ -290,7 +378,9 @@ const AddReceiptScreen = () => {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.subtitle}>
-          OCR pre-filled most fields. Tap to correct anything.
+          {manual
+            ? 'You’re offline — enter the receipt’s items by hand. They sync when you reconnect.'
+            : 'OCR pre-filled most fields. Tap to correct anything.'}
         </Text>
 
         {/* Auto-extracted header card */}
@@ -302,11 +392,13 @@ const AddReceiptScreen = () => {
           )}
           <View style={styles.autoBody}>
             <Text style={styles.autoLabel}>
-              AUTO-EXTRACTED · CHECK BEFORE SAVING
+              {manual
+                ? 'MANUAL ENTRY · OFFLINE'
+                : 'AUTO-EXTRACTED · CHECK BEFORE SAVING'}
             </Text>
             <Text style={styles.autoVendor} numberOfLines={1}>
               {vendor || 'Unknown vendor'}
-              {headerSub ? ` · ${headerSub}` : ''}
+              {headerDate ? ` · ${headerDate}` : ''}
             </Text>
             <View style={styles.chipRow}>
               <View style={styles.chip}>
@@ -345,11 +437,11 @@ const AddReceiptScreen = () => {
           <Ionicons name="pencil" size={16} color={colors.textMuted} />
         </Pressable>
 
-        {/* Date & time */}
-        <Text style={styles.sectionLabel}>DATE &amp; TIME</Text>
-        <Pressable style={styles.fieldCard} onPress={() => setHeaderSheet(true)}>
-          <Text style={styles.fieldValue}>{headerSub || 'Add date'}</Text>
-          <Ionicons name="pencil" size={16} color={colors.textMuted} />
+        {/* Date */}
+        <Text style={styles.sectionLabel}>DATE</Text>
+        <Pressable style={styles.fieldCard} onPress={() => setDatePicker(true)}>
+          <Text style={styles.fieldValue}>{headerDate || 'Add date'}</Text>
+          <Ionicons name="calendar-outline" size={16} color={colors.textMuted} />
         </Pressable>
 
         {/* Line items */}
@@ -402,7 +494,9 @@ const AddReceiptScreen = () => {
         <View style={styles.headsUp}>
           <Text style={styles.headsUpLabel}>HEADS-UP</Text>
           <Text style={styles.headsUpText}>
-            {extracted?.issues
+            {manual
+              ? 'Offline — add each line you need; they save to the job as materials and sync when you’re back online.'
+              : extracted?.issues
               ? extracted.issues
               : 'If OCR misses lines entirely, you can add them manually — the job is never blocked by an OCR failure.'}
           </Text>
@@ -438,7 +532,7 @@ const AddReceiptScreen = () => {
         </Pressable>
       </View>
 
-      {/* Vendor / date edit sheet */}
+      {/* Vendor edit sheet */}
       <Modal
         visible={headerSheet}
         transparent
@@ -454,19 +548,12 @@ const AddReceiptScreen = () => {
             onPress={() => setHeaderSheet(false)}
           />
           <View style={[styles.sheet, { paddingBottom: insets.bottom + 20 }]}>
-            <Text style={styles.sheetTitle}>Vendor &amp; date</Text>
-            <Input label="Vendor" value={vendor} onChangeText={setVendor} />
+            <Text style={styles.sheetTitle}>Vendor</Text>
+            <Input label="Vendor name" value={vendor} onChangeText={setVendor} />
             <AddressAutocomplete
-              label="Location (optional)"
+              label="Location"
               value={location}
               onChangeText={setLocation}
-            />
-            <Input
-              label="Date (YYYY-MM-DD)"
-              placeholder="2026-05-14"
-              value={receiptDate}
-              onChangeText={setReceiptDate}
-              autoCapitalize="none"
             />
             <Button
               label="Done"
@@ -542,6 +629,14 @@ const AddReceiptScreen = () => {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <CalendarModal
+        visible={datePicker}
+        value={receiptDate || null}
+        title="Receipt date"
+        onSelect={setReceiptDate}
+        onClose={() => setDatePicker(false)}
+      />
       <AppToast />
     </View>
   );

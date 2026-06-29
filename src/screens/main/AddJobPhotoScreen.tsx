@@ -10,13 +10,15 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { AppToast, Button } from '@/components/ui';
-import { addJobPhotos, type JobPhotoPhase } from '@/services/jobs';
+import { addJobPhotos, type JobPhoto, type JobPhotoPhase } from '@/services/jobs';
+import { loadJobCache, saveJobCache } from '@/services/jobCache';
 import { enqueue } from '@/offline';
 import { isNetworkError } from '@/offline/errors';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeAddJobPhotoStyles } from '@/styles/addJobPhoto.styles';
 import { capturePhoto } from '@/utils/capturePhoto';
+import { goBackSafe } from '@/utils/navigation';
 import { toastError, toastSuccess } from '@/utils/toast';
 import { withTimeout } from '@/utils/withTimeout';
 import type { MainStackParamList } from '@/types';
@@ -59,22 +61,37 @@ const AddJobPhotoScreen = () => {
     setPhotos(prev => prev.filter((_, i) => i !== idx));
 
   const save = async () => {
-    const pending = photos.filter(p => p.base64);
+    const pending = photos.filter(p => p.uri);
     if (!pending.length || saving) return;
     setSaving(true);
-    const items = pending.map(p => ({
+    const stamp = Date.now();
+    const items = pending.map((p, i) => ({
       phase: p.phase,
-      base64: p.base64 as string,
+      uri: p.uri,
+      base64: p.base64,
       type: p.type,
+      clientKey: `${params.jobId}-${stamp}-${i}`,
     }));
     const queueOffline = async () => {
       await enqueue({
-        id: `${params.jobId}:photos:${Date.now()}`,
+        id: `${params.jobId}:photos:${stamp}`,
         kind: 'job.addPhotos',
-        payload: { clientId: `${params.jobId}:${Date.now()}`, jobId: params.jobId, photos: items },
+        payload: { clientId: `${params.jobId}-${stamp}`, jobId: params.jobId, photos: items },
+      });
+      const takenAt = new Date().toISOString();
+      const newPhotos: JobPhoto[] = items.map(it => ({
+        id: it.clientKey,
+        phase: it.phase,
+        takenAt,
+        url: it.uri,
+        storagePath: '',
+      }));
+      const cached = await loadJobCache(params.jobId);
+      await saveJobCache(params.jobId, {
+        photos: [...(cached?.photos ?? []), ...newPhotos],
       });
       toastSuccess('Saved offline — photos upload when you’re back online.');
-      navigation.goBack();
+      goBackSafe(navigation);
     };
     try {
       const { uploaded, failed } = await withTimeout(
@@ -93,7 +110,7 @@ const AddJobPhotoScreen = () => {
       } else {
         toastSuccess(uploaded === 1 ? 'Photo added.' : 'Photos added.');
       }
-      navigation.goBack();
+      goBackSafe(navigation);
     } catch (e) {
       if (isNetworkError(e)) {
         await queueOffline();
@@ -104,10 +121,12 @@ const AddJobPhotoScreen = () => {
     }
   };
 
+  const onBack = () => goBackSafe(navigation);
+
   return (
     <View style={[styles.flex, { paddingTop: insets.top + 8 }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
+        <Pressable onPress={onBack} hitSlop={8}>
           <Text style={styles.cancel}>Cancel</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Job photo</Text>

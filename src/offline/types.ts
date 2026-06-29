@@ -1,10 +1,16 @@
 export type MutationKind =
+  | 'job.start'
   | 'job.pause'
   | 'job.resume'
   | 'job.finish'
   | 'job.status'
+  | 'job.confirmMaterials'
   | 'job.addNote'
   | 'job.addPhotos'
+  | 'material.add'
+  | 'material.update'
+  | 'material.delete'
+  | 'segment.edit'
   | 'profile.phone'
   | 'profile.workingHours'
   | 'profile.serviceArea';

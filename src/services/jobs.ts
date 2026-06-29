@@ -2,6 +2,10 @@
 import { getMyMemberRef } from './member';
 import { base64ToUint8Array } from '@/utils/base64';
 import { imageExtFromType, imageMimeFromType } from '@/utils/image';
+import { uuidv4 } from '@/utils/uuid';
+import { offlineRead } from './readCache';
+import { loadJobCache } from './jobCache';
+import { isOnline } from '@/offline/connectivity';
 import type { Job, JobDetail, JobStatus, JobType } from '@/types';
 
 type ListRow = {
@@ -103,11 +107,13 @@ export async function fetchMyJobs(): Promise<Job[]> {
 
 /** Full detail for a single job. */
 export async function fetchJobDetail(id: string): Promise<JobDetail> {
-  const { data, error } = await supabase.rpc('get_job_detail', { p_id: id });
-  if (error) throw new Error(error.message);
-  const row = (Array.isArray(data) ? data[0] : data) as DetailRow | undefined;
-  if (!row) throw new Error('Job not found');
-  return mapDetail(row);
+  return offlineRead(`jobDetail:${id}`, async () => {
+    const { data, error } = await supabase.rpc('get_job_detail', { p_id: id });
+    if (error) throw new Error(error.message);
+    const row = (Array.isArray(data) ? data[0] : data) as DetailRow | undefined;
+    if (!row) throw new Error('Job not found');
+    return mapDetail(row);
+  });
 }
 
 /**
@@ -119,6 +125,7 @@ export async function fetchJobDetail(id: string): Promise<JobDetail> {
 export async function updateJobStatus(
   id: string,
   status: JobStatus,
+  atIso?: string,
 ): Promise<void> {
   const { error } = await supabase
     .from('jobs')
@@ -129,7 +136,7 @@ export async function updateJobStatus(
   if (status === 'active') {
     const { error: stampError } = await supabase
       .from('jobs')
-      .update({ started_at: new Date().toISOString() })
+      .update({ started_at: atIso ?? new Date().toISOString() })
       .eq('id', id)
       .is('started_at', null);
     if (stampError) {
@@ -198,6 +205,7 @@ export type StartJobPayload = {
   jobType?: JobType;
   memberIds?: string[];
   gps?: { lat: number; lng: number; eircode?: string } | null;
+  startedAt?: string | null;
 };
 
 export class DuplicateCustomerError extends Error {
@@ -208,7 +216,7 @@ export class DuplicateCustomerError extends Error {
 }
 
 export async function startJob(payload: StartJobPayload): Promise<string> {
-  const { data, error } = await supabase.rpc('start_job', {
+  const args: Record<string, unknown> = {
     p_customer_id: payload.customerId ?? null,
     p_new_customer: payload.newCustomer
       ? {
@@ -224,7 +232,9 @@ export async function startJob(payload: StartJobPayload): Promise<string> {
     p_gps_lat: payload.gps?.lat ?? null,
     p_gps_lng: payload.gps?.lng ?? null,
     p_gps_eircode: payload.gps?.eircode ?? null,
-  });
+  };
+  if (payload.startedAt) args.p_started_at = payload.startedAt;
+  const { data, error } = await supabase.rpc('start_job', args);
 
   if (error) {
     const m = /^duplicate_customer:([0-9a-f-]{36})/.exec(error.message);
@@ -263,28 +273,33 @@ type MaterialRow = {
 };
 
 export async function fetchJobMaterials(jobId: string): Promise<JobMaterial[]> {
-  const { data, error } = await supabase
-    .from('job_materials')
-    .select(
-      'id, description, quantity, unit, source, unit_cost, job_day_id, added_by, created_at',
-    )
-    .eq('job_id', jobId)
-    .order('created_at', { ascending: true });
-  if (error) throw new Error(error.message);
-  return ((data ?? []) as MaterialRow[]).map(r => ({
-    id: r.id,
-    description: r.description,
-    quantity: num(r.quantity) || 1,
-    unit: r.unit,
-    source: (r.source === 'receipt' ? 'receipt' : 'van_stock') as MaterialSource,
-    unitCost: num(r.unit_cost),
-    addedBy: r.added_by,
-    jobDayId: r.job_day_id,
-    createdAt: r.created_at,
-  }));
+  return offlineRead(`jobMaterials:${jobId}`, async () => {
+    const { data, error } = await supabase
+      .from('job_materials')
+      .select(
+        'id, description, quantity, unit, source, unit_cost, job_day_id, added_by, created_at',
+      )
+      .eq('job_id', jobId)
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as MaterialRow[]).map(r => ({
+      id: r.id,
+      description: r.description,
+      quantity: num(r.quantity) || 1,
+      unit: r.unit,
+      source: (r.source === 'receipt'
+        ? 'receipt'
+        : 'van_stock') as MaterialSource,
+      unitCost: num(r.unit_cost),
+      addedBy: r.added_by,
+      jobDayId: r.job_day_id,
+      createdAt: r.created_at,
+    }));
+  });
 }
 
 export async function addJobMaterial(input: {
+  id?: string;
   jobId: string;
   description: string;
   quantity: number;
@@ -295,6 +310,7 @@ export async function addJobMaterial(input: {
   const me = await getMyMemberRef();
   const dayId = await fetchCurrentJobDayId(input.jobId).catch(() => null);
   const { error } = await supabase.from('job_materials').insert({
+    ...(input.id ? { id: input.id } : {}),
     job_id: input.jobId,
     business_id: me.businessId,
     job_day_id: dayId,
@@ -440,28 +456,32 @@ export async function deleteJobPhoto(input: {
 }
 
 
-const uuidv4 = () =>
-  'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = Math.floor(Math.random() * 16);
-    return (c === 'x' ? r : (r % 4) + 8).toString(16);
-  });
-
 /**
  * Storage RLS keys on the first path segment being the caller's business id,
  * so the path convention is `{business_id}/{job_id}/{phase}/{uuid}.{ext}`.
  */
 export type JobPhotoInput = {
   phase: JobPhotoPhase;
-  base64: string;
+  uri?: string;
+  base64?: string;
   type?: string | null;
+  clientKey?: string;
 };
 
-/**
- * Uploads N photos to Storage (one transfer per file — binary objects can't be
- * batched) but resolves the member + job day once and writes all the metadata
- * rows in a single `job_photos` insert. Returns per-photo upload counts so a
- * partial failure doesn't sink the whole batch.
- */
+async function readPhotoBody(p: JobPhotoInput): Promise<Blob | Uint8Array> {
+  if (p.base64) return base64ToUint8Array(p.base64);
+  if (p.uri) {
+    const res = await fetch(p.uri);
+    return await res.blob();
+  }
+  throw new Error('No image data');
+}
+
+const isAlreadyExists = (e: unknown): boolean => {
+  const msg = e instanceof Error ? e.message.toLowerCase() : '';
+  return msg.includes('already exists') || msg.includes('duplicate');
+};
+
 export async function addJobPhotos(input: {
   jobId: string;
   photos: JobPhotoInput[];
@@ -472,14 +492,16 @@ export async function addJobPhotos(input: {
 
   const uploads = await Promise.allSettled(
     input.photos.map(async p => {
-      const path = `${me.businessId}/${input.jobId}/${p.phase}/${uuidv4()}.${imageExtFromType(p.type)}`;
+      const name = p.clientKey ?? uuidv4();
+      const path = `${me.businessId}/${input.jobId}/${p.phase}/${name}.${imageExtFromType(p.type)}`;
+      const body = await readPhotoBody(p);
       const { error } = await supabase.storage
         .from(JOB_PHOTO_BUCKET)
-        .upload(path, base64ToUint8Array(p.base64), {
+        .upload(path, body, {
           contentType: imageMimeFromType(p.type),
           cacheControl: '31536000',
         });
-      if (error) throw new Error(error.message);
+      if (error && !isAlreadyExists(error)) throw new Error(error.message);
       return { path, phase: p.phase };
     }),
   );
@@ -488,20 +510,31 @@ export async function addJobPhotos(input: {
   const failed = uploads.length - ok.length;
 
   if (ok.length) {
-    const takenAt = new Date().toISOString();
-    const { error } = await supabase.from('job_photos').insert(
-      ok.map(o => ({
-        job_id: input.jobId,
-        business_id: me.businessId,
-        business_member_id: me.id,
-        job_day_id: dayId,
-        storage_path: o.path,
-        phase: o.phase,
-        taken_at: takenAt,
-        sync_state: 'synced',
-      })),
+    const { data: existing } = await supabase
+      .from('job_photos')
+      .select('storage_path')
+      .in('storage_path', ok.map(o => o.path));
+    const have = new Set(
+      ((existing ?? []) as { storage_path: string }[]).map(r => r.storage_path),
     );
-    if (error) throw new Error(error.message);
+    const fresh = ok.filter(o => !have.has(o.path));
+
+    if (fresh.length) {
+      const takenAt = new Date().toISOString();
+      const { error } = await supabase.from('job_photos').insert(
+        fresh.map(o => ({
+          job_id: input.jobId,
+          business_id: me.businessId,
+          business_member_id: me.id,
+          job_day_id: dayId,
+          storage_path: o.path,
+          phase: o.phase,
+          taken_at: takenAt,
+          sync_state: 'synced',
+        })),
+      );
+      if (error) throw new Error(error.message);
+    }
   }
 
   return { uploaded: ok.length, failed };
@@ -537,18 +570,20 @@ type NoteRow = {
 };
 
 export async function fetchJobNotes(jobId: string): Promise<JobNote[]> {
-  const { data, error } = await supabase
-    .from('job_notes')
-    .select('id, body, visibility, created_at')
-    .eq('job_id', jobId)
-    .order('created_at', { ascending: true });
-  if (error) throw new Error(error.message);
-  return ((data ?? []) as NoteRow[]).map(r => ({
-    id: r.id,
-    body: r.body,
-    visibility: r.visibility,
-    createdAt: r.created_at,
-  }));
+  return offlineRead(`jobNotes:${jobId}`, async () => {
+    const { data, error } = await supabase
+      .from('job_notes')
+      .select('id, body, visibility, created_at')
+      .eq('job_id', jobId)
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as NoteRow[]).map(r => ({
+      id: r.id,
+      body: r.body,
+      visibility: r.visibility,
+      createdAt: r.created_at,
+    }));
+  });
 }
 
 export async function addJobNote(
@@ -793,16 +828,18 @@ type AssignmentRow = {
 };
 
 export async function fetchJobRoster(jobId: string): Promise<JobCrewMember[]> {
-  const { data, error } = await supabase
-    .from('job_assignments')
-    .select('business_member_id, business_members(full_name)')
-    .eq('job_id', jobId);
-  if (error) throw new Error(error.message);
-  return ((data ?? []) as AssignmentRow[]).map(r => {
-    const m = Array.isArray(r.business_members)
-      ? r.business_members[0]
-      : r.business_members;
-    return { id: r.business_member_id, name: m?.full_name ?? 'Member' };
+  return offlineRead(`jobRoster:${jobId}`, async () => {
+    const { data, error } = await supabase
+      .from('job_assignments')
+      .select('business_member_id, business_members(full_name)')
+      .eq('job_id', jobId);
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as AssignmentRow[]).map(r => {
+      const m = Array.isArray(r.business_members)
+        ? r.business_members[0]
+        : r.business_members;
+      return { id: r.business_member_id, name: m?.full_name ?? 'Member' };
+    });
   });
 }
 
@@ -883,20 +920,28 @@ type SegmentRow = {
 };
 
 export async function fetchJobSegments(jobId: string): Promise<JobSegment[]> {
-  const { data, error } = await supabase
-    .from('job_time_entries')
-    .select('id, job_day_id, business_member_id, start_time, finish_time, hours')
-    .eq('job_id', jobId)
-    .order('start_time', { ascending: true });
-  if (error) throw new Error(error.message);
-  return ((data ?? []) as SegmentRow[]).map(r => ({
-    id: r.id,
-    jobDayId: r.job_day_id,
-    memberId: r.business_member_id,
-    startTime: r.start_time,
-    finishTime: r.finish_time,
-    hours: r.hours == null ? null : num(r.hours),
-  }));
+  if (!isOnline()) {
+    const cached = await loadJobCache(jobId);
+    if (cached?.segments) return cached.segments;
+  }
+  return offlineRead(`jobSegments:${jobId}`, async () => {
+    const { data, error } = await supabase
+      .from('job_time_entries')
+      .select(
+        'id, job_day_id, business_member_id, start_time, finish_time, hours',
+      )
+      .eq('job_id', jobId)
+      .order('start_time', { ascending: true });
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as SegmentRow[]).map(r => ({
+      id: r.id,
+      jobDayId: r.job_day_id,
+      memberId: r.business_member_id,
+      startTime: r.start_time,
+      finishTime: r.finish_time,
+      hours: r.hours == null ? null : num(r.hours),
+    }));
+  });
 }
 
 export function segmentsElapsedHours(
@@ -931,27 +976,29 @@ export type JobDay = {
 };
 
 export async function fetchJobDays(jobId: string): Promise<JobDay[]> {
-  const { data, error } = await supabase
-    .from('job_days')
-    .select('id, day_number, work_date, started_at, finished_at')
-    .eq('job_id', jobId)
-    .order('day_number', { ascending: true });
-  if (error) throw new Error(error.message);
-  return (
-    (data ?? []) as {
-      id: string;
-      day_number: number;
-      work_date: string;
-      started_at: string | null;
-      finished_at: string | null;
-    }[]
-  ).map(r => ({
-    id: r.id,
-    dayNumber: r.day_number,
-    workDate: r.work_date,
-    startedAt: r.started_at,
-    finishedAt: r.finished_at,
-  }));
+  return offlineRead(`jobDays:${jobId}`, async () => {
+    const { data, error } = await supabase
+      .from('job_days')
+      .select('id, day_number, work_date, started_at, finished_at')
+      .eq('job_id', jobId)
+      .order('day_number', { ascending: true });
+    if (error) throw new Error(error.message);
+    return (
+      (data ?? []) as {
+        id: string;
+        day_number: number;
+        work_date: string;
+        started_at: string | null;
+        finished_at: string | null;
+      }[]
+    ).map(r => ({
+      id: r.id,
+      dayNumber: r.day_number,
+      workDate: r.work_date,
+      startedAt: r.started_at,
+      finishedAt: r.finished_at,
+    }));
+  });
 }
 
 export type DayBreakdown = JobDay & {

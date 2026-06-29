@@ -15,12 +15,16 @@ export const liveMetaFor = (id: string): LiveMeta => {
   return { elapsed, day: (hash(id) % 3) + 1 };
 };
 
-/** HH:MM:SS for a real elapsed duration in milliseconds. */
 export const formatElapsed = (ms: number) => {
   const total = Math.max(0, Math.floor(ms / 1000));
-  return `${pad(Math.floor(total / 3600))}:${pad(
-    Math.floor((total % 3600) / 60),
-  )}:${pad(total % 60)}`;
+  const days = Math.floor(total / 86_400);
+  const hours = Math.floor((total % 86_400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  if (days > 0) {
+    return `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  }
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 };
 
 /** 1-based day count since the job was started (calendar days). */
