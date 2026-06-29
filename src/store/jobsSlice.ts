@@ -1,4 +1,4 @@
-import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { fetchMyJobs } from '@/services/jobs';
 import {
   logout,
@@ -6,7 +6,7 @@ import {
   signInWithPassword,
   signOut,
 } from './authSlice';
-import type { Job, JobsState } from '@/types';
+import type { Job, JobStatus, JobsState } from '@/types';
 
 export const fetchJobs = createAsyncThunk<Job[], void, { rejectValue: string }>(
   'jobs/fetch',
@@ -30,7 +30,15 @@ const initialState: JobsState = {
 const jobsSlice = createSlice({
   name: 'jobs',
   initialState,
-  reducers: {},
+  reducers: {
+    patchJobStatus(
+      state,
+      action: PayloadAction<{ id: string; status: JobStatus }>,
+    ) {
+      const job = state.items.find(j => j.id === action.payload.id);
+      if (job) job.status = action.payload.status;
+    },
+  },
   extraReducers: builder => {
     builder
       .addCase(fetchJobs.pending, state => {
@@ -54,4 +62,5 @@ const jobsSlice = createSlice({
   },
 });
 
+export const { patchJobStatus } = jobsSlice.actions;
 export default jobsSlice.reducer;

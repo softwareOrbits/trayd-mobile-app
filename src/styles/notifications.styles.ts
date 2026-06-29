@@ -4,7 +4,18 @@ import type { Theme } from '@/theme';
 export const makeNotificationsStyles = (theme: Theme) =>
   StyleSheet.create({
     flex: { flex: 1, backgroundColor: theme.colors.background },
-    header: { paddingHorizontal: 20, paddingBottom: 8 },
+    header: { paddingHorizontal: 20, paddingBottom: 12 },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    markBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    markText: {
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.secondary,
+    },
     logo: {
       fontSize: theme.typography.size.md,
       fontFamily: theme.fonts.bold,
@@ -52,5 +63,62 @@ export const makeNotificationsStyles = (theme: Theme) =>
       color: theme.colors.textMuted,
       textAlign: 'center',
       lineHeight: 20,
+    },
+    listContent: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 28 },
+    loader: { marginTop: 48 },
+    card: {
+      flexDirection: 'row',
+      gap: 12,
+      padding: 14,
+      borderRadius: theme.radii.lg,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      marginBottom: 10,
+    },
+    cardUnread: {
+      backgroundColor: theme.colors.warningBg,
+      borderColor: theme.colors.primary,
+    },
+    iconWrap: {
+      width: 38,
+      height: 38,
+      borderRadius: theme.radii.md,
+      backgroundColor: theme.colors.surfaceMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    iconWrapUnread: { backgroundColor: theme.colors.white },
+    itemBody: { flex: 1, gap: 3 },
+    itemTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    itemTitle: {
+      flex: 1,
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.text,
+    },
+    itemTitleUnread: { fontFamily: theme.fonts.bold },
+    unreadDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: theme.colors.primary,
+    },
+    itemText: {
+      fontSize: theme.typography.size.sm,
+      color: theme.colors.textMuted,
+      lineHeight: 19,
+    },
+    itemTime: {
+      marginTop: 2,
+      fontSize: 11,
+      fontFamily: theme.fonts.monoBold,
+      letterSpacing: 0.6,
+      color: theme.colors.placeholder,
     },
   });

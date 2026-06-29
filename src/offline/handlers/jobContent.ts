@@ -5,7 +5,7 @@ import {
   type NoteVisibility,
 } from '@/services/jobs';
 
-import { isNetworkError } from '../errors';
+import { classifyOutcome } from '../errors';
 import type { FlushOutcome, Handler, MutationKind } from '../types';
 
 export type AddNotePayload = {
@@ -26,7 +26,7 @@ const addNote: Handler<AddNotePayload> = async (p): Promise<FlushOutcome> => {
     await addJobNote(p.jobId, p.body, p.visibility);
     return 'done';
   } catch (e) {
-    return isNetworkError(e) ? 'retry' : 'drop';
+    return classifyOutcome(e);
   }
 };
 
@@ -35,7 +35,7 @@ const addPhotos: Handler<AddPhotosPayload> = async (p): Promise<FlushOutcome> =>
     const { uploaded } = await addJobPhotos({ jobId: p.jobId, photos: p.photos });
     return uploaded ? 'done' : 'retry';
   } catch (e) {
-    return isNetworkError(e) ? 'retry' : 'drop';
+    return classifyOutcome(e);
   }
 };
 

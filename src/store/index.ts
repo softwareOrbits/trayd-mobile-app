@@ -12,10 +12,12 @@ import {
 } from 'redux-persist';
 import authReducer from './authSlice';
 import jobsReducer from './jobsSlice';
+import pendingJobsReducer from './pendingJobsSlice';
 
 const rootReducer = combineReducers({
   auth: authReducer,
   jobs: jobsReducer,
+  pendingJobs: pendingJobsReducer,
 });
 
 const persistConfig = {
@@ -23,7 +25,8 @@ const persistConfig = {
   storage: AsyncStorage,
   // `jobs` is persisted so the list survives a cold start with no signal
   // (stale-while-revalidate: render the cache, then refetch when online).
-  whitelist: ['auth', 'jobs'],
+  // `pendingJobs` holds jobs started offline until `job.start` syncs.
+  whitelist: ['auth', 'jobs', 'pendingJobs'],
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

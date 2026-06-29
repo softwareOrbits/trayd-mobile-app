@@ -56,9 +56,10 @@ export const MaterialSelect = ({
 
   useEffect(() => {
     if (!open) return;
-    // Cache hit → show instantly, no spinner, no debounce.
+    // Non-empty cache hit → show instantly, no spinner, no debounce. An empty
+    // entry is treated as a miss so the catalog still loads on open.
     const cached = peekMaterials(query);
-    if (cached) {
+    if (cached?.length) {
       setResults(cached);
       setLoading(false);
       return;

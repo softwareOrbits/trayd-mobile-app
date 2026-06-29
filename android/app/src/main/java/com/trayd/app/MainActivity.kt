@@ -1,4 +1,4 @@
-package com.awesomeproject
+package com.trayd.app
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

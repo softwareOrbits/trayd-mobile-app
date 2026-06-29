@@ -70,6 +70,7 @@ export const makeJobsStyles = (theme: Theme) =>
     fab: {
       position: 'absolute',
       right: 16,
+      bottom: 16,
       borderRadius: theme.radii.pill,
       paddingHorizontal: 22,
       shadowColor: theme.colors.black,

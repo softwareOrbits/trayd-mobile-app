@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { launchCamera } from 'react-native-image-picker';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -44,9 +44,12 @@ import { enqueue } from '@/offline';
 import { isNetworkError } from '@/offline/errors';
 import { useAppDispatch } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
+import { addPendingJob } from '@/store/pendingJobsSlice';
+import { queueOfflineJob } from '@/offline/jobStartActions';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { withTimeout } from '@/utils/withTimeout';
+import { goBackSafe } from '@/utils/navigation';
 import { makeStartJobStyles } from '@/styles/startJob.styles';
 import {
   START_JOB_TOTAL,
@@ -86,7 +89,9 @@ const StartJobScreen = () => {
   const [candidate, setCandidate] = useState<CandidateCustomer | null>(null);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customersLoading, setCustomersLoading] = useState(true);
   const [roster, setRoster] = useState<RosterEntry[]>([]);
+  const [rosterLoading, setRosterLoading] = useState(true);
   const [gps, setGps] = useState<GpsPoint | null>(null);
   const [nearest, setNearest] = useState<NearestCustomer | null>(null);
 
@@ -94,6 +99,7 @@ const StartJobScreen = () => {
 
   const [materialSearch, setMaterialSearch] = useState('');
   const [catalog, setCatalog] = useState<CatalogMaterial[]>([]);
+  const [materialsLoading, setMaterialsLoading] = useState(true);
   const [pickedMaterials, setPickedMaterials] = useState<CatalogMaterial[]>([]);
 
   useEffect(() => {
@@ -103,7 +109,8 @@ const StartJobScreen = () => {
         const me = rows.find(r => r.isSelf);
         if (me) setCrew([me.id]);
       })
-      .catch(e => console.warn('roster:', e?.message));
+      .catch(e => console.warn('roster:', e?.message))
+      .finally(() => setRosterLoading(false));
 
     getCurrentPosition().then(p => {
       console.log('[startJob] gps position:', p ?? 'unavailable');
@@ -125,10 +132,12 @@ const StartJobScreen = () => {
 
   useEffect(() => {
     let active = true;
+    setCustomersLoading(true);
     const t = setTimeout(() => {
       searchCustomers(search)
         .then(rows => active && setCustomers(rows))
-        .catch(e => console.warn('customers:', e?.message));
+        .catch(e => console.warn('customers:', e?.message))
+        .finally(() => active && setCustomersLoading(false));
     }, 250);
     return () => {
       active = false;
@@ -139,10 +148,12 @@ const StartJobScreen = () => {
   useEffect(() => {
     if (step !== 4) return;
     let active = true;
+    setMaterialsLoading(true);
     const t = setTimeout(() => {
       searchMaterials(materialSearch)
         .then(rows => active && setCatalog(rows))
-        .catch(e => console.warn('materials:', e?.message));
+        .catch(e => console.warn('materials:', e?.message))
+        .finally(() => active && setMaterialsLoading(false));
     }, 250);
     return () => {
       active = false;
@@ -162,7 +173,7 @@ const StartJobScreen = () => {
     defaultValues: { fullName: '', phone: '', email: '', address: '', eircode: '' },
   });
 
-  const close = () => navigation.goBack();
+  const close = () => goBackSafe(navigation);
 
   const onBack = () => {
     if (step === 1) {
@@ -245,11 +256,9 @@ const StartJobScreen = () => {
       return;
     }
     setStarting(true);
+    const selfId = roster.find(r => r.isSelf)?.id;
+    const memberIds = crew.length === 1 && crew[0] === selfId ? [] : crew;
     try {
-      const selfId = roster.find(r => r.isSelf)?.id;
-      const memberIds =
-        crew.length === 1 && crew[0] === selfId ? [] : crew;
-
       const jobId = await startJob({
         customerId: customerId ?? undefined,
         newCustomer: newCustomer ?? undefined,
@@ -283,18 +292,21 @@ const StartJobScreen = () => {
         }
       }
 
-      const pendingPhotos = photos.filter(p => p.base64);
+      const pendingPhotos = photos.filter(p => p.uri);
       if (pendingPhotos.length) {
-        const items = pendingPhotos.map(p => ({
+        const stamp = Date.now();
+        const items = pendingPhotos.map((p, i) => ({
           phase: 'before' as const,
-          base64: p.base64 as string,
+          uri: p.uri,
+          base64: p.base64,
           type: p.type,
+          clientKey: `${jobId}-${stamp}-${i}`,
         }));
         const queuePhotosOffline = () =>
           enqueue({
-            id: `${jobId}:photos:${Date.now()}`,
+            id: `${jobId}:photos:${stamp}`,
             kind: 'job.addPhotos',
-            payload: { clientId: `${jobId}:${Date.now()}`, jobId, photos: items },
+            payload: { clientId: `${jobId}-${stamp}`, jobId, photos: items },
           });
         try {
           const { uploaded, failed } = await withTimeout(
@@ -345,10 +357,55 @@ const StartJobScreen = () => {
         }
       }
       if (isNetworkError(e)) {
-        Toast.show({
-          type: 'info',
-          text1: 'You’re offline — start the job when you reconnect.',
-        });
+        try {
+          const picked = customers.find(c => c.id === customerId);
+          const customerName =
+            newCustomer?.name ??
+            picked?.name ??
+            candidate?.name ??
+            (nearest?.customer.id === customerId
+              ? nearest.customer.name
+              : undefined) ??
+            'Customer';
+          const customerAddress =
+            newCustomer?.address ??
+            picked?.address ??
+            candidate?.address ??
+            (nearest?.customer.id === customerId
+              ? nearest.customer.address
+              : null) ??
+            null;
+          const me = roster.find(r => r.isSelf);
+          const crewMembers = crew.map(id => {
+            const r = roster.find(m => m.id === id);
+            return { id, name: r?.fullName ?? 'Member' };
+          });
+          const { jobId, job } = await queueOfflineJob({
+            customerId: customerId ?? undefined,
+            newCustomer: newCustomer ?? undefined,
+            customerName,
+            customerAddress,
+            jobType: (jobType ?? 'standard') as JobType,
+            memberIds,
+            primaryMemberId: memberIds[0] ?? selfId ?? null,
+            memberName: me?.fullName ?? null,
+            crew: crewMembers,
+            gps: gps ?? null,
+            materials: pickedMaterials,
+            photos,
+          });
+          dispatch(addPendingJob(job));
+          Toast.show({
+            type: 'success',
+            text1: 'Saved offline — job syncs when you reconnect.',
+          });
+          navigation.replace('JobDetail', { jobId });
+        } catch {
+          Toast.show({
+            type: 'info',
+            text1: 'You’re offline — start the job when you reconnect.',
+          });
+        }
       } else {
         Toast.show({
           type: 'error',
@@ -397,19 +454,28 @@ const StartJobScreen = () => {
         ) : null}
         <View>
           <Text style={styles.sectionLabel}>RECENT</Text>
-          {customers.map(c => (
-            <CustomerCard
-              key={c.id}
-              name={c.name}
-              meta={[c.eircode, c.phone].filter(Boolean).join(' · ')}
-              onPress={() => pickExisting(c.id)}
+          {customersLoading && !customers.length ? (
+            <ActivityIndicator
+              color={colors.secondary}
+              style={styles.listLoader}
             />
-          ))}
-          {!customers.length ? (
-            <Text style={styles.hintText}>
-              No customers yet — add your first one below.
-            </Text>
-          ) : null}
+          ) : (
+            <>
+              {customers.map(c => (
+                <CustomerCard
+                  key={c.id}
+                  name={c.name}
+                  meta={[c.eircode, c.phone].filter(Boolean).join(' · ')}
+                  onPress={() => pickExisting(c.id)}
+                />
+              ))}
+              {!customers.length ? (
+                <Text style={styles.hintText}>
+                  No customers yet — add your first one below.
+                </Text>
+              ) : null}
+            </>
+          )}
         </View>
       </View>
     );
@@ -602,19 +668,26 @@ const StartJobScreen = () => {
             setStep(4);
           }}
         />
-        {roster.map(m => (
-          <CheckboxRow
-            key={m.id}
-            name={m.fullName ?? m.email ?? 'Member'}
-            role={
-              m.isSelf
-                ? [m.roleName ?? 'Member', 'you'].join(' · ')
-                : m.roleName ?? ''
-            }
-            selected={crew.includes(m.id)}
-            onPress={() => toggleCrew(m.id)}
+        {rosterLoading && !roster.length ? (
+          <ActivityIndicator
+            color={colors.secondary}
+            style={styles.listLoader}
           />
-        ))}
+        ) : (
+          roster.map(m => (
+            <CheckboxRow
+              key={m.id}
+              name={m.fullName ?? m.email ?? 'Member'}
+              role={
+                m.isSelf
+                  ? [m.roleName ?? 'Member', 'you'].join(' · ')
+                  : m.roleName ?? ''
+              }
+              selected={crew.includes(m.id)}
+              onPress={() => toggleCrew(m.id)}
+            />
+          ))
+        )}
       </View>
     );
     footer = (
@@ -637,22 +710,31 @@ const StartJobScreen = () => {
           onChangeText={setMaterialSearch}
           autoCapitalize="none"
         />
-        {catalog.map(m => (
-          <CheckboxRow
-            key={m.id}
-            name={m.name}
-            role={[`€${m.sellPrice.toFixed(2)}`, m.unit]
-              .filter(Boolean)
-              .join(' · ')}
-            selected={pickedMaterials.some(x => x.id === m.id)}
-            onPress={() => toggleMaterial(m)}
+        {materialsLoading && !catalog.length ? (
+          <ActivityIndicator
+            color={colors.secondary}
+            style={styles.listLoader}
           />
-        ))}
-        {!catalog.length ? (
-          <Text style={styles.hintText}>
-            No materials found — try a different search.
-          </Text>
-        ) : null}
+        ) : (
+          <>
+            {catalog.map(m => (
+              <CheckboxRow
+                key={m.id}
+                name={m.name}
+                role={[`€${m.sellPrice.toFixed(2)}`, m.unit]
+                  .filter(Boolean)
+                  .join(' · ')}
+                selected={pickedMaterials.some(x => x.id === m.id)}
+                onPress={() => toggleMaterial(m)}
+              />
+            ))}
+            {!catalog.length ? (
+              <Text style={styles.hintText}>
+                No materials found — try a different search.
+              </Text>
+            ) : null}
+          </>
+        )}
       </View>
     );
     footer = (

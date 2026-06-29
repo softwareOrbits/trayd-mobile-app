@@ -5,6 +5,7 @@ import {
 } from '@reduxjs/toolkit';
 import { supabase } from '@/services/supabase';
 import { clearMemberCache } from '@/services/member';
+import { unregisterPush } from '@/services/push';
 import { getJwtClaims } from '@/utils/jwt';
 import type {
   AuthState,
@@ -70,6 +71,7 @@ export const restoreSession = createAsyncThunk<SetCredentialsPayload | null>(
 );
 
 export const signOut = createAsyncThunk('auth/signOut', async () => {
+  await unregisterPush();
   await supabase.auth.signOut({ scope: 'local' });
   clearMemberCache();
 });

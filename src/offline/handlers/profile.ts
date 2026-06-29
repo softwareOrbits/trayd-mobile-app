@@ -6,7 +6,7 @@ import {
   type WorkingHours,
 } from '@/services/member';
 
-import { isNetworkError } from '../errors';
+import { classifyOutcome } from '../errors';
 import type { FlushOutcome, Handler, MutationKind } from '../types';
 
 const run = async (fn: () => Promise<unknown>): Promise<FlushOutcome> => {
@@ -14,7 +14,7 @@ const run = async (fn: () => Promise<unknown>): Promise<FlushOutcome> => {
     await fn();
     return 'done';
   } catch (e) {
-    return isNetworkError(e) ? 'retry' : 'drop';
+    return classifyOutcome(e);
   }
 };
 

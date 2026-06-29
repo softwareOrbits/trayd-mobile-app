@@ -5,6 +5,7 @@ import type {
   JobDay,
   JobMaterial,
   JobNote,
+  JobPhoto,
   JobSegment,
 } from '@/services/jobs';
 import type { JobDetail } from '@/types';
@@ -15,6 +16,7 @@ export type JobBundle = {
   materials?: JobMaterial[];
   days?: JobDay[];
   notes?: JobNote[];
+  photos?: JobPhoto[];
   crew?: JobCrewMember[];
   rates?: [string, number][];
   vat?: number;

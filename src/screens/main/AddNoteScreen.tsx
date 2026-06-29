@@ -9,11 +9,18 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppToast, Button, Input } from '@/components/ui';
 import { TagChip } from '@/components/jobDetail';
-import { addJobNote, type NoteVisibility } from '@/services/jobs';
+import { addJobNote, type JobNote, type NoteVisibility } from '@/services/jobs';
+import { loadJobCache, saveJobCache } from '@/services/jobCache';
+import { enqueue } from '@/offline';
+import { isNetworkError } from '@/offline/errors';
+import { withTimeout } from '@/utils/withTimeout';
+import { goBackSafe } from '@/utils/navigation';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeAddNoteStyles } from '@/styles/addNote.styles';
 import { toastError, toastSuccess } from '@/utils/toast';
 import type { MainStackParamList } from '@/types';
+
+const NOTE_SAVE_TIMEOUT_MS = 12_000;
 
 const QUICK_ADD = [
   'Follow-up needed',
@@ -59,15 +66,48 @@ const AddNoteScreen = () => {
     );
 
   const save = async () => {
-    if (!text.trim() || saving) return;
+    const body = text.trim();
+    if (!body || saving) return;
     setSaving(true);
+    const queueOffline = async () => {
+      const stamp = Date.now();
+      await enqueue({
+        id: `${params.jobId}:note:${stamp}`,
+        kind: 'job.addNote',
+        payload: {
+          clientId: `${params.jobId}-${stamp}`,
+          jobId: params.jobId,
+          body,
+          visibility,
+        },
+      });
+      const note: JobNote = {
+        id: `${params.jobId}-${stamp}`,
+        body,
+        visibility,
+        createdAt: new Date().toISOString(),
+      };
+      const cached = await loadJobCache(params.jobId);
+      await saveJobCache(params.jobId, {
+        notes: [...(cached?.notes ?? []), note],
+      });
+      toastSuccess('Saved offline — note syncs when you’re back online.');
+      goBackSafe(navigation);
+    };
     try {
-      await addJobNote(params.jobId, text.trim(), visibility);
+      await withTimeout(
+        addJobNote(params.jobId, body, visibility),
+        NOTE_SAVE_TIMEOUT_MS,
+      );
       toastSuccess('Note added.');
-      navigation.goBack();
+      goBackSafe(navigation);
     } catch (e) {
-      toastError(e, 'Could not save the note.');
-      setSaving(false);
+      if (isNetworkError(e)) {
+        await queueOffline();
+      } else {
+        toastError(e, 'Could not save the note.');
+        setSaving(false);
+      }
     }
   };
 

@@ -1,8 +1,13 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { supabase } from './supabase';
+import { isOnline } from '@/offline/connectivity';
 import { base64ToUint8Array } from '@/utils/base64';
 import { imageExtFromType, imageMimeFromType } from '@/utils/image';
 
 const PROFILE_BUCKET = 'profile-photos';
+const MEMBER_REF_KEY = 'memberref:v1';
+const ROSTER_KEY = 'rostercache:v1';
 
 export type MemberProfile = {
   id: string;
@@ -78,14 +83,27 @@ let cachedRef: MemberRef | null = null;
 
 export async function getMyMemberRef(): Promise<MemberRef> {
   if (cachedRef) return cachedRef;
-  const me = await fetchMyMember();
-  if (!me.businessId) throw new Error('No business context');
-  cachedRef = { id: me.id, businessId: me.businessId };
-  return cachedRef;
+  try {
+    const me = await fetchMyMember();
+    if (!me.businessId) throw new Error('No business context');
+    cachedRef = { id: me.id, businessId: me.businessId };
+    AsyncStorage.setItem(MEMBER_REF_KEY, JSON.stringify(cachedRef)).catch(
+      () => {},
+    );
+    return cachedRef;
+  } catch (e) {
+    const raw = await AsyncStorage.getItem(MEMBER_REF_KEY);
+    if (raw) {
+      cachedRef = JSON.parse(raw) as MemberRef;
+      return cachedRef;
+    }
+    throw e;
+  }
 }
 
 export function clearMemberCache(): void {
   cachedRef = null;
+  AsyncStorage.removeItem(MEMBER_REF_KEY).catch(() => {});
 }
 
 export async function updatePassword(
@@ -187,29 +205,41 @@ export type RosterEntry = {
 };
 
 export async function fetchActiveRoster(): Promise<RosterEntry[]> {
-  const { data: userData, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userData.user) {
-    throw new Error('Not authenticated');
+  if (!isOnline()) {
+    const raw = await AsyncStorage.getItem(ROSTER_KEY);
+    if (raw) return JSON.parse(raw) as RosterEntry[];
   }
+  try {
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    if (userErr || !userData.user) {
+      throw new Error('Not authenticated');
+    }
 
-  const { data, error } = await supabase
-    .from('business_members')
-    .select('id, full_name, email, user_id, job_roles(name)')
-    .eq('is_employee', true)
-    .eq('invite_status', 'active')
-    .order('full_name');
-  if (error) throw new Error(error.message);
+    const { data, error } = await supabase
+      .from('business_members')
+      .select('id, full_name, email, user_id, job_roles(name)')
+      .eq('is_employee', true)
+      .eq('invite_status', 'active')
+      .order('full_name');
+    if (error) throw new Error(error.message);
 
-  return (data ?? []).map(r => {
-    const role = pickOne<{ name: string | null }>(r.job_roles as never);
-    return {
-      id: r.id,
-      fullName: r.full_name ?? null,
-      email: r.email ?? null,
-      roleName: role?.name ?? null,
-      isSelf: r.user_id === userData.user.id,
-    };
-  });
+    const out = (data ?? []).map(r => {
+      const role = pickOne<{ name: string | null }>(r.job_roles as never);
+      return {
+        id: r.id,
+        fullName: r.full_name ?? null,
+        email: r.email ?? null,
+        roleName: role?.name ?? null,
+        isSelf: r.user_id === userData.user.id,
+      };
+    });
+    AsyncStorage.setItem(ROSTER_KEY, JSON.stringify(out)).catch(() => {});
+    return out;
+  } catch (e) {
+    const raw = await AsyncStorage.getItem(ROSTER_KEY);
+    if (raw) return JSON.parse(raw) as RosterEntry[];
+    throw e;
+  }
 }
 
 /* ------------------------------------------------------------------ */

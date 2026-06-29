@@ -11,9 +11,11 @@ import Toast from 'react-native-toast-message';
 
 import { Button, Input, JobFooter, JobHeader } from '@/components/ui';
 import { PhotoStrip } from '@/components/jobDetail';
+import { MaterialSheet } from '@/components/jobDetail/DetailModals';
+import { type SelectedMaterial } from '@/components/MaterialSelect';
 import { WizardScaffold } from '@/components/wizard';
 import {
-  addJobPhoto,
+  addJobPhotos,
   confirmJobMaterials,
   editSegmentFinishTime,
   editSegmentStartTime,
@@ -33,15 +35,23 @@ import {
   type JobSegment,
 } from '@/services/jobs';
 import { enqueueAction, queueFinish } from '@/services/outbox';
+import { enqueue } from '@/offline';
+import {
+  addMaterial as addMaterialOffline,
+  editMaterial as editMaterialOffline,
+  removeMaterial as removeMaterialOffline,
+} from '@/offline/materialActions';
 import { loadJobCache, saveJobCache } from '@/services/jobCache';
 import { useAppDispatch } from '@/store/hooks';
-import { fetchJobs } from '@/store/jobsSlice';
+import { fetchJobs, patchJobStatus } from '@/store/jobsSlice';
+import { setPendingJobStatus } from '@/store/pendingJobsSlice';
 import { signOut } from '@/store/authSlice';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeWrapUpStyles } from '@/styles/wrapUp.styles';
 import { capturePhoto } from '@/utils/capturePhoto';
 import { isNetworkError } from '@/utils/errors';
+import { goBackSafe } from '@/utils/navigation';
 import { toastError, toastSuccess } from '@/utils/toast';
 import {
   WRAP_UP_TOTAL,
@@ -87,6 +97,13 @@ const WrapUpJobScreen = () => {
   >([]);
   const [photoCounts, setPhotoCounts] = useState({ beforeMid: 0, after: 0 });
   const [notes, setNotes] = useState<JobNote[]>([]);
+
+  const [matSheet, setMatSheet] = useState<'new' | string | null>(null);
+  const [itemName, setItemName] = useState('');
+  const [itemUnit, setItemUnit] = useState<string | null>(null);
+  const [itemQty, setItemQty] = useState('1');
+  const [itemCost, setItemCost] = useState('');
+  const [savingItem, setSavingItem] = useState(false);
 
   // Step 1 — start & finish times
   const [startDate, setStartDate] = useState<Date | null>(null);
@@ -199,13 +216,13 @@ const WrapUpJobScreen = () => {
       } catch (e) {
         if (!isNetworkError(e)) {
           toastError(e, 'Could not load the job.');
-          navigation.goBack();
+          goBackSafe(navigation);
           return;
         }
         const cached = await loadJobCache(params.jobId);
         if (!active) return;
         if (!cached?.detail || !cached.segments) {
-          navigation.goBack();
+          goBackSafe(navigation);
           return;
         }
         hydrate(
@@ -368,18 +385,153 @@ const WrapUpJobScreen = () => {
     const asset = await capturePhoto({ quality: 0.7, maxSize: 1600 });
     if (!asset) return;
     setCapturing(true);
-    try {
-      await addJobPhoto({
-        jobId: params.jobId,
-        phase: 'after',
+    const stamp = Date.now();
+    const items = [
+      {
+        phase: 'after' as const,
+        uri: asset.uri,
         base64: asset.base64,
         type: asset.type,
+        clientKey: `${params.jobId}-${stamp}`,
+      },
+    ];
+    const queueOffline = async () => {
+      await enqueue({
+        id: `${params.jobId}:photos:${stamp}`,
+        kind: 'job.addPhotos',
+        payload: {
+          clientId: `${params.jobId}-${stamp}`,
+          jobId: params.jobId,
+          photos: items,
+        },
       });
+      setAfterPhotos(prev => [
+        ...prev,
+        { id: items[0].clientKey, uri: asset.uri, time: fmtClock(new Date()) },
+      ]);
+      setPhotoCounts(prev => ({ ...prev, after: prev.after + 1 }));
+      toastSuccess('Saved offline — photo uploads when you reconnect.');
+    };
+    try {
+      const { uploaded } = await addJobPhotos({
+        jobId: params.jobId,
+        photos: items,
+      });
+      if (!uploaded) {
+        await queueOffline();
+        return;
+      }
       await loadAfterPhotos(params.jobId);
     } catch (e) {
-      toastError(e, 'Could not upload the photo.');
+      if (isNetworkError(e)) {
+        await queueOffline();
+      } else {
+        toastError(e, 'Could not upload the photo.');
+      }
     } finally {
       setCapturing(false);
+    }
+  };
+
+  const openNewMaterial = () => {
+    setItemName('');
+    setItemUnit(null);
+    setItemQty('1');
+    setItemCost('');
+    setMatSheet('new');
+  };
+
+  const openEditMaterial = (m: JobMaterial) => {
+    setItemName(m.description);
+    setItemUnit(m.unit);
+    setItemQty(String(m.quantity));
+    setItemCost(m.unitCost ? String(m.unitCost) : '');
+    setMatSheet(m.id);
+  };
+
+  const onPickMaterial = (m: SelectedMaterial) => {
+    setItemName(m.name);
+    setItemUnit(m.unit);
+    if (m.sellPrice != null) setItemCost(String(m.sellPrice));
+  };
+
+  const saveMaterial = async () => {
+    if (!detail || !itemName.trim() || !matSheet || savingItem) return;
+    setSavingItem(true);
+    const qty = Math.max(1, parseFloat(itemQty.replace(',', '.')) || 1);
+    const cost = parseFloat(itemCost.replace(',', '.')) || 0;
+    try {
+      if (matSheet === 'new') {
+        const { queued, material } = await addMaterialOffline({
+          jobId: detail.id,
+          description: itemName.trim(),
+          quantity: qty,
+          unitCost: cost,
+          unit: itemUnit,
+          source: 'van_stock',
+        });
+        if (queued) {
+          const next = [...materials, material];
+          setMaterials(next);
+          saveJobCache(detail.id, { materials: next });
+        } else {
+          setMaterials(await fetchJobMaterials(detail.id));
+        }
+        setMatSheet(null);
+        toastSuccess(
+          queued ? 'Saved offline — syncs when you’re back online.' : 'Item logged.',
+        );
+      } else {
+        const editedId = matSheet;
+        const { queued } = await editMaterialOffline(editedId, {
+          description: itemName.trim(),
+          quantity: qty,
+          unitCost: cost,
+        });
+        if (queued) {
+          const next = materials.map(m =>
+            m.id === editedId
+              ? { ...m, description: itemName.trim(), quantity: qty, unitCost: cost }
+              : m,
+          );
+          setMaterials(next);
+          saveJobCache(detail.id, { materials: next });
+        } else {
+          setMaterials(await fetchJobMaterials(detail.id));
+        }
+        setMatSheet(null);
+        toastSuccess(
+          queued ? 'Saved offline — syncs when you’re back online.' : 'Item updated.',
+        );
+      }
+    } catch (e) {
+      toastError(e, 'Could not save the item.');
+    } finally {
+      setSavingItem(false);
+    }
+  };
+
+  const removeMaterial = async () => {
+    if (!detail || matSheet === 'new' || !matSheet || savingItem) return;
+    setSavingItem(true);
+    const removedId = matSheet;
+    try {
+      const { queued } = await removeMaterialOffline(removedId);
+      if (queued) {
+        const next = materials.filter(m => m.id !== removedId);
+        setMaterials(next);
+        saveJobCache(detail.id, { materials: next });
+      } else {
+        setMaterials(await fetchJobMaterials(detail.id));
+      }
+      setMatSheet(null);
+      toastSuccess(
+        queued ? 'Saved offline — syncs when you’re back online.' : 'Item removed.',
+      );
+    } catch (e) {
+      toastError(e, 'Could not remove the item.');
+    } finally {
+      setSavingItem(false);
     }
   };
 
@@ -393,32 +545,25 @@ const WrapUpJobScreen = () => {
     if (submitting || !finishDate) return;
     setSubmitting(true);
     const finishIso = finishDate.toISOString();
-    try {
-      await confirmJobMaterials(params.jobId).catch(() => {});
-      // Audited time edits (with reason) are best-effort — never block the
-      // submit on them. The authoritative finish close happens via finish_job's
-      // p_at below.
-      const warnEdit = (err: unknown) =>
-        console.warn('segment edit:', err instanceof Error ? err.message : err);
-      if (startEdited && startDate) {
-        const earliest = segments.reduce<JobSegment | null>(
+    const reason = editReason.trim() || null;
+    const startIso = startEdited && startDate ? startDate.toISOString() : null;
+    const earliest = startIso
+      ? segments.reduce<JobSegment | null>(
           (min, s) => (!min || s.startTime < min.startTime ? s : min),
           null,
-        );
-        if (earliest) {
-          await editSegmentStartTime(
-            earliest.id,
-            startDate.toISOString(),
-            editReason.trim() || null,
-          ).catch(warnEdit);
-        }
+        )
+      : null;
+    try {
+      await confirmJobMaterials(params.jobId).catch(() => {});
+      const warnEdit = (err: unknown) =>
+        console.warn('segment edit:', err instanceof Error ? err.message : err);
+      if (earliest && startIso) {
+        await editSegmentStartTime(earliest.id, startIso, reason).catch(warnEdit);
       }
       if (timeEdited && openSegment) {
-        await editSegmentFinishTime(
-          openSegment.id,
-          finishIso,
-          editReason.trim() || null,
-        ).catch(warnEdit);
+        await editSegmentFinishTime(openSegment.id, finishIso, reason).catch(
+          warnEdit,
+        );
       }
       const total = await finishJob({
         jobId: params.jobId,
@@ -432,12 +577,38 @@ const WrapUpJobScreen = () => {
       setResult('success');
     } catch (e) {
       if (isNetworkError(e)) {
+        await enqueue({
+          id: `${params.jobId}:confirmMaterials:${finishIso}`,
+          kind: 'job.confirmMaterials',
+          payload: { jobId: params.jobId },
+        });
+        if (earliest && startIso) {
+          await enqueue({
+            id: `${earliest.id}:editStart:${finishIso}`,
+            kind: 'segment.edit',
+            payload: {
+              jobId: params.jobId,
+              entryId: earliest.id,
+              startIso,
+              reason,
+            },
+          });
+        }
         await queueFinish({
           jobId: params.jobId,
           summary: summary.trim() || null,
           totalHours: null,
           atIso: finishIso,
         });
+        dispatch(patchJobStatus({ id: params.jobId, status: 'awaiting_review' }));
+        dispatch(
+          setPendingJobStatus({ id: params.jobId, status: 'awaiting_review' }),
+        );
+        if (detail) {
+          saveJobCache(params.jobId, {
+            detail: { ...detail, status: 'awaiting_review' },
+          });
+        }
         setFinalHours(hours);
         setSubmittedAt(fmtClock(new Date()));
         setResult('offline');
@@ -464,7 +635,7 @@ const WrapUpJobScreen = () => {
       await pauseJob(params.jobId, atIso);
       dispatch(fetchJobs());
       toastSuccess('Paused — see you tomorrow.');
-      navigation.goBack();
+      goBackSafe(navigation);
     } catch (e) {
       if (isNetworkError(e)) {
         await enqueueAction({
@@ -473,8 +644,15 @@ const WrapUpJobScreen = () => {
           kind: 'pause',
           atIso,
         });
+        dispatch(patchJobStatus({ id: params.jobId, status: 'paused' }));
+        dispatch(setPendingJobStatus({ id: params.jobId, status: 'paused' }));
+        if (detail) {
+          saveJobCache(params.jobId, {
+            detail: { ...detail, status: 'paused' },
+          });
+        }
         Toast.show({ type: 'info', text1: 'Saved offline — will sync.' });
-        navigation.goBack();
+        goBackSafe(navigation);
       } else if (isAccessRevoked(e)) {
         dispatch(signOut());
       } else {
@@ -502,7 +680,7 @@ const WrapUpJobScreen = () => {
       <View style={styles.flex}>
         <JobHeader
           title=""
-          onBack={() => navigation.navigate('Tabs')}
+          onBack={() => navigation.reset({ index: 0, routes: [{ name: 'Tabs' }] })}
           right={<Text style={styles.resultLogo}>TRAYD</Text>}
         />
 
@@ -556,12 +734,23 @@ const WrapUpJobScreen = () => {
             label="Back to chat"
             fullWidth
             onPress={() =>
-              navigation.navigate('JobChat', { jobId: params.jobId })
+              navigation.reset({
+                index: 1,
+                routes: [
+                  { name: 'Tabs' },
+                  { name: 'JobChat', params: { jobId: params.jobId } },
+                ],
+              })
             }
           />
           {success ? (
             <Pressable
-              onPress={() => navigation.replace('StartJob')}
+              onPress={() =>
+                navigation.reset({
+                  index: 1,
+                  routes: [{ name: 'Tabs' }, { name: 'StartJob' }],
+                })
+              }
               hitSlop={8}
               style={styles.linkBtn}
             >
@@ -964,7 +1153,7 @@ const WrapUpJobScreen = () => {
     );
     footer = <Button label="Continue" fullWidth onPress={() => setStep(4)} />;
   } else if (step === 4) {
-    const addItems = () =>
+    const scanReceipt = () =>
       navigation.navigate('AddReceipt', { jobId: params.jobId });
     title = 'Materials look right?';
     subtitle =
@@ -974,8 +1163,9 @@ const WrapUpJobScreen = () => {
         <View style={styles.card}>
           {materials.length ? (
             materials.map((m, i) => (
-              <View
+              <Pressable
                 key={m.id}
+                onPress={() => openEditMaterial(m)}
                 style={[
                   styles.matRow,
                   i < materials.length - 1 && styles.matDivider,
@@ -995,14 +1185,14 @@ const WrapUpJobScreen = () => {
                 <Text style={styles.matAmount}>
                   {fmtMoney(m.quantity * m.unitCost)}
                 </Text>
-              </View>
+              </Pressable>
             ))
           ) : (
             <Text style={styles.emptyText}>Nothing logged.</Text>
           )}
-          <Pressable style={styles.addItemBtn} onPress={addItems}>
+          <Pressable style={styles.addItemBtn} onPress={openNewMaterial}>
             <Ionicons name="add" size={16} color={colors.secondary} />
-            <Text style={styles.addItemText}>Add another item</Text>
+            <Text style={styles.addItemText}>Add van stock</Text>
           </Pressable>
         </View>
 
@@ -1021,8 +1211,8 @@ const WrapUpJobScreen = () => {
           fullWidth
           onPress={() => setStep(5)}
         />
-        <Pressable onPress={addItems} hitSlop={8} style={styles.linkBtn}>
-          <Text style={styles.editLink}>Add or edit items</Text>
+        <Pressable onPress={scanReceipt} hitSlop={8} style={styles.linkBtn}>
+          <Text style={styles.editLink}>Scan a receipt</Text>
         </Pressable>
       </>
     );
@@ -1105,18 +1295,34 @@ const WrapUpJobScreen = () => {
   }
 
   return (
-    <WizardScaffold
-      step={step}
-      total={TOTAL}
-      flowLabel="Wrap up"
-      title={title}
-      subtitle={subtitle}
-      onBack={onBack}
-      onCancel={() => navigation.goBack()}
-      footer={footer}
-    >
-      {body}
-    </WizardScaffold>
+    <>
+      <WizardScaffold
+        step={step}
+        total={TOTAL}
+        flowLabel="Wrap up"
+        title={title}
+        subtitle={subtitle}
+        onBack={onBack}
+        onCancel={() => navigation.goBack()}
+        footer={footer}
+      >
+        {body}
+      </WizardScaffold>
+      <MaterialSheet
+        mode={matSheet}
+        itemName={itemName}
+        itemUnit={itemUnit}
+        itemQty={itemQty}
+        itemCost={itemCost}
+        saving={savingItem}
+        onPick={onPickMaterial}
+        onChangeQty={setItemQty}
+        onChangeCost={setItemCost}
+        onSave={saveMaterial}
+        onRemove={removeMaterial}
+        onClose={() => setMatSheet(null)}
+      />
+    </>
   );
 };
 
