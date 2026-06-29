@@ -1,5 +1,17 @@
 import type { FlushOutcome } from './types';
 
+export class OfflineLimitError extends Error {
+  constructor() {
+    super(
+      'You’ve been offline too long — reconnect to sync before making more changes.',
+    );
+    this.name = 'OfflineLimitError';
+  }
+}
+
+export const isOfflineLimitError = (e: unknown): boolean =>
+  e instanceof OfflineLimitError;
+
 export const isNetworkError = (e: unknown): boolean => {
   const msg = e instanceof Error ? e.message.toLowerCase() : '';
   return (

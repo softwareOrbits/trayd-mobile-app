@@ -18,7 +18,7 @@ import { restoreSession, logout } from '@/store/authSlice';
 import { supabase } from '@/services/supabase';
 import { clearMemberCache } from '@/services/member';
 import { ThemeProvider } from '@/theme';
-import { LoadingScreen, OfflineBanner } from '@/components/ui';
+import { LoadingScreen, OfflineBanner, SyncReminderBanner } from '@/components/ui';
 import { SyncProvider, useOnline } from '@/offline';
 import { warmCaches } from '@/offline/prefetch';
 import { registerPush } from '@/services/push';
@@ -90,6 +90,7 @@ function AppShell() {
   return (
     <>
       <OfflineBanner />
+      <SyncReminderBanner />
       <SafeAreaInsetsContext.Provider value={value}>
         <AppNavigator />
       </SafeAreaInsetsContext.Provider>

@@ -39,6 +39,7 @@ import {
 } from '@/services/jobs';
 import { loadJobCache, saveJobCache } from '@/services/jobCache';
 import { isOnline } from '@/offline/connectivity';
+import { offlineActionBlocked } from '@/offline';
 import { addMaterial as addMaterialOffline } from '@/offline/materialActions';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
@@ -281,6 +282,7 @@ const AddReceiptScreen = () => {
   const saveToJob = async () => {
     if (saving) return;
     if (manual || !receiptId) {
+      if (offlineActionBlocked()) return;
       if (!lines.length) {
         toastError(new Error('no_lines'), 'Add at least one line first.');
         return;

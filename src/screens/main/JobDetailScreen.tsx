@@ -66,7 +66,7 @@ import {
 } from '@/services/jobs';
 import { enqueueAction, flushOutbox, queueFinish } from '@/services/outbox';
 import { loadJobCache, saveJobCache } from '@/services/jobCache';
-import { enqueue } from '@/offline';
+import { enqueue, offlineActionBlocked } from '@/offline';
 import {
   addMaterial as addMaterialOffline,
   editMaterial as editMaterialOffline,
@@ -348,6 +348,7 @@ const JobDetailScreen = () => {
     goBackAfter = false,
   ) => {
     if (!detail || acting) return;
+    if (offlineActionBlocked()) return;
     setActing(true);
     const atIso = new Date().toISOString();
     try {
@@ -395,6 +396,7 @@ const JobDetailScreen = () => {
   // action is queued with its timestamp and replayed on reconnect (mds §1).
   const lifecycle = async (action: 'pause' | 'resume', label: string) => {
     if (!detail || acting) return;
+    if (offlineActionBlocked()) return;
     setActing(true);
     const atIso = new Date().toISOString();
     try {
@@ -464,6 +466,7 @@ const JobDetailScreen = () => {
   // finish_job; the backend turns it into a Quote record (mds start §6 / §1).
   const submitQuote = async () => {
     if (!detail || acting) return;
+    if (offlineActionBlocked()) return;
     setActing(true);
     const atIso = new Date().toISOString();
     try {
@@ -604,6 +607,7 @@ const JobDetailScreen = () => {
 
   const saveMaterial = async () => {
     if (!detail || !itemName.trim() || !matSheet || saving) return;
+    if (offlineActionBlocked()) return;
     setSaving(true);
     const qty = Math.max(1, parseFloat(itemQty.replace(',', '.')) || 1);
     const cost = parseFloat(itemCost.replace(',', '.')) || 0;
@@ -660,6 +664,7 @@ const JobDetailScreen = () => {
 
   const removeMaterial = async () => {
     if (!detail || matSheet === 'new' || !matSheet || saving) return;
+    if (offlineActionBlocked()) return;
     setSaving(true);
     const removedId = matSheet;
     try {
