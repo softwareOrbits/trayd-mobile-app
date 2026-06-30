@@ -63,7 +63,7 @@ import {
   diffLabelFor,
   fmtHoursMin,
 } from '@/components/wrapUp/helpers';
-import type { JobDetail, MainStackParamList } from '@/types';
+import type { JobDetail, JobTabKey, MainStackParamList } from '@/types';
 
 const TOTAL = WRAP_UP_TOTAL;
 
@@ -74,6 +74,17 @@ const WrapUpJobScreen = () => {
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const { params } = useRoute<RouteProp<MainStackParamList, 'WrapUpJob'>>();
   const dispatch = useAppDispatch();
+
+  const resetToJobsTab = useCallback(
+    (initialTab: JobTabKey) =>
+      navigation.reset({
+        index: 0,
+        routes: [
+          { name: 'Tabs', params: { screen: 'Jobs', params: { initialTab } } },
+        ],
+      }),
+    [navigation],
+  );
 
   const [step, setStep] = useState(1);
   const [result, setResult] = useState<'success' | 'offline' | null>(null);
@@ -178,7 +189,10 @@ const WrapUpJobScreen = () => {
     ) => {
       setDetail(d);
       setNotes(jobNotes);
-      if (d.jobType === 'standard' || d.jobType === 'multi_day') {
+      if (
+        (d.jobType === 'standard' || d.jobType === 'multi_day') &&
+        d.status === 'active'
+      ) {
         setPhase('decision');
       }
       setSegments(segs);
@@ -640,7 +654,7 @@ const WrapUpJobScreen = () => {
       await pauseJob(params.jobId, atIso);
       dispatch(fetchJobs());
       toastSuccess('Paused — see you tomorrow.');
-      goBackSafe(navigation);
+      resetToJobsTab('resume');
     } catch (e) {
       if (isNetworkError(e)) {
         await enqueueAction({
@@ -657,7 +671,7 @@ const WrapUpJobScreen = () => {
           });
         }
         Toast.show({ type: 'info', text1: 'Saved offline — will sync.' });
-        goBackSafe(navigation);
+        resetToJobsTab('resume');
       } else if (isAccessRevoked(e)) {
         dispatch(signOut());
       } else {
@@ -685,7 +699,7 @@ const WrapUpJobScreen = () => {
       <View style={styles.flex}>
         <JobHeader
           title=""
-          onBack={() => navigation.reset({ index: 0, routes: [{ name: 'Tabs' }] })}
+          onBack={() => resetToJobsTab('done')}
           right={<Text style={styles.resultLogo}>TRAYD</Text>}
         />
 
@@ -736,17 +750,9 @@ const WrapUpJobScreen = () => {
 
         <JobFooter>
           <Button
-            label="Back to chat"
+            label="Back to jobs"
             fullWidth
-            onPress={() =>
-              navigation.reset({
-                index: 1,
-                routes: [
-                  { name: 'Tabs' },
-                  { name: 'JobChat', params: { jobId: params.jobId } },
-                ],
-              })
-            }
+            onPress={() => resetToJobsTab('done')}
           />
           {success ? (
             <Pressable

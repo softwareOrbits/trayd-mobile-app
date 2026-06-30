@@ -3,6 +3,8 @@ import messaging from '@react-native-firebase/messaging';
 import Toast from 'react-native-toast-message';
 
 import { supabase } from './supabase';
+import { store } from '@/store';
+import { fetchUnread } from '@/store/notificationsSlice';
 import { getJwtClaims } from '@/utils/jwt';
 
 async function currentSessionId(): Promise<string | null> {
@@ -75,6 +77,7 @@ export async function registerPush(): Promise<void> {
           upsertToken(token).catch(() => {});
         }),
         messaging().onMessage(msg => {
+          store.dispatch(fetchUnread());
           const n = msg.notification;
           if (!n) return;
           Toast.show({

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -19,6 +19,7 @@ import {
 } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import Toast from 'react-native-toast-message';
 
 import { AppToast, Button, CalendarModal, Input } from '@/components/ui';
 import { AddressAutocomplete } from '@/components/AddressAutocomplete';
@@ -79,7 +80,9 @@ const AddReceiptScreen = () => {
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const { params } = useRoute<RouteProp<MainStackParamList, 'AddReceipt'>>();
 
-  const [phase, setPhase] = useState<'extracting' | 'review'>('extracting');
+  const [phase, setPhase] = useState<'choose' | 'extracting' | 'review'>(
+    'choose',
+  );
   const [manual, setManual] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [receiptId, setReceiptId] = useState<string | null>(null);
@@ -145,19 +148,24 @@ const AddReceiptScreen = () => {
     runExtraction(asset.base64, asset.type);
   };
 
-  // Straight into the camera on open.
-  const launched = useRef(false);
-  useEffect(() => {
-    if (launched.current) return;
-    launched.current = true;
+  const startScan = () => {
     if (!isOnline()) {
       setManual(true);
       setPhase('review');
+      Toast.show({
+        type: 'info',
+        text1: 'Scanning needs a connection',
+        text2: 'Enter the receipt’s items by hand instead.',
+      });
       return;
     }
-    openCamera(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    openCamera(false);
+  };
+
+  const startManual = () => {
+    setManual(true);
+    setPhase('review');
+  };
 
   // ----- totals (recomputed from the editable lines) -----
   const subtotal = lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
@@ -352,6 +360,43 @@ const AddReceiptScreen = () => {
     navigation.goBack();
   };
 
+  if (phase === 'choose') {
+    return (
+      <View style={[styles.flex, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.topBar}>
+          <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
+            <Text style={styles.cancel}>Cancel</Text>
+          </Pressable>
+          <Text style={styles.topTitle}>Add receipt</Text>
+          <View style={styles.cancelSpacer} />
+        </View>
+        <View style={[styles.flex, styles.centered]}>
+          <Ionicons name="receipt-outline" size={44} color={colors.textMuted} />
+          <Text style={styles.chooseTitle}>Add a receipt</Text>
+          <Text style={styles.chooseText}>
+            Snap it and we’ll pull out the items, or enter them by hand.
+          </Text>
+        </View>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
+          <Button
+            label="Scan receipt"
+            leftIcon="camera"
+            fullWidth
+            onPress={startScan}
+          />
+          <Button
+            label="Input manually"
+            variant="outlined"
+            color="secondary"
+            fullWidth
+            onPress={startManual}
+          />
+        </View>
+        <AppToast />
+      </View>
+    );
+  }
+
   if (phase === 'extracting') {
     return (
       <View style={[styles.flex, styles.centered]}>
@@ -381,7 +426,7 @@ const AddReceiptScreen = () => {
       >
         <Text style={styles.subtitle}>
           {manual
-            ? 'You’re offline — enter the receipt’s items by hand. They sync when you reconnect.'
+            ? 'Enter the receipt’s items by hand — add a line for each one.'
             : 'OCR pre-filled most fields. Tap to correct anything.'}
         </Text>
 
@@ -394,9 +439,7 @@ const AddReceiptScreen = () => {
           )}
           <View style={styles.autoBody}>
             <Text style={styles.autoLabel}>
-              {manual
-                ? 'MANUAL ENTRY · OFFLINE'
-                : 'AUTO-EXTRACTED · CHECK BEFORE SAVING'}
+              {manual ? 'MANUAL ENTRY' : 'AUTO-EXTRACTED · CHECK BEFORE SAVING'}
             </Text>
             <Text style={styles.autoVendor} numberOfLines={1}>
               {vendor || 'Unknown vendor'}
@@ -497,7 +540,7 @@ const AddReceiptScreen = () => {
           <Text style={styles.headsUpLabel}>HEADS-UP</Text>
           <Text style={styles.headsUpText}>
             {manual
-              ? 'Offline — add each line you need; they save to the job as materials and sync when you’re back online.'
+              ? 'Add each line you need — they save to the job as materials (and sync later if you’re offline).'
               : extracted?.issues
               ? extracted.issues
               : 'If OCR misses lines entirely, you can add them manually — the job is never blocked by an OCR failure.'}

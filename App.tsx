@@ -21,6 +21,7 @@ import { ThemeProvider } from '@/theme';
 import { LoadingScreen, OfflineBanner, SyncReminderBanner } from '@/components/ui';
 import { SyncProvider, useOnline } from '@/offline';
 import { warmCaches } from '@/offline/prefetch';
+import { fetchUnread, setUnread } from '@/store/notificationsSlice';
 import { registerPush } from '@/services/push';
 import AppNavigator from '@/navigation/AppNavigator';
 
@@ -40,6 +41,7 @@ function Bootstrap() {
       if (event === 'SIGNED_OUT') {
         clearMemberCache();
         dispatch(logout());
+        dispatch(setUnread(0));
       }
     });
     return () => {
@@ -52,8 +54,9 @@ function Bootstrap() {
     if (isLoggedIn) {
       warmCaches();
       registerPush();
+      dispatch(fetchUnread());
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, dispatch]);
 
   if (!ready) {
     return (

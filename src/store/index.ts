@@ -13,11 +13,13 @@ import {
 import authReducer from './authSlice';
 import jobsReducer from './jobsSlice';
 import pendingJobsReducer from './pendingJobsSlice';
+import notificationsReducer from './notificationsSlice';
 
 const rootReducer = combineReducers({
   auth: authReducer,
   jobs: jobsReducer,
   pendingJobs: pendingJobsReducer,
+  notifications: notificationsReducer,
 });
 
 const persistConfig = {
