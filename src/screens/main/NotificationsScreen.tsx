@@ -16,6 +16,8 @@ import {
   markAllNotificationsRead,
   type NotificationItem,
 } from '@/services/notifications';
+import { useAppDispatch } from '@/store/hooks';
+import { setUnread } from '@/store/notificationsSlice';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeNotificationsStyles } from '@/styles/notifications.styles';
@@ -52,6 +54,7 @@ const NotificationsScreen = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeNotificationsStyles);
   const insets = useSafeAreaInsets();
+  const dispatch = useAppDispatch();
 
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,8 +64,11 @@ const NotificationsScreen = () => {
 
   const load = useCallback(async () => {
     const result = await listNotifications().catch(() => null);
-    if (result) setItems(result.items);
-  }, []);
+    if (result) {
+      setItems(result.items);
+      dispatch(setUnread(result.unread));
+    }
+  }, [dispatch]);
 
   useFocusEffect(
     useCallback(() => {
@@ -83,6 +89,7 @@ const NotificationsScreen = () => {
   const onMarkAllRead = () => {
     if (!unread) return;
     setItems(prev => prev.map(i => ({ ...i, read: true })));
+    dispatch(setUnread(0));
     markAllNotificationsRead().catch(() => {});
   };
 

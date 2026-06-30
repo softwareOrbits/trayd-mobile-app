@@ -98,6 +98,7 @@ import {
   JOB_TYPE_LABEL,
   type JobDetail,
   type JobStatus,
+  type JobTabKey,
   type MainStackParamList,
 } from '@/types';
 import { makeJobDetailStyles } from '@/styles/jobDetail.styles';
@@ -117,6 +118,17 @@ const JobDetailScreen = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const { params } = useRoute<RouteProp<MainStackParamList, 'JobDetail'>>();
+
+  const resetToJobsTab = useCallback(
+    (initialTab: JobTabKey) =>
+      navigation.reset({
+        index: 0,
+        routes: [
+          { name: 'Tabs', params: { screen: 'Jobs', params: { initialTab } } },
+        ],
+      }),
+    [navigation],
+  );
 
   const dispatch = useAppDispatch();
   const cachedJob = useAppSelector(s =>
@@ -404,6 +416,10 @@ const JobDetailScreen = () => {
       else await resumeJob(detail.id, atIso);
       dispatch(fetchJobs());
       toastSuccess(label);
+      if (action === 'pause') {
+        resetToJobsTab('resume');
+        return;
+      }
       setDetail(await fetchJobDetail(detail.id));
       loadSession(detail.id);
     } catch (e) {
@@ -448,6 +464,10 @@ const JobDetailScreen = () => {
         dispatch(setPendingJobStatus({ id: detail.id, status: nextStatus }));
         dispatch(patchJobStatus({ id: detail.id, status: nextStatus }));
         Toast.show({ type: 'info', text1: 'Saved offline — will sync.' });
+        if (action === 'pause') {
+          resetToJobsTab('resume');
+          return;
+        }
       } else if (isAccessRevoked(e)) {
         dispatch(signOut());
       } else {

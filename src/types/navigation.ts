@@ -11,14 +11,17 @@ export type AuthStackParamList = {
   OnboardDone: undefined;
 };
 
+import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { JobTabKey } from './jobs';
+
 export type MainTabParamList = {
-  Jobs: undefined;
+  Jobs: { initialTab?: JobTabKey } | undefined;
   Notifications: undefined;
   Profile: undefined;
 };
 
 export type MainStackParamList = {
-  Tabs: undefined;
+  Tabs: NavigatorScreenParams<MainTabParamList> | undefined;
   JobDetail: { jobId: string };
   JobChat: { jobId: string };
   StartJob: undefined;

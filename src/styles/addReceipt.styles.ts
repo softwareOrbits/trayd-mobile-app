@@ -228,6 +228,18 @@ export const makeAddReceiptStyles = (theme: Theme) =>
       borderTopWidth: 0.5,
       borderTopColor: theme.colors.borderMuted,
     },
+    chooseTitle: {
+      fontSize: theme.typography.size.lg,
+      fontFamily: theme.fonts.bold,
+      color: theme.colors.text,
+    },
+    chooseText: {
+      fontSize: theme.typography.size.sm,
+      color: theme.colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 20,
+      paddingHorizontal: 32,
+    },
     discardBtn: { alignSelf: 'center', paddingVertical: 4 },
     discardText: {
       fontSize: theme.typography.size.sm,

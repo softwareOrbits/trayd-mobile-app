@@ -3,6 +3,7 @@ import {
   type BottomTabBarProps,
 } from '@react-navigation/bottom-tabs';
 import { BottomNav } from '@/components/ui';
+import { useAppSelector } from '@/store/hooks';
 import type { MainTabParamList, NavItem } from '@/types';
 import JobsScreen from '@/screens/main/JobsScreen';
 import NotificationsScreen from '@/screens/main/NotificationsScreen';
@@ -23,12 +24,13 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const TabBar = ({ state, navigation }: BottomTabBarProps) => {
   const activeKey = state.routes[state.index].name;
+  const unread = useAppSelector(s => s.notifications.unread);
   const items: NavItem[] = TABS.map(({ key, label, icon, activeIcon, badge }) => ({
     key,
     label,
     icon,
     activeIcon,
-    badge,
+    badge: key === 'Notifications' ? unread : badge,
   }));
 
   return (

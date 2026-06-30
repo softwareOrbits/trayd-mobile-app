@@ -9,7 +9,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-worklets';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
@@ -41,6 +41,7 @@ import {
   type JobTabItem,
   type JobTabKey,
   type MainStackParamList,
+  type MainTabParamList,
 } from '@/types';
 import { makeJobsStyles } from '@/styles/jobs.styles';
 import {
@@ -60,6 +61,7 @@ const JobsScreen = () => {
   const insets = useSafeAreaInsets();
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
+  const route = useRoute<RouteProp<MainTabParamList, 'Jobs'>>();
   const dispatch = useAppDispatch();
   const serverItems = useAppSelector(state => state.jobs.items);
   const pendingItems = useAppSelector(state => state.pendingJobs.items);
@@ -76,8 +78,14 @@ const JobsScreen = () => {
   const user = useAppSelector(state => state.auth.user);
   const { pending, flushNow } = useSync();
   const online = useOnline();
-  const [activeTab, setActiveTab] = useState<JobTabKey>('today');
+  const [activeTab, setActiveTab] = useState<JobTabKey>(
+    route.params?.initialTab ?? 'today',
+  );
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (route.params?.initialTab) setActiveTab(route.params.initialTab);
+  }, [route.params?.initialTab]);
 
   // Real per-job clock from job_time_entries segments: closed hours are frozen,
   // the open segment (active jobs only) keeps ticking. Paused jobs have no open
