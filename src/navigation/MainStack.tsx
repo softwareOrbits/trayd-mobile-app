@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { MainStackParamList } from '@/types';
+import { useAppSelector } from '@/store/hooks';
 import MainTabs from './MainTabs';
 import ChatScreen from '@/screens/main/ChatScreen';
 import JobDetailScreen from '@/screens/main/JobDetailScreen';
@@ -12,10 +13,13 @@ import ChangePasswordScreen from '@/screens/main/ChangePasswordScreen';
 import WorkingHoursScreen from '@/screens/main/WorkingHoursScreen';
 import ServiceAreaScreen from '@/screens/main/ServiceAreaScreen';
 import StartJobScreen from '@/screens/startJob/StartJobScreen';
+import ViewChooserScreen from '@/screens/main/ViewChooserScreen';
+import EmployerWebViewScreen from '@/screens/main/EmployerWebViewScreen';
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
 
-const MainStack = () => (
+/** The existing native field app (crew experience) — unchanged. */
+const FieldStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="Tabs" component={MainTabs} />
     <Stack.Screen name="JobDetail" component={JobDetailScreen} />
@@ -67,5 +71,19 @@ const MainStack = () => (
     />
   </Stack.Navigator>
 );
+
+/**
+ * Post-login gate. Owners pick their experience each session; everyone else
+ * (employees) drops straight into the field app exactly as before — the chooser
+ * and employer WebView are never reached for non-owners.
+ */
+const MainStack = () => {
+  const selectedView = useAppSelector(s => s.auth.selectedView);
+  const isOwner = useAppSelector(s => s.auth.isOwner);
+
+  if (isOwner && selectedView === null) return <ViewChooserScreen />;
+  if (isOwner && selectedView === 'employer') return <EmployerWebViewScreen />;
+  return <FieldStack />;
+};
 
 export default MainStack;

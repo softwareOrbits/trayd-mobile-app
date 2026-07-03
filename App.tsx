@@ -17,6 +17,10 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { restoreSession, logout } from '@/store/authSlice';
 import { supabase } from '@/services/supabase';
 import { clearMemberCache } from '@/services/member';
+import {
+  clearWebViewSession,
+  pushSessionToWebView,
+} from '@/webview/webviewRegistry';
 import { ThemeProvider } from '@/theme';
 import { LoadingScreen, OfflineBanner, SyncReminderBanner } from '@/components/ui';
 import { SyncProvider, useOnline } from '@/offline';
@@ -37,11 +41,17 @@ function Bootstrap() {
   useEffect(() => {
     dispatch(restoreSession());
     const timer = setTimeout(() => setReady(true), SPLASH_DURATION);
-    const { data: authSub } = supabase.auth.onAuthStateChange(event => {
+    const { data: authSub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
+        // Wipe the employer WebView's session before it unmounts.
+        clearWebViewSession();
         clearMemberCache();
         dispatch(logout());
         dispatch(setUnread(0));
+      } else if (session && (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN')) {
+        // RN is the sole refresher; keep the open employer WebView in sync so its
+        // (non-auto-refreshing) client never expires. No-op if it isn't mounted.
+        pushSessionToWebView(session);
       }
     });
     return () => {
