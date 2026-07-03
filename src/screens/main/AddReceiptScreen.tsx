@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -186,11 +187,22 @@ const AddReceiptScreen = () => {
     setLPrice('');
     setLineSheet('new');
   };
-  const openEditLine = (l: ReviewLine) => {
-    setLDesc(l.description);
-    setLQty(String(l.quantity));
-    setLPrice(l.unitPrice ? String(l.unitPrice) : '');
-    setLineSheet(l.id);
+
+  const updateLine = (
+    id: string,
+    patch: { description?: string; quantity?: number; unitPrice?: number },
+  ) => {
+    setLines(prev => prev.map(l => (l.id === id ? { ...l, ...patch } : l)));
+    if (!manual && receiptId) {
+      updateReceiptLine(id, patch).catch(() => {});
+    }
+  };
+
+  const removeLineInline = (id: string) => {
+    setLines(prev => prev.filter(l => l.id !== id));
+    if (!manual && receiptId) {
+      deleteReceiptLine(id).catch(() => {});
+    }
   };
 
   const saveLine = async () => {
@@ -427,7 +439,7 @@ const AddReceiptScreen = () => {
         <Text style={styles.subtitle}>
           {manual
             ? 'Enter the receipt’s items by hand — add a line for each one.'
-            : 'OCR pre-filled most fields. Tap to correct anything.'}
+            : 'OCR pre-filled the items — edit any name, quantity or price right here.'}
         </Text>
 
         {/* Auto-extracted header card */}
@@ -499,38 +511,61 @@ const AddReceiptScreen = () => {
         <View style={styles.linesCard}>
           {lines.length ? (
             lines.map((l, i) => (
-              <Pressable
+              <View
                 key={l.id}
                 style={[
                   styles.lineRow,
                   i === lines.length - 1 ? null : styles.lineDivider,
                 ]}
-                onPress={() => openEditLine(l)}
               >
-                <View style={styles.lineMain}>
-                  <Text style={styles.lineDesc}>
-                    {l.description}
-                    {l.quantity > 1 ? ` × ${l.quantity}` : ''}
-                  </Text>
-                  {l.confidence === 'low' ? (
-                    <Text style={styles.lineLow}>
-                      LOW CONFIDENCE — TAP TO CHECK
-                    </Text>
-                  ) : null}
-                </View>
-                <Text style={styles.lineAmount}>
-                  {fmtMoney(l.quantity * l.unitPrice)}
-                </Text>
-                <Ionicons
-                  name="chevron-forward"
-                  size={15}
-                  color={colors.placeholder}
+                <TextInput
+                  defaultValue={l.description}
+                  placeholder="Item name"
+                  placeholderTextColor={colors.placeholder}
+                  onEndEditing={e =>
+                    updateLine(l.id, { description: e.nativeEvent.text })
+                  }
+                  style={styles.lineNameInput}
                 />
-              </Pressable>
+                <TextInput
+                  defaultValue={String(l.quantity)}
+                  keyboardType="numeric"
+                  textAlign="center"
+                  onEndEditing={e =>
+                    updateLine(l.id, {
+                      quantity: Math.max(1, parseMoney(e.nativeEvent.text) || 1),
+                    })
+                  }
+                  style={styles.lineQtyInput}
+                />
+                <View style={styles.linePriceWrap}>
+                  <Text style={styles.linePriceEuro}>€</Text>
+                  <TextInput
+                    defaultValue={l.unitPrice ? String(l.unitPrice) : ''}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                    placeholderTextColor={colors.placeholder}
+                    textAlign="right"
+                    onEndEditing={e =>
+                      updateLine(l.id, {
+                        unitPrice: parseMoney(e.nativeEvent.text),
+                      })
+                    }
+                    style={styles.linePriceInput}
+                  />
+                </View>
+                <Pressable onPress={() => removeLineInline(l.id)} hitSlop={8}>
+                  <Ionicons
+                    name="close-circle"
+                    size={18}
+                    color={colors.placeholder}
+                  />
+                </Pressable>
+              </View>
             ))
           ) : (
             <Text style={styles.emptyLines}>
-              No lines — tap “+ Add line” to enter them manually.
+              No lines — tap “+ Add line” to enter them.
             </Text>
           )}
         </View>

@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  BackHandler,
+  Pressable,
+  Text,
+  View,
+} from 'react-native';
 import {
   useNavigation,
   useRoute,
@@ -115,6 +121,15 @@ const WrapUpJobScreen = () => {
   const [itemQty, setItemQty] = useState('1');
   const [itemCost, setItemCost] = useState('');
   const [savingItem, setSavingItem] = useState(false);
+
+  useEffect(() => {
+    if (!result) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      resetToJobsTab('done');
+      return true;
+    });
+    return () => sub.remove();
+  }, [result, resetToJobsTab]);
 
   // Step 1 — start & finish times
   const [startDate, setStartDate] = useState<Date | null>(null);
