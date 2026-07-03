@@ -498,7 +498,7 @@ const JobDetailScreen = () => {
       });
       dispatch(fetchJobs());
       toastSuccess('Quote sent for review.');
-      goBackSafe(navigation);
+      resetToJobsTab('done');
     } catch (e) {
       if (isNetworkError(e)) {
         await queueFinish({
@@ -518,7 +518,7 @@ const JobDetailScreen = () => {
           type: 'info',
           text1: 'Saved offline — quote syncs when you reconnect.',
         });
-        goBackSafe(navigation);
+        resetToJobsTab('done');
       } else if (isAccessRevoked(e)) {
         dispatch(signOut());
       } else {
@@ -1057,8 +1057,7 @@ const JobDetailScreen = () => {
   const scopeRows: { label: string; included: boolean }[] = [
     { label: 'Site photos', included: true },
     { label: 'Scope notes', included: true },
-    { label: 'Materials & receipts', included: false },
-    { label: 'Van-stock', included: false },
+    { label: 'Suggested materials', included: true },
   ];
 
   const quoteBody = (
@@ -1088,9 +1087,10 @@ const JobDetailScreen = () => {
       <View style={styles.block}>
         <Callout variant="note" icon="information-circle">
           <Text style={styles.calloutText}>
-            <Text style={styles.calloutStrong}>No materials. </Text>
-            On submit, this becomes a Quote record — your office builds the
-            formal quote from your photos + notes.
+            <Text style={styles.calloutStrong}>Rough materials help. </Text>
+            Add anything you reckon the job needs. On submit this becomes a
+            Quote record — your office builds the formal quote from your photos,
+            notes &amp; materials.
           </Text>
         </Callout>
       </View>
@@ -1104,6 +1104,26 @@ const JobDetailScreen = () => {
           <PhotoStrip photos={photoTags} grouped onDelete={onDeletePhoto} />
         ) : (
           <Text style={styles.emptyText}>No photos yet.</Text>
+        )}
+      </Section>
+      <Section
+        title={materials.length ? `Materials · ${materials.length}` : 'Materials'}
+        action="Add"
+        onAction={openNewMaterial}
+        card={false}
+      >
+        {materials.length ? (
+          materials.map((m, i) => (
+            <Pressable key={m.id} onPress={() => openEditMaterial(m)}>
+              <LineItemRow
+                item={lineItems[i]}
+                last={i === materials.length - 1}
+                editable
+              />
+            </Pressable>
+          ))
+        ) : (
+          <Text style={styles.emptyText}>No materials added yet.</Text>
         )}
       </Section>
       <Section

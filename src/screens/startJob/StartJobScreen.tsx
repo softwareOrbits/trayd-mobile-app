@@ -55,6 +55,7 @@ import {
   START_JOB_TOTAL,
   PHOTO_UPLOAD_TIMEOUT_MS,
   customerSchema,
+  normalizeEircode,
   type CustomerForm,
 } from '@/components/startJob/helpers';
 import type {
@@ -197,7 +198,7 @@ const StartJobScreen = () => {
       phone: data.phone,
       email: data.email || null,
       address: data.address,
-      eircode: data.eircode,
+      eircode: normalizeEircode(data.eircode),
     });
     setCustomerId(null);
     setMode('list');
