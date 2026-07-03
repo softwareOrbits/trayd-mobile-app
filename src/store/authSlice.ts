@@ -11,6 +11,7 @@ import type {
   AuthState,
   AuthUser,
   LoginRequest,
+  SelectedView,
   SetCredentialsPayload,
 } from '@/types';
 
@@ -24,7 +25,24 @@ const initialState: AuthState = {
   refreshToken: null,
   user: null,
   isLoggedIn: false,
+  isOwner: false,
+  selectedView: null,
 };
+
+/** Read the `trayd_role.is_owner` claim (custom_access_token_hook) from a JWT. */
+const readIsOwner = (accessToken: string): boolean => {
+  const claims = getJwtClaims(accessToken);
+  const role = claims?.trayd_role as { is_owner?: boolean } | undefined;
+  return role?.is_owner === true;
+};
+
+/**
+ * Initial view for a freshly-authenticated session. Owners start with no view
+ * so the chooser is shown; everyone else goes straight to the field app,
+ * exactly as before this feature existed.
+ */
+const initialViewFor = (isOwner: boolean): SelectedView | null =>
+  isOwner ? null : 'field';
 
 export const signInWithPassword = createAsyncThunk<
   SetCredentialsPayload,
@@ -45,10 +63,13 @@ export const signInWithPassword = createAsyncThunk<
     await supabase.auth.signOut();
     return rejectWithValue(ACCOUNT_SUSPENDED);
   }
+  const isOwner = readIsOwner(data.session.access_token);
   return {
     accessToken: data.session.access_token,
     refreshToken: data.session.refresh_token,
     user: { id: data.user?.id, email: data.user?.email ?? undefined },
+    isOwner,
+    selectedView: initialViewFor(isOwner),
   };
 });
 
@@ -59,6 +80,7 @@ export const restoreSession = createAsyncThunk<SetCredentialsPayload | null>(
     if (!data.session) {
       return null;
     }
+    const isOwner = readIsOwner(data.session.access_token);
     return {
       accessToken: data.session.access_token,
       refreshToken: data.session.refresh_token,
@@ -66,6 +88,9 @@ export const restoreSession = createAsyncThunk<SetCredentialsPayload | null>(
         id: data.session.user.id,
         email: data.session.user.email ?? undefined,
       },
+      isOwner,
+      // Cold start: recompute the initial view so owners always see the chooser.
+      selectedView: initialViewFor(isOwner),
     };
   },
 );
@@ -84,6 +109,8 @@ const applyCredentials = (
   state.refreshToken = payload.refreshToken ?? state.refreshToken;
   state.user = payload.user ?? state.user;
   state.isLoggedIn = true;
+  if (payload.isOwner !== undefined) state.isOwner = payload.isOwner;
+  if (payload.selectedView !== undefined) state.selectedView = payload.selectedView;
 };
 
 const clearCredentials = (state: AuthState) => {
@@ -91,6 +118,8 @@ const clearCredentials = (state: AuthState) => {
   state.refreshToken = null;
   state.user = null;
   state.isLoggedIn = false;
+  state.isOwner = false;
+  state.selectedView = null;
 };
 
 const authSlice = createSlice({
@@ -102,6 +131,12 @@ const authSlice = createSlice({
     },
     setUser: (state, action: PayloadAction<AuthUser>) => {
       state.user = action.payload;
+    },
+    setSelectedView: (
+      state,
+      action: PayloadAction<SelectedView | null>,
+    ) => {
+      state.selectedView = action.payload;
     },
     logout: clearCredentials,
   },
@@ -119,5 +154,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { setCredentials, setUser, logout } = authSlice.actions;
+export const { setCredentials, setUser, setSelectedView, logout } =
+  authSlice.actions;
 export default authSlice.reducer;

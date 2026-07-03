@@ -5,6 +5,13 @@ require Pod::Executable.execute_command('node', ['-p',
     {paths: [process.argv[1]]},
   )', __dir__]).strip
 
+# RN 0.85 defaults to a PREBUILT (release) React core, which has Metro dev-server
+# support AND Fabric debug symbols stripped — that breaks Debug builds for this
+# project (link errors: DebugStringConvertible/Sealable; and "No script URL
+# provided" at launch). Build React core from source so Debug gets dev-server +
+# debug symbols. Override with `RCT_USE_PREBUILT_RNCORE=1` for faster release/CI.
+ENV['RCT_USE_PREBUILT_RNCORE'] ||= '0'
+
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
