@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -56,7 +56,6 @@ import {
   pauseJob,
   resumeJob,
   segmentsElapsedHours,
-  updateJobStatus,
   type JobCrewMember,
   type JobDay,
   type JobMaterial,
@@ -66,7 +65,8 @@ import {
 } from '@/services/jobs';
 import { enqueueAction, flushOutbox, queueFinish } from '@/services/outbox';
 import { loadJobCache, saveJobCache } from '@/services/jobCache';
-import { enqueue, offlineActionBlocked } from '@/offline';
+import { offlineActionBlocked } from '@/offline';
+import { CertComplianceBanner, useCertGate } from '@/compliance';
 import {
   addMaterial as addMaterialOffline,
   editMaterial as editMaterialOffline,
@@ -146,6 +146,7 @@ const JobDetailScreen = () => {
   const [offline, setOffline] = useState(false);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
+  const certBlocked = useCertGate();
   const [now, setNow] = useState(() => Date.now());
 
   // Live session subresources (job_materials / job_photos / job_notes /
@@ -353,70 +354,37 @@ const JobDetailScreen = () => {
     return () => sub.remove();
   }, [flushAndRefresh]);
 
-  // Real status transition (Start / Finish / Pause / Resume / Mark complete).
-  const transition = async (
-    next: JobStatus,
-    label: string,
-    goBackAfter = false,
-  ) => {
-    if (!detail || acting) return;
-    if (offlineActionBlocked()) return;
-    setActing(true);
-    const atIso = new Date().toISOString();
-    try {
-      await updateJobStatus(detail.id, next, atIso);
-      dispatch(fetchJobs());
-      toastSuccess(label);
-      if (goBackAfter) {
-        goBackSafe(navigation);
-      } else {
-        const updated = await fetchJobDetail(detail.id);
-        setDetail(updated);
-        saveJobCache(detail.id, { detail: updated });
-      }
-    } catch (e) {
-      if (isNetworkError(e)) {
-        await enqueue({
-          id: `${detail.id}:status:${next}:${Date.now()}`,
-          kind: 'job.status',
-          payload: { jobId: detail.id, status: next, atIso },
-        });
-        const optimistic: JobDetail = {
-          ...detail,
-          status: next,
-          startedAt:
-            next === 'active' && !detail.startedAt ? atIso : detail.startedAt,
-        };
-        dispatch(patchJobStatus({ id: detail.id, status: next }));
-        dispatch(setPendingJobStatus({ id: detail.id, status: next }));
-        saveJobCache(detail.id, { detail: optimistic });
-        Toast.show({ type: 'info', text1: 'Saved offline — will sync.' });
-        if (goBackAfter) {
-          goBackSafe(navigation);
-        } else {
-          setDetail(optimistic);
-        }
-      } else {
-        toastError(e, 'Could not update job.');
-      }
-    } finally {
-      setActing(false);
-    }
-  };
 
   // Pause / Resume via the lifecycle RPCs (segment-based clock). Offline, the
   // action is queued with its timestamp and replayed on reconnect (mds §1).
   const lifecycle = async (action: 'pause' | 'resume', label: string) => {
     if (!detail || acting) return;
+    if (action === 'resume' && certBlocked()) return;
     if (offlineActionBlocked()) return;
     setActing(true);
     const atIso = new Date().toISOString();
+
+    // Last one on the clock ⇒ the job itself is down, so use the crew-level RPC:
+    // only `pause_job` sets jobs.status = 'paused', which is what the Resume tab
+    // reads. If mates are still working, this is just my own break.
+    const crewStillWorking = segments.some(
+      s => s.finishTime == null && s.memberId !== myMemberId,
+    );
+    const crewLevel =
+      action === 'pause' ? !crewStillWorking : detail.status === 'paused';
+
     try {
-      if (action === 'pause') await pauseJob(detail.id, atIso);
-      else await resumeJob(detail.id, atIso);
+      if (action === 'pause') await pauseJob(detail.id, atIso, { crew: crewLevel });
+      else await resumeJob(detail.id, atIso, { crew: crewLevel });
+      dispatch(
+        patchJobStatus({
+          id: detail.id,
+          status: action === 'pause' && !crewStillWorking ? 'paused' : 'active',
+        }),
+      );
       dispatch(fetchJobs());
       toastSuccess(label);
-      if (action === 'pause') {
+      if (action === 'pause' && !crewStillWorking) {
         resetToJobsTab('resume');
         return;
       }
@@ -429,11 +397,12 @@ const JobDetailScreen = () => {
           jobId: detail.id,
           kind: action,
           atIso,
+          crew: crewLevel,
         });
         const nextSegments: JobSegment[] =
           action === 'pause'
             ? segments.map(s =>
-                s.finishTime == null
+                s.finishTime == null && s.memberId === myMemberId
                   ? {
                       ...s,
                       finishTime: atIso,
@@ -450,13 +419,17 @@ const JobDetailScreen = () => {
                 {
                   id: uuidv4(),
                   jobDayId: days[days.length - 1]?.id ?? null,
-                  memberId: detail.primaryMemberId ?? '',
+                  memberId: myMemberId ?? detail.primaryMemberId ?? '',
                   startTime: atIso,
                   finishTime: null,
                   hours: null,
                 },
               ];
-        const nextStatus: JobStatus = action === 'pause' ? 'paused' : 'active';
+        const nextStatus: JobStatus = nextSegments.some(
+          s => s.finishTime == null,
+        )
+          ? 'active'
+          : 'paused';
         const nextDetail = { ...detail, status: nextStatus };
         setSegments(nextSegments);
         setDetail(nextDetail);
@@ -464,7 +437,7 @@ const JobDetailScreen = () => {
         dispatch(setPendingJobStatus({ id: detail.id, status: nextStatus }));
         dispatch(patchJobStatus({ id: detail.id, status: nextStatus }));
         Toast.show({ type: 'info', text1: 'Saved offline — will sync.' });
-        if (action === 'pause') {
+        if (action === 'pause' && nextStatus === 'paused') {
           resetToJobsTab('resume');
           return;
         }
@@ -529,16 +502,30 @@ const JobDetailScreen = () => {
     }
   };
 
-  // ----- Timer edit (running segment start time) -----
+  // ----- Timer edit (my segment's start time) -----
+  // Starting a job opens a segment for every crew member, so the first open
+  // segment is often someone else's — editing it is an audited write against
+  // their hours, and leaves my own timer unchanged.
+  //
+  // Paused is editable too: I still have a closed segment whose start time can
+  // be wrong, and the DB trigger recomputes its hours from the new start.
   const pad2 = (n: number) => String(n).padStart(2, '0');
-  const openSegment = segments.find(s => s.finishTime == null) ?? null;
+  const editSegment = useMemo(() => {
+    if (!myMemberId) return null;
+    const mine = segments.filter(s => s.memberId === myMemberId);
+    return (
+      mine.find(s => s.finishTime == null) ??
+      [...mine].sort((a, b) => b.startTime.localeCompare(a.startTime))[0] ??
+      null
+    );
+  }, [segments, myMemberId]);
 
   const openTimeEdit = () => {
-    if (!openSegment) {
-      Toast.show({ type: 'info', text1: 'No running timer to edit.' });
+    if (!editSegment) {
+      Toast.show({ type: 'info', text1: 'You have no time logged to edit.' });
       return;
     }
-    const d = new Date(openSegment.startTime);
+    const d = new Date(editSegment.startTime);
     setTimeHH(pad2(d.getHours()));
     setTimeMM(pad2(d.getMinutes()));
     setTimeReason('');
@@ -562,8 +549,8 @@ const JobDetailScreen = () => {
   };
 
   const saveTimeEdit = async () => {
-    if (!openSegment || savingTime) return;
-    const d = new Date(openSegment.startTime);
+    if (!editSegment || savingTime) return;
+    const d = new Date(editSegment.startTime);
     d.setHours(
       Math.min(23, Math.max(0, parseInt(timeHH, 10) || 0)),
       Math.min(59, Math.max(0, parseInt(timeMM, 10) || 0)),
@@ -574,10 +561,20 @@ const JobDetailScreen = () => {
       Toast.show({ type: 'error', text1: 'Start time is in the future.' });
       return;
     }
+    if (
+      editSegment.finishTime &&
+      d.getTime() >= Date.parse(editSegment.finishTime)
+    ) {
+      Toast.show({
+        type: 'error',
+        text1: 'Start time is after you stopped.',
+      });
+      return;
+    }
     setSavingTime(true);
     try {
       await editSegmentStartTime(
-        openSegment.id,
+        editSegment.id,
         d.toISOString(),
         timeReason.trim() || null,
       );
@@ -886,10 +883,22 @@ const JobDetailScreen = () => {
 
   // Live elapsed from job_time_entries segments (the billing source of truth);
   // fall back to started_at for jobs started before the clock existed.
-  const segElapsed = segmentsElapsedHours(segments, now);
-  const elapsed = segments.length
+  const mySegments = myMemberId
+    ? segments.filter(s => s.memberId === myMemberId)
+    : segments;
+  const iAmWorking = segments.some(
+    s => s.finishTime == null && s.memberId === myMemberId,
+  );
+  const myHasSegments = segments.some(s => s.memberId === myMemberId);
+  const myTimerStatus = iAmWorking
+    ? 'RUNNING'
+    : myHasSegments
+    ? 'PAUSED'
+    : 'NOT STARTED';
+  const segElapsed = segmentsElapsedHours(mySegments, now);
+  const elapsed = myHasSegments
     ? formatElapsed(segElapsed.hours * 3_600_000)
-    : detail.startedAt
+    : segments.length === 0 && detail.startedAt
     ? formatElapsed(now - new Date(detail.startedAt).getTime())
     : '00:00:00';
   // Per-day breakdown from job_days (mds §5.5). The "Day N+1 · Resume today"
@@ -972,13 +981,17 @@ const JobDetailScreen = () => {
 
   // Roster from job_assignments; fall back to the primary assignee.
   const roster: RosterMember[] = crew.length
-    ? crew.map(c => ({
-        name:
-          c.id === detail.primaryMemberId ? `${c.name} (you)` : c.name,
-        confirmed: true,
-      }))
+    ? crew.map(c => {
+        const seg = segments.filter(s => s.memberId === c.id);
+        const working = seg.length ? seg.some(s => s.finishTime == null) : null;
+        return {
+          name: c.id === myMemberId ? `${c.name} (you)` : c.name,
+          confirmed: true,
+          working,
+        };
+      })
     : detail.primaryMemberName
-    ? [{ name: `${detail.primaryMemberName} (you)`, confirmed: true }]
+    ? [{ name: detail.primaryMemberName, confirmed: true }]
     : [];
 
   const lineItems: LineItem[] = materials.map(toLineItem);
@@ -1164,7 +1177,12 @@ const JobDetailScreen = () => {
         onPress={submitQuote}
       />
       <Pressable
-        onPress={() => navigation.goBack()}
+        onPress={() =>
+          state === 'active'
+            ? lifecycle('pause', 'Saved — pick it up under Resume.')
+            : resetToJobsTab('resume')
+        }
+        disabled={acting}
         hitSlop={8}
         style={styles.linkBtn}
       >
@@ -1258,7 +1276,11 @@ const JobDetailScreen = () => {
         return (
           <>
             <View style={styles.block}>
-              <TimerCard time={elapsed} onEdit={openTimeEdit} />
+              <TimerCard
+                time={elapsed}
+                status={myTimerStatus}
+                onEdit={openTimeEdit}
+              />
             </View>
             {scheduleSection}
             {detail.employerNote ? (
@@ -1281,25 +1303,41 @@ const JobDetailScreen = () => {
             {daysSoFar}
             <Section
               title="Logged so far"
-              action={
-                materials.length ? (editingLogs ? 'Done' : 'Edit') : undefined
+              action={materials.length ? (editingLogs ? 'Done' : 'Edit') : 'Add'}
+              onAction={
+                materials.length
+                  ? () => setEditingLogs(v => !v)
+                  : openNewMaterial
               }
-              onAction={() => setEditingLogs(v => !v)}
             >
               {materials.length ? (
-                materials.map((m, i) => {
-                  const it = lineItems[i];
-                  const last = i === materials.length - 1;
-                  return editingLogs ? (
-                    <Pressable key={m.id} onPress={() => openEditMaterial(m)}>
-                      <LineItemRow item={it} last={last} editable />
-                    </Pressable>
-                  ) : (
-                    <LineItemRow key={m.id} item={it} last={last} />
-                  );
-                })
+                <>
+                  {materials.map((m, i) => {
+                    const it = lineItems[i];
+                    const last = i === materials.length - 1;
+                    return editingLogs ? (
+                      <Pressable key={m.id} onPress={() => openEditMaterial(m)}>
+                        <LineItemRow item={it} last={last} editable />
+                      </Pressable>
+                    ) : (
+                      <LineItemRow key={m.id} item={it} last={last} />
+                    );
+                  })}
+                  <Pressable style={styles.addLogRow} onPress={openNewMaterial}>
+                    <Ionicons
+                      name="add-circle-outline"
+                      size={18}
+                      color={colors.primary}
+                    />
+                    <Text style={styles.addLogText}>Add material</Text>
+                  </Pressable>
+                </>
               ) : (
-                <Text style={styles.cardText}>Nothing logged yet.</Text>
+                <Pressable style={styles.emptyLog} onPress={openNewMaterial}>
+                  <Text style={styles.cardText}>
+                    Nothing logged yet — tap to add materials or van stock.
+                  </Text>
+                </Pressable>
               )}
             </Section>
             <Section
@@ -1416,11 +1454,12 @@ const JobDetailScreen = () => {
             leftIcon="play"
             fullWidth
             loading={acting}
-            onPress={() => transition('active', 'Job started.')}
+            onPress={() => lifecycle('resume', 'Job started.')}
           />
         );
       case 'active':
-        return (
+      case 'paused':
+        return iAmWorking ? (
           <View style={styles.footerStack}>
             <Button
               label="Finish job"
@@ -1437,25 +1476,30 @@ const JobDetailScreen = () => {
               onPress={() => lifecycle('pause', 'Paused — see you tomorrow.')}
             />
           </View>
-        );
-      case 'paused':
-        return (
+        ) : (
           <View style={styles.footerStack}>
             <Button
-              label="Resume job"
+              label={myHasSegments ? 'Resume job' : 'Start job'}
               leftIcon="play"
               fullWidth
               loading={acting}
-              onPress={() => lifecycle('resume', 'Job resumed.')}
+              onPress={() =>
+                lifecycle(
+                  'resume',
+                  myHasSegments ? 'Job resumed.' : 'Job started.',
+                )
+              }
             />
-            <Button
-              label="Mark complete"
-              variant="outlined"
-              color="secondary"
-              fullWidth
-              disabled={acting}
-              onPress={goWrapUp}
-            />
+            {myHasSegments ? (
+              <Button
+                label="Mark complete"
+                variant="outlined"
+                color="secondary"
+                fullWidth
+                disabled={acting}
+                onPress={goWrapUp}
+              />
+            ) : null}
           </View>
         );
       case 'awaiting_review':
@@ -1478,6 +1522,7 @@ const JobDetailScreen = () => {
   return (
     <View style={styles.flex}>
       {header}
+      <CertComplianceBanner style={styles.certBanner} />
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.content}

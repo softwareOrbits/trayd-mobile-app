@@ -19,7 +19,7 @@ export type JobStatus =
 
 export type JobType = 'standard' | 'multi_day' | 'quote' | 'callout';
 
-export type JobTabKey = 'today' | 'week' | 'live' | 'resume' | 'done';
+export type JobTabKey = 'scheduled' | 'live' | 'resume' | 'done';
 
 /** Coarse bucket a status falls into, before the date-based tab split. */
 export type JobStatusGroup = 'upcoming' | 'live' | 'paused' | 'done';
@@ -130,10 +130,19 @@ export type JobItemProps = {
   onTimer?: () => void;
 };
 
+/**
+ * My own clock on a job, which is independent of `jobs.status`: the crew can be
+ * active while I'm on a break, and I can be working a job the crew has paused.
+ */
+export type MyJobState = 'working' | 'paused' | 'not_started';
+
 export type LiveJobItemProps = {
   job: Job;
   elapsed: string;
   day: number;
+  myState: MyJobState;
+  /** Crew members with an open segment right now — me included. */
+  onSite: number;
   onPress?: () => void;
   onChat?: () => void;
   onTimer?: () => void;

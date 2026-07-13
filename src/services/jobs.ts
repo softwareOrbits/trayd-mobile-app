@@ -234,7 +234,7 @@ export async function startJob(payload: StartJobPayload): Promise<string> {
     p_gps_eircode: payload.gps?.eircode ?? null,
   };
   if (payload.startedAt) args.p_started_at = payload.startedAt;
-  const { data, error } = await supabase.rpc('start_job', args);
+  const { data, error } = await supabase.rpc('start_job_member', args);
 
   if (error) {
     const m = /^duplicate_customer:([0-9a-f-]{36})/.exec(error.message);
@@ -242,6 +242,77 @@ export async function startJob(payload: StartJobPayload): Promise<string> {
     throw new Error(error.message);
   }
   return data as string;
+}
+
+export type ScheduleJobPayload = {
+  customerId?: string;
+  newCustomer?: StartJobPayload['newCustomer'];
+  jobType?: JobType;
+  memberIds?: string[];
+  gps?: { lat: number; lng: number; eircode?: string } | null;
+  scheduledDate?: string | null;
+  scheduledStartTime?: string | null;
+};
+
+export async function scheduleJob(payload: ScheduleJobPayload): Promise<string> {
+  const me = await getMyMemberRef();
+
+  let customerId = payload.customerId ?? null;
+  if (!customerId) {
+    if (!payload.newCustomer) throw new Error('customer_required');
+    const { data, error } = await supabase
+      .from('customers')
+      .insert({
+        business_id: me.businessId,
+        name: payload.newCustomer.name,
+        phone: payload.newCustomer.phone,
+        email: payload.newCustomer.email || null,
+        address: payload.newCustomer.address,
+        eircode: payload.newCustomer.eircode,
+        created_by: me.id,
+      })
+      .select('id')
+      .single();
+    if (error) throw new Error(error.message);
+    customerId = data.id as string;
+  }
+
+  const jobType = payload.jobType ?? 'standard';
+  const nowIso = new Date().toISOString();
+  const { data: job, error: jobErr } = await supabase
+    .from('jobs')
+    .insert({
+      business_id: me.businessId,
+      customer_id: customerId,
+      job_type: jobType,
+      is_callout: jobType === 'callout',
+      status: 'scheduled',
+      started_at: null,
+      scheduled_date: payload.scheduledDate ?? null,
+      scheduled_start_time: payload.scheduledStartTime ?? null,
+      gps_lat: payload.gps?.lat ?? null,
+      gps_lng: payload.gps?.lng ?? null,
+      gps_eircode: payload.gps?.eircode ?? null,
+      gps_pin_timestamp: payload.gps?.lat != null ? nowIso : null,
+      created_by: me.id,
+    })
+    .select('id')
+    .single();
+  if (jobErr) throw new Error(jobErr.message);
+  const jobId = job.id as string;
+
+  const memberIds = payload.memberIds?.length ? payload.memberIds : [me.id];
+  const { error: asgErr } = await supabase.from('job_assignments').insert(
+    memberIds.map(business_member_id => ({
+      job_id: jobId,
+      business_id: me.businessId,
+      business_member_id,
+      source: 'walk_up_roster',
+    })),
+  );
+  if (asgErr) throw new Error(asgErr.message);
+
+  return jobId;
 }
 
 const JOB_PHOTO_BUCKET = 'job-photos';
@@ -869,19 +940,40 @@ export function isAccessRevoked(e: unknown): boolean {
 
 const lifecycleError = (msg: string) => new Error(humaniseLifecycle(msg));
 
-export async function pauseJob(jobId: string, atIso?: string): Promise<void> {
-  const { error } = await supabase.rpc('pause_job', {
+/**
+ * Two flavours of pause, and the difference decides which tab the job lands in:
+ *
+ * - `crew: false` (default) — `pause_member`. Closes only my segment; the crew
+ *   keeps working and `jobs.status` stays `active`. This is a personal break.
+ * - `crew: true` — `pause_job`. Closes every open segment AND sets
+ *   `jobs.status = 'paused'`, which is the only thing that puts the job under
+ *   the Resume tab. This is "End day / Continue tomorrow" (mds lifecycle §1).
+ */
+export async function pauseJob(
+  jobId: string,
+  atIso?: string,
+  opts?: { crew?: boolean },
+): Promise<void> {
+  const { error } = await supabase.rpc(opts?.crew ? 'pause_job' : 'pause_member', {
     p_job_id: jobId,
     p_at: atIso ?? null,
   });
   if (error) throw lifecycleError(error.message);
 }
 
-export async function resumeJob(jobId: string, atIso?: string): Promise<void> {
-  const { error } = await supabase.rpc('resume_job', {
-    p_job_id: jobId,
-    p_at: atIso ?? null,
-  });
+/**
+ * Mirror of the above: a crew-paused job (`status = 'paused'`) must come back
+ * through `resume_job` to clear that status, otherwise it stays stuck in Resume.
+ */
+export async function resumeJob(
+  jobId: string,
+  atIso?: string,
+  opts?: { crew?: boolean },
+): Promise<void> {
+  const { error } = await supabase.rpc(
+    opts?.crew ? 'resume_job' : 'resume_member',
+    { p_job_id: jobId, p_at: atIso ?? null },
+  );
   if (error) throw lifecycleError(error.message);
 }
 

@@ -8,14 +8,17 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import {
   listNotifications,
   markAllNotificationsRead,
+  markNotificationRead,
   type NotificationItem,
 } from '@/services/notifications';
+import type { MainStackParamList } from '@/types';
 import { useAppDispatch } from '@/store/hooks';
 import { setUnread } from '@/store/notificationsSlice';
 import { useTheme } from '@/theme';
@@ -55,6 +58,8 @@ const NotificationsScreen = () => {
   const styles = useThemedStyles(makeNotificationsStyles);
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<MainStackParamList>>();
 
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,8 +98,22 @@ const NotificationsScreen = () => {
     markAllNotificationsRead().catch(() => {});
   };
 
+  const onPressItem = (item: NotificationItem) => {
+    if (!item.read) {
+      setItems(prev =>
+        prev.map(i => (i.id === item.id ? { ...i, read: true } : i)),
+      );
+      dispatch(setUnread(Math.max(0, unread - 1)));
+      markNotificationRead(item.id).catch(() => {});
+    }
+    if (item.jobId) navigation.navigate('JobDetail', { jobId: item.jobId });
+  };
+
   const renderItem = ({ item }: { item: NotificationItem }) => (
-    <View style={[styles.card, !item.read && styles.cardUnread]}>
+    <Pressable
+      style={[styles.card, !item.read && styles.cardUnread]}
+      onPress={() => onPressItem(item)}
+    >
       <View style={[styles.iconWrap, !item.read && styles.iconWrapUnread]}>
         <Ionicons
           name={iconFor(item)}
@@ -119,7 +138,15 @@ const NotificationsScreen = () => {
         ) : null}
         <Text style={styles.itemTime}>{fmtAgo(item.createdAt)}</Text>
       </View>
-    </View>
+      {item.jobId ? (
+        <Ionicons
+          name="chevron-forward"
+          size={16}
+          color={colors.placeholder}
+          style={styles.chevron}
+        />
+      ) : null}
+    </Pressable>
   );
 
   return (

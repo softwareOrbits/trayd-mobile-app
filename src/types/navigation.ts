@@ -13,9 +13,15 @@ export type AuthStackParamList = {
 
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { JobTabKey } from './jobs';
+import type { LeaveRequest, LeaveType } from './leave';
+import type { MemberCertification } from '@/services/certifications';
 
 export type MainTabParamList = {
+  Home: undefined;
+  Calendar: undefined;
   Jobs: { initialTab?: JobTabKey } | undefined;
+  Leave: undefined;
+  Fleet: undefined;
   Notifications: undefined;
   Profile: undefined;
 };
@@ -33,4 +39,10 @@ export type MainStackParamList = {
   ChangePassword: undefined;
   WorkingHours: undefined;
   ServiceArea: undefined;
+  NewLeaveRequest: { type?: LeaveType } | undefined;
+  LeaveRequestDetail: { request: LeaveRequest };
+  Timesheet: undefined;
+  Certifications: undefined;
+  CertificationDetail: { cert: MemberCertification; holder: string };
+  AddCertification: undefined;
 };

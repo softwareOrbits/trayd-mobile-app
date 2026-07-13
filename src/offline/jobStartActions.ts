@@ -1,4 +1,5 @@
 import { saveJobCache } from '@/services/jobCache';
+import { getMyMemberRef } from '@/services/member';
 import type {
   JobCrewMember,
   JobDay,
@@ -35,6 +36,7 @@ export async function queueOfflineJob(
   const tempJobId = uuidv4();
   const now = new Date().toISOString();
   const stamp = Date.now();
+  const me = await getMyMemberRef().catch(() => null);
 
   await enqueue({
     id: `job:start:${tempJobId}`,
@@ -158,7 +160,7 @@ export async function queueOfflineJob(
   const segment: JobSegment = {
     id: uuidv4(),
     jobDayId: dayId,
-    memberId: input.primaryMemberId ?? '',
+    memberId: me?.id ?? input.primaryMemberId ?? '',
     startTime: now,
     finishTime: null,
     hours: null,

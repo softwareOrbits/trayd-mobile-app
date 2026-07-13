@@ -9,6 +9,7 @@ export type NavItem = {
     icon: IconName;
     activeIcon?: IconName;
     badge?: number;
+    raised?: boolean;
 };
 export type BottomNavProps = {
     items: NavItem[];

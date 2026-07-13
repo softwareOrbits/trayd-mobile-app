@@ -1,14 +1,11 @@
-import {
-  PermissionsAndroid,
-  Platform,
-  Text,
-  View,
-} from 'react-native';
+import { useState } from 'react';
+import { Text, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { Button, TextLink } from '@/components/ui';
+import { requestLocationPermission } from '@/utils/location';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeOnboardingLocationStyles } from '@/styles/onboardingLocation.styles';
@@ -20,19 +17,18 @@ const LocationScreen = () => {
   const styles = useThemedStyles(makeOnboardingLocationStyles);
   const navigation =
     useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
+  const [asking, setAsking] = useState(false);
   const next = () => navigation.navigate('OnboardPhoto');
 
   const requestLocation = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        );
-      } catch {
-        // Continue onboarding regardless of the user's choice.
-      }
+    if (asking) return;
+    setAsking(true);
+    try {
+      await requestLocationPermission();
+    } finally {
+      setAsking(false);
+      next();
     }
-    next();
   };
 
   return (
@@ -53,7 +49,12 @@ const LocationScreen = () => {
       }
       footer={
         <>
-          <Button label="Allow location" fullWidth onPress={requestLocation} />
+          <Button
+            label="Allow location"
+            fullWidth
+            loading={asking}
+            onPress={requestLocation}
+          />
           <TextLink label="Maybe later" onPress={next} />
         </>
       }

@@ -8,10 +8,20 @@ import LiveStateBadge from './LiveStateBadge';
 import TimerPill from './TimerPill';
 import JobTypeTag from './JobTypeTag';
 
+/** Who's on the clock, in words — a bare count made you do the arithmetic. */
+const crewLabel = (onSite: number, myWorking: boolean) => {
+  const others = onSite - (myWorking ? 1 : 0);
+  if (others > 0) return 'crew working';
+  if (myWorking) return 'just you';
+  return 'nobody on site';
+};
+
 export const LiveJobItem = ({
   job,
   elapsed,
   day,
+  myState,
+  onSite,
   onPress,
   onChat,
   onTimer,
@@ -19,6 +29,11 @@ export const LiveJobItem = ({
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const paused = job.status === 'paused';
+  // Two facts, two elements: the badge is the CREW's state (ACTIVE / PAUSED),
+  // the timer pill is MINE. The pill already shows my elapsed time, so it also
+  // carries my status — "Paused · 05:32:11" against an ACTIVE badge is the case
+  // where the lads are still on site but my own clock has stopped.
+  const myWorking = myState === 'working';
 
   return (
     <Pressable style={styles.row} onPress={onPress}>
@@ -46,7 +61,9 @@ export const LiveJobItem = ({
         <View style={styles.metaRow}>
           <LiveStateBadge state={paused ? 'paused' : 'active'} />
           <JobTypeTag type={job.jobType} />
-          <Text style={styles.day}>{`· day ${day}`}</Text>
+          <Text style={styles.day} numberOfLines={1}>
+            {`· day ${day} · ${crewLabel(onSite, myWorking)}`}
+          </Text>
         </View>
 
         <View style={styles.actions}>
@@ -59,7 +76,7 @@ export const LiveJobItem = ({
             onPress={onChat}
             style={styles.chat}
           />
-          <TimerPill time={elapsed} onPress={onTimer} paused={paused} />
+          <TimerPill time={elapsed} onPress={onTimer} paused={!myWorking} />
         </View>
       </View>
     </Pressable>

@@ -5,6 +5,7 @@ import type { Theme } from '@/theme';
 export const makeJobDetailStyles = (theme: Theme) =>
   StyleSheet.create({
     flex: { flex: 1, backgroundColor: theme.colors.background },
+    certBanner: { marginHorizontal: 20, marginTop: 12 },
     dangerBtn: {
       alignSelf: 'stretch',
       alignItems: 'center',
@@ -88,6 +89,18 @@ export const makeJobDetailStyles = (theme: Theme) =>
       fontSize: theme.typography.size.sm,
       color: theme.colors.text,
       lineHeight: 20,
+    },
+    emptyLog: { paddingVertical: 2 },
+    addLogRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingTop: 14,
+    },
+    addLogText: {
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.primary,
     },
     placeholder: {
       marginTop: 18,

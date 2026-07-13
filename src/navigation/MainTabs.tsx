@@ -3,9 +3,12 @@ import {
   type BottomTabBarProps,
 } from '@react-navigation/bottom-tabs';
 import { BottomNav } from '@/components/ui';
-import { useAppSelector } from '@/store/hooks';
 import type { MainTabParamList, NavItem } from '@/types';
+import DashboardScreen from '@/screens/main/DashboardScreen';
+import CalendarScreen from '@/screens/main/CalendarScreen';
 import JobsScreen from '@/screens/main/JobsScreen';
+import LeaveScreen from '@/screens/main/LeaveScreen';
+import FleetScreen from '@/screens/main/FleetScreen';
 import NotificationsScreen from '@/screens/main/NotificationsScreen';
 import ProfileScreen from '@/screens/main/ProfileScreen';
 
@@ -14,23 +17,30 @@ type TabConfig = NavItem & {
   component: React.ComponentType;
 };
 
-const TABS: TabConfig[] = [
-  { name: 'Jobs', key: 'Jobs', label: 'Jobs', icon: 'layers-outline', activeIcon: 'layers', component: JobsScreen },
-  { name: 'Notifications', key: 'Notifications', label: 'Notifications', icon: 'notifications-outline', activeIcon: 'notifications', component: NotificationsScreen },
-  { name: 'Profile', key: 'Profile', label: 'Profile', icon: 'person-outline', activeIcon: 'person', component: ProfileScreen },
+const NAV_TABS: TabConfig[] = [
+  { name: 'Home', key: 'Home', label: 'Home', icon: 'home-outline', activeIcon: 'home', component: DashboardScreen },
+  { name: 'Calendar', key: 'Calendar', label: 'Calendar', icon: 'calendar-outline', activeIcon: 'calendar', component: CalendarScreen },
+  { name: 'Jobs', key: 'Jobs', label: 'Jobs', icon: 'build-outline', activeIcon: 'build', raised: true, component: JobsScreen },
+  { name: 'Leave', key: 'Leave', label: 'Leave', icon: 'sunny-outline', activeIcon: 'sunny', component: LeaveScreen },
+  { name: 'Fleet', key: 'Fleet', label: 'Fleet', icon: 'bus-outline', activeIcon: 'bus', component: FleetScreen },
+];
+
+const HIDDEN_TABS: { name: keyof MainTabParamList; component: React.ComponentType }[] = [
+  { name: 'Notifications', component: NotificationsScreen },
+  { name: 'Profile', component: ProfileScreen },
 ];
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const TabBar = ({ state, navigation }: BottomTabBarProps) => {
   const activeKey = state.routes[state.index].name;
-  const unread = useAppSelector(s => s.notifications.unread);
-  const items: NavItem[] = TABS.map(({ key, label, icon, activeIcon, badge }) => ({
+  const items: NavItem[] = NAV_TABS.map(({ key, label, icon, activeIcon, badge, raised }) => ({
     key,
     label,
     icon,
     activeIcon,
-    badge: key === 'Notifications' ? unread : badge,
+    badge,
+    raised,
   }));
 
   return (
@@ -44,10 +54,14 @@ const TabBar = ({ state, navigation }: BottomTabBarProps) => {
 
 const MainTabs = () => (
   <Tab.Navigator
+    initialRouteName="Home"
     screenOptions={{ headerShown: false }}
     tabBar={props => <TabBar {...props} />}
   >
-    {TABS.map(tab => (
+    {NAV_TABS.map(tab => (
+      <Tab.Screen key={tab.name} name={tab.name} component={tab.component} />
+    ))}
+    {HIDDEN_TABS.map(tab => (
       <Tab.Screen key={tab.name} name={tab.name} component={tab.component} />
     ))}
   </Tab.Navigator>

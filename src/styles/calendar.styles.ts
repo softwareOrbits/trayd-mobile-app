@@ -1,0 +1,192 @@
+import { StyleSheet } from 'react-native';
+import type { Theme } from '@/theme';
+
+export const makeCalendarStyles = (theme: Theme) =>
+  StyleSheet.create({
+    flex: { flex: 1, backgroundColor: theme.colors.background },
+
+    header: {
+      backgroundColor: theme.colors.background,
+      paddingHorizontal: 20,
+      paddingBottom: 12,
+    },
+    eyebrow: {
+      fontSize: 11,
+      letterSpacing: 1.5,
+      fontFamily: theme.fonts.monoBold,
+      color: theme.colors.textMuted,
+    },
+    title: {
+      marginTop: 4,
+      fontSize: theme.typography.size.xxl,
+      fontFamily: theme.fonts.bold,
+      color: theme.colors.text,
+    },
+
+    monthRow: {
+      marginTop: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    monthLabel: {
+      fontSize: 11,
+      letterSpacing: 1.4,
+      fontFamily: theme.fonts.monoBold,
+      color: theme.colors.textMuted,
+    },
+    weekNav: { flexDirection: 'row', gap: 8 },
+    navBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.creamBorder,
+    },
+
+    weekStrip: {
+      marginTop: 14,
+      flexDirection: 'row',
+      gap: 6,
+    },
+    dayCell: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 8,
+      borderRadius: 14,
+      gap: 6,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.creamBorder,
+    },
+    dayCellOn: {
+      backgroundColor: theme.colors.secondary,
+      borderColor: theme.colors.secondary,
+    },
+    dayLetter: {
+      fontSize: 10,
+      letterSpacing: 0.5,
+      fontFamily: theme.fonts.monoBold,
+      color: theme.colors.textMuted,
+    },
+    dayLetterOn: { color: 'rgba(255,255,255,0.6)' },
+    dayNum: {
+      fontSize: 15,
+      fontFamily: theme.fonts.bold,
+      color: theme.colors.text,
+    },
+    dayNumOn: { color: theme.colors.white },
+    dot: {
+      width: 5,
+      height: 5,
+      borderRadius: 2.5,
+      backgroundColor: theme.colors.primary,
+    },
+    dotOn: { backgroundColor: theme.colors.primary },
+    dotEmpty: { backgroundColor: 'transparent' },
+
+    content: { paddingHorizontal: 16, paddingTop: 8 },
+    sectionHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 18,
+      marginBottom: 12,
+    },
+    sectionDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: theme.colors.primary,
+    },
+    sectionLabel: {
+      fontSize: 11,
+      letterSpacing: 1.4,
+      fontFamily: theme.fonts.monoBold,
+      color: theme.colors.textMuted,
+    },
+    sectionCount: {
+      fontSize: 11,
+      fontFamily: theme.fonts.mono,
+      color: theme.colors.textMuted,
+    },
+    card: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.creamBorder,
+      overflow: 'hidden',
+    },
+
+    jobRow: { flexDirection: 'row' },
+    jobAccentBar: { width: 4 },
+    jobRowContent: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+    },
+    jobDivider: { height: 1, backgroundColor: theme.colors.divider },
+    jobTimeCol: { width: 62, alignItems: 'flex-start', gap: 6 },
+    leaveIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: theme.colors.surfaceMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    jobTime: {
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.bold,
+      color: theme.colors.text,
+    },
+    rowBody: { flex: 1 },
+    jobTitle: {
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.text,
+    },
+    rowSub: {
+      marginTop: 2,
+      fontSize: theme.typography.size.xs,
+      fontFamily: theme.fonts.regular,
+      color: theme.colors.textMuted,
+    },
+
+    emptyCard: {
+      marginTop: 18,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.creamBorder,
+      alignItems: 'center',
+      paddingVertical: 40,
+      paddingHorizontal: 20,
+    },
+    emptyTitle: {
+      fontSize: theme.typography.size.lg,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.text,
+    },
+    emptyText: {
+      marginTop: 6,
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.regular,
+      color: theme.colors.textMuted,
+    },
+
+    footer: {
+      marginTop: 20,
+      textAlign: 'center',
+      fontSize: 10,
+      letterSpacing: 1,
+      fontFamily: theme.fonts.monoBold,
+      color: theme.colors.placeholder,
+    },
+  });

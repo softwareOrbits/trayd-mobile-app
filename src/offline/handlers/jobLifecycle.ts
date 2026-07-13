@@ -15,6 +15,8 @@ export type LifecyclePayload = {
   atIso?: string;
   summary?: string | null;
   totalHours?: number | null;
+  /** End-day / Continue tomorrow: replay as the crew-level pause_job. */
+  crew?: boolean;
 };
 
 export type StatusPayload = { jobId: string; status: JobStatus; atIso?: string };
@@ -67,9 +69,17 @@ export const jobLifecycleHandlers: Record<
   Handler
 > = {
   'job.pause': p =>
-    run('pause', () => pauseJob((p as LifecyclePayload).jobId, (p as LifecyclePayload).atIso)),
+    run('pause', () =>
+      pauseJob((p as LifecyclePayload).jobId, (p as LifecyclePayload).atIso, {
+        crew: (p as LifecyclePayload).crew === true,
+      }),
+    ),
   'job.resume': p =>
-    run('resume', () => resumeJob((p as LifecyclePayload).jobId, (p as LifecyclePayload).atIso)),
+    run('resume', () =>
+      resumeJob((p as LifecyclePayload).jobId, (p as LifecyclePayload).atIso, {
+        crew: (p as LifecyclePayload).crew === true,
+      }),
+    ),
   'job.finish': p =>
     run('finish', () =>
       finishJob({

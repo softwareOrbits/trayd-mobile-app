@@ -17,6 +17,8 @@ export type QueuedAction = {
   atIso: string;
   summary?: string | null;
   totalHours?: number | null;
+  /** End-day / Continue tomorrow — replays as the crew-level pause_job. */
+  crew?: boolean;
 };
 
 export function enqueueAction(action: QueuedAction): Promise<void> {
@@ -29,6 +31,7 @@ export function enqueueAction(action: QueuedAction): Promise<void> {
       atIso: action.atIso,
       summary: action.summary ?? null,
       totalHours: action.totalHours ?? null,
+      crew: action.crew === true,
     },
   });
 }
