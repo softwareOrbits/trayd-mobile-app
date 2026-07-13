@@ -15,6 +15,12 @@ import ServiceAreaScreen from '@/screens/main/ServiceAreaScreen';
 import StartJobScreen from '@/screens/startJob/StartJobScreen';
 import ViewChooserScreen from '@/screens/main/ViewChooserScreen';
 import EmployerWebViewScreen from '@/screens/main/EmployerWebViewScreen';
+import NewLeaveRequestScreen from '@/screens/main/NewLeaveRequestScreen';
+import LeaveRequestDetailScreen from '@/screens/main/LeaveRequestDetailScreen';
+import TimesheetScreen from '@/screens/main/TimesheetScreen';
+import CertificationsScreen from '@/screens/main/CertificationsScreen';
+import CertificationDetailScreen from '@/screens/main/CertificationDetailScreen';
+import AddCertificationScreen from '@/screens/main/AddCertificationScreen';
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
 
@@ -69,6 +75,22 @@ const FieldStack = () => (
       component={ServiceAreaScreen}
       options={{ presentation: 'modal' }}
     />
+    <Stack.Screen
+      name="NewLeaveRequest"
+      component={NewLeaveRequestScreen}
+      options={{ presentation: 'modal' }}
+    />
+    <Stack.Screen
+      name="LeaveRequestDetail"
+      component={LeaveRequestDetailScreen}
+    />
+    <Stack.Screen name="Timesheet" component={TimesheetScreen} />
+    <Stack.Screen name="Certifications" component={CertificationsScreen} />
+    <Stack.Screen
+      name="CertificationDetail"
+      component={CertificationDetailScreen}
+    />
+    <Stack.Screen name="AddCertification" component={AddCertificationScreen} />
   </Stack.Navigator>
 );
 

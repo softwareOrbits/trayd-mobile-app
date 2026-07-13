@@ -6,14 +6,11 @@ import {
 } from '@/types';
 
 export const EMPTY_LABEL: Record<JobTabKey, string> = {
-  today: 'jobs scheduled today',
-  week: 'jobs scheduled this week',
+  scheduled: 'scheduled jobs',
   live: 'live jobs',
   resume: 'jobs to resume',
   done: 'completed jobs',
 };
-
-export const RANGE = 'This week';
 
 export const groupOf = (job: Job): JobStatusGroup | null =>
   STATUS_GROUP[job.status];

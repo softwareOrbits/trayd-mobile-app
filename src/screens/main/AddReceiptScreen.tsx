@@ -46,7 +46,7 @@ import { addMaterial as addMaterialOffline } from '@/offline/materialActions';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeAddReceiptStyles } from '@/styles/addReceipt.styles';
-import { capturePhoto } from '@/utils/capturePhoto';
+import { acquirePhotos } from '@/utils/capturePhoto';
 import { uuidv4 } from '@/utils/uuid';
 import { toastError, toastSuccess } from '@/utils/toast';
 import type { MainStackParamList } from '@/types';
@@ -139,8 +139,8 @@ const AddReceiptScreen = () => {
     setPhase('review');
   };
 
-  const openCamera = async (closeOnCancel: boolean) => {
-    const asset = await capturePhoto({ quality: 0.8, maxSize: 1600 });
+  const addReceiptPhoto = async (closeOnCancel: boolean) => {
+    const [asset] = await acquirePhotos({ quality: 0.8, maxSize: 1600 });
     if (!asset) {
       if (closeOnCancel) navigation.goBack();
       return;
@@ -160,7 +160,7 @@ const AddReceiptScreen = () => {
       });
       return;
     }
-    openCamera(false);
+    addReceiptPhoto(false);
   };
 
   const startManual = () => {

@@ -6,6 +6,7 @@ export const makeProfileStyles = (theme: Theme) =>
     flex: { flex: 1, backgroundColor: theme.colors.background },
     centered: { alignItems: 'center', justifyContent: 'center' },
     content: { paddingHorizontal: 20, paddingBottom: 16, flexGrow: 1 },
+    certBanner: { marginTop: 16 },
     eyebrow: {
       fontSize: 11,
       fontFamily: theme.fonts.monoBold,
@@ -76,12 +77,14 @@ export const makeProfileStyles = (theme: Theme) =>
     syncBadgeTextQueued: { color: theme.colors.warning },
 
     statsCard: {
-      flexDirection: 'row',
       backgroundColor: theme.colors.secondary,
       borderRadius: theme.radii.lg,
       paddingVertical: 18,
+      paddingHorizontal: 16,
       marginTop: 18,
     },
+    statsRow: { flexDirection: 'row' },
+    statsBtn: { marginTop: 16 },
     statCell: { flex: 1, alignItems: 'center', gap: 4 },
     statDivider: {
       position: 'absolute',
@@ -139,6 +142,8 @@ export const makeProfileStyles = (theme: Theme) =>
       color: theme.colors.text,
     },
     rowMuted: { color: theme.colors.textMuted },
+    rowLabelDanger: { color: theme.colors.error },
+    rowValueDanger: { color: theme.colors.error },
     areaMap: {
       width: '100%',
       height: 120,
@@ -157,6 +162,7 @@ export const makeProfileStyles = (theme: Theme) =>
 
     phoneField: { alignSelf: 'stretch', marginTop: 4 },
     logoutWrap: { marginTop: 28, gap: 10 },
+    dangerDisabled: { opacity: 0.45 },
     logoutHint: {
       fontSize: theme.typography.size.xs,
       color: theme.colors.textMuted,
@@ -206,6 +212,14 @@ export const makeProfileStyles = (theme: Theme) =>
       height: 52,
       borderRadius: 26,
       backgroundColor: theme.colors.surfaceMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    modalIconDanger: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: theme.colors.errorBg,
       alignItems: 'center',
       justifyContent: 'center',
     },

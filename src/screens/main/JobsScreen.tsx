@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -9,12 +9,18 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-worklets';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import {
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { Button } from '@/components/ui';
+import { FloatingActionButton, useBottomNavHeight } from '@/components/ui';
 import {
+  CompletedDateFilter,
   CompletedJobItem,
   JobListItem,
   JobSectionHeader,
@@ -28,6 +34,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { useCollapsibleOnScroll } from '@/utils/useCollapsibleOnScroll';
 import { formatElapsed } from '@/utils/liveMeta';
 import {
   fetchJobSegments,
@@ -35,21 +42,19 @@ import {
   type JobSegment,
 } from '@/services/jobs';
 import { loadJobCache, saveJobCache } from '@/services/jobCache';
-import { fetchActiveRoster } from '@/services/member';
+import { fetchActiveRoster, getMyMemberRef } from '@/services/member';
 import {
   type Job,
   type JobTabItem,
   type JobTabKey,
   type MainStackParamList,
   type MainTabParamList,
+  type MyJobState,
 } from '@/types';
 import { makeJobsStyles } from '@/styles/jobs.styles';
 import {
   EMPTY_LABEL,
-  RANGE,
   groupOf,
-  dateKey,
-  weekBounds,
   buildDateSections,
   liveSections,
   weekdayLabel,
@@ -59,6 +64,7 @@ const JobsScreen = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeJobsStyles);
   const insets = useSafeAreaInsets();
+  const navHeight = useBottomNavHeight();
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const route = useRoute<RouteProp<MainTabParamList, 'Jobs'>>();
@@ -78,10 +84,24 @@ const JobsScreen = () => {
   const user = useAppSelector(state => state.auth.user);
   const { pending, flushNow } = useSync();
   const online = useOnline();
+  const [topTab, setTopTab] = useState<'jobs' | 'tasks'>('jobs');
   const [activeTab, setActiveTab] = useState<JobTabKey>(
-    route.params?.initialTab ?? 'today',
+    route.params?.initialTab ?? 'scheduled',
   );
   const [refreshing, setRefreshing] = useState(false);
+  const [doneFrom, setDoneFrom] = useState<string | null>(null);
+  const [doneTo, setDoneTo] = useState<string | null>(null);
+  const [myMemberId, setMyMemberId] = useState<string | null>(null);
+  const { collapsed, onScroll } = useCollapsibleOnScroll();
+
+  // A time edit changes segments but not the job row, so the segment key below
+  // never moves — refetch on focus so an edit made on the detail screen lands.
+  const [refreshTick, setRefreshTick] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      setRefreshTick(t => t + 1);
+    }, []),
+  );
 
   useEffect(() => {
     if (route.params?.initialTab) setActiveTab(route.params.initialTab);
@@ -100,6 +120,12 @@ const JobsScreen = () => {
     flushNow().catch(() => {});
   }, [dispatch, flushNow]);
 
+  useEffect(() => {
+    getMyMemberRef()
+      .then(r => setMyMemberId(r.id))
+      .catch(() => {});
+  }, []);
+
   const onRefresh = async () => {
     setRefreshing(true);
     flushNow(true).catch(() => {});
@@ -112,29 +138,9 @@ const JobsScreen = () => {
     }
   };
 
-  // Date anchors computed once per mount (a tab switch shouldn't recompute the
-  // week, and the per-second timer tick must not invalidate these filters).
-  const todayKey = useMemo(() => dateKey(new Date()), []);
-  const week = useMemo(() => weekBounds(new Date()), []);
-
   const scheduled = useMemo(
     () => items.filter(j => groupOf(j) === 'upcoming'),
     [items],
-  );
-  const todayJobs = useMemo(
-    () => scheduled.filter(j => j.scheduledDate === todayKey),
-    [scheduled, todayKey],
-  );
-  // This Week: anything scheduled within the current Mon–Sun window (today
-  // included), plus not-yet-dated jobs so they're never hidden.
-  const weekJobs = useMemo(
-    () =>
-      scheduled.filter(
-        j =>
-          !j.scheduledDate ||
-          (j.scheduledDate >= week.start && j.scheduledDate <= week.end),
-      ),
-    [scheduled, week],
   );
   const liveActive = useMemo(
     () => items.filter(j => j.status === 'active'),
@@ -145,6 +151,19 @@ const JobsScreen = () => {
     [items],
   );
   const done = useMemo(() => items.filter(j => groupOf(j) === 'done'), [items]);
+  const doneDates = useMemo(
+    () => done.map(j => j.scheduledDate).filter((d): d is string => d != null),
+    [done],
+  );
+  const doneFiltered = useMemo(() => {
+    if (!doneFrom && !doneTo) return done;
+    const lo = doneFrom && doneTo && doneFrom > doneTo ? doneTo : doneFrom;
+    const hi = doneFrom && doneTo && doneFrom > doneTo ? doneFrom : doneTo;
+    return done.filter(j => {
+      const d = j.scheduledDate;
+      return d != null && (!lo || d >= lo) && (!hi || d <= hi);
+    });
+  }, [done, doneFrom, doneTo]);
 
   // Fetch segments for the jobs shown in the Live tab and fold them into a map.
   const liveIds = useMemo(
@@ -186,7 +205,7 @@ const JobsScreen = () => {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveIdsKey, online]);
+  }, [liveIdsKey, online, refreshTick]);
 
   // Tick once a second only while at least one job is actually active.
   useEffect(() => {
@@ -197,7 +216,9 @@ const JobsScreen = () => {
   }, [liveActive.length]);
 
   const metaFor = (job: Job) => {
-    const segs = segMeta.get(job.id);
+    const all = segMeta.get(job.id);
+    const segs =
+      myMemberId && all ? all.filter(s => s.memberId === myMemberId) : all;
     if (segs?.length) {
       const { hours } = segmentsElapsedHours(segs, now);
       const days = new Set(segs.map(s => s.jobDayId).filter(Boolean)).size;
@@ -213,15 +234,35 @@ const JobsScreen = () => {
     return { elapsed: '00:00:00', day: 1 };
   };
 
+  /** Distinct members with an open segment — who is actually on the clock now. */
+  const onSiteFor = (job: Job): number => {
+    const all = segMeta.get(job.id);
+    if (!all?.length) return job.status === 'paused' ? 0 : 1;
+    return new Set(
+      all.filter(s => s.finishTime == null).map(s => s.memberId),
+    ).size;
+  };
+
+  // My clock on this job, derived from my own segments — not jobs.status, which
+  // describes the crew. I can be paused on a job the crew is still working.
+  const myStateFor = (job: Job): MyJobState => {
+    const all = segMeta.get(job.id);
+    if (!myMemberId || !all?.length) {
+      return job.status === 'paused' ? 'paused' : 'working';
+    }
+    const mine = all.filter(s => s.memberId === myMemberId);
+    if (!mine.length) return 'not_started';
+    return mine.some(s => s.finishTime == null) ? 'working' : 'paused';
+  };
+
   const tabs = useMemo<JobTabItem[]>(
     () => [
-      { key: 'today', label: 'Today', icon: 'today-outline', count: todayJobs.length },
-      { key: 'week', label: 'This Week', icon: 'calendar-outline', count: weekJobs.length },
+      { key: 'scheduled', label: 'Scheduled', icon: 'calendar-outline', count: scheduled.length },
       { key: 'live', label: 'Live', icon: 'play-circle-outline', count: liveActive.length },
       { key: 'resume', label: 'Resume', icon: 'pause-circle-outline', count: livePaused.length },
-      { key: 'done', label: 'Done', icon: 'checkmark-done-outline', count: done.length },
+      { key: 'done', label: 'Done', icon: 'checkmark-done-outline', count: doneFiltered.length },
     ],
-    [todayJobs.length, weekJobs.length, liveActive.length, livePaused.length, done.length],
+    [scheduled.length, liveActive.length, livePaused.length, doneFiltered.length],
   );
 
   const showTimer = activeTab === 'live' || activeTab === 'resume';
@@ -252,20 +293,18 @@ const JobsScreen = () => {
 
   const sections = useMemo(() => {
     switch (activeTab) {
-      case 'today':
-        return buildDateSections(todayJobs);
-      case 'week':
-        return buildDateSections(weekJobs);
+      case 'scheduled':
+        return buildDateSections(scheduled);
       case 'live':
         return liveSections(liveActive, []);
       case 'resume':
         return liveSections([], livePaused);
       case 'done':
-        return buildDateSections(done);
+        return buildDateSections(doneFiltered);
       default:
         return [];
     }
-  }, [activeTab, todayJobs, weekJobs, liveActive, livePaused, done]);
+  }, [activeTab, scheduled, liveActive, livePaused, doneFiltered]);
 
   const openDetail = (job: Job) =>
     navigation.navigate('JobDetail', { jobId: job.id });
@@ -286,15 +325,35 @@ const JobsScreen = () => {
     <View style={styles.flex}>
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.eyebrow}>
-          {`${(user?.name ?? user?.email ?? 'Jobs').toUpperCase()}   ·   ${RANGE.toUpperCase()}`}
+          {(user?.name ?? user?.email ?? 'Jobs').toUpperCase()}
         </Text>
         <Text style={styles.title}>Jobs</Text>
-        <View style={styles.tabs}>
-          <JobTabs tabs={tabs} activeKey={activeTab} onChange={setActiveTab} />
+        <View style={styles.segment}>
+          {(['jobs', 'tasks'] as const).map(key => {
+            const isActive = topTab === key;
+            return (
+              <Pressable
+                key={key}
+                onPress={() => setTopTab(key)}
+                style={[styles.segmentBtn, isActive && styles.segmentBtnActive]}
+              >
+                <Text
+                  style={[styles.segmentText, isActive && styles.segmentTextActive]}
+                >
+                  {key === 'jobs' ? 'Jobs' : 'Tasks'}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
+        {topTab === 'jobs' ? (
+          <View style={styles.tabs}>
+            <JobTabs tabs={tabs} activeKey={activeTab} onChange={setActiveTab} />
+          </View>
+        ) : null}
       </View>
 
-      {pending > 0 ? (
+      {topTab === 'jobs' && pending > 0 ? (
         <View style={styles.offlineWrap}>
           <Pressable style={styles.offlineCard} onPress={() => flushNow(true)}>
             <View style={styles.offlineIcon}>
@@ -320,16 +379,21 @@ const JobsScreen = () => {
         </View>
       ) : null}
 
-      <GestureDetector gesture={swipeTabs}>
+      {topTab === 'jobs' ? (
+        <GestureDetector gesture={swipeTabs}>
         <SectionList<Job>
         sections={sections}
         extraData={showTimer ? now : null}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         keyExtractor={item => item.id}
         renderItem={({ item }) =>
           showTimer ? (
             <LiveJobItem
               job={item}
               {...metaFor(item)}
+              myState={myStateFor(item)}
+              onSite={onSiteFor(item)}
               onPress={() => openDetail(item)}
               onChat={() => openChat(item)}
             />
@@ -372,10 +436,21 @@ const JobsScreen = () => {
                 count={liveActive.length}
               />
             </View>
+          ) : activeTab === 'done' ? (
+            <CompletedDateFilter
+              from={doneFrom}
+              to={doneTo}
+              count={doneFiltered.length}
+              jobDates={doneDates}
+              onChange={(f, t) => {
+                setDoneFrom(f);
+                setDoneTo(t);
+              }}
+            />
           ) : undefined
         }
         stickySectionHeadersEnabled={false}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: navHeight + 24 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -391,14 +466,29 @@ const JobsScreen = () => {
           </View>
         }
         />
-      </GestureDetector>
+        </GestureDetector>
+      ) : (
+        <View style={styles.tasksBody}>
+          <View style={styles.tasksIcon}>
+            <Ionicons name="checkbox-outline" size={30} color={colors.textMuted} />
+          </View>
+          <Text style={styles.tasksTitle}>Tasks are on the way.</Text>
+          <Text style={styles.tasksText}>
+            We're building this out. You'll be able to track and tick off your
+            tasks here soon.
+          </Text>
+        </View>
+      )}
 
-      <Button
-        label="Start a new job"
-        leftIcon="add"
-        onPress={onCreate}
-        style={styles.fab}
-      />
+      {topTab === 'jobs' ? (
+        <FloatingActionButton
+          label="Start a new job"
+          icon="add"
+          onPress={onCreate}
+          collapsed={collapsed}
+          style={{ bottom: navHeight + 16 }}
+        />
+      ) : null}
     </View>
   );
 };

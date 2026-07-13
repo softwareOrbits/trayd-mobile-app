@@ -188,23 +188,31 @@ export const LineItemRow = ({
 export const RosterChips = ({ members }: { members: RosterMember[] }) => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const dotColor = (m: RosterMember) =>
+    m.working
+      ? colors.primary
+      : m.working === false
+      ? colors.textMuted
+      : colors.borderMuted;
+  const statusLabel = (m: RosterMember) =>
+    m.working ? 'WORKING' : m.working === false ? 'PAUSED' : 'NOT IN';
+  const statusColor = (m: RosterMember) =>
+    m.working ? colors.primary : colors.textMuted;
   return (
-    <View style={styles.rosterRow}>
+    <View style={styles.rosterList}>
       {members.map(m => (
-        <View
-          key={m.name}
-          style={[m.confirmed ? styles.rosterFilled : styles.rosterOutline]}
-        >
-          {m.confirmed ? (
-            <Ionicons name="checkmark" size={13} color={colors.onSecondary} />
-          ) : null}
-          <Text
-            style={
-              m.confirmed ? styles.rosterFilledText : styles.rosterOutlineText
-            }
-          >
-            {m.name}
-          </Text>
+        <View key={m.name} style={styles.rosterMemberRow}>
+          <View style={styles.rosterMemberLeft}>
+            <View style={[styles.rosterDot, { backgroundColor: dotColor(m) }]} />
+            <Text style={styles.rosterMemberName} numberOfLines={1}>
+              {m.name}
+            </Text>
+          </View>
+          <View style={styles.rosterStatusPill}>
+            <Text style={[styles.rosterMemberStatus, { color: statusColor(m) }]}>
+              {statusLabel(m)}
+            </Text>
+          </View>
         </View>
       ))}
     </View>
@@ -256,9 +264,11 @@ export const Callout = ({
 
 export const TimerCard = ({
   time,
+  status = 'RUNNING',
   onEdit,
 }: {
   time: string;
+  status?: string;
   onEdit?: () => void;
 }) => {
   const { colors } = useTheme();
@@ -269,7 +279,7 @@ export const TimerCard = ({
         <Ionicons name="time-outline" size={20} color={colors.onPrimary} />
       </View>
       <View style={styles.timerBody}>
-        <Text style={styles.timerLabel}>TIMER · RUNNING</Text>
+        <Text style={styles.timerLabel}>YOUR TIMER · {status}</Text>
         <Text style={styles.timerValue}>{time}</Text>
       </View>
       <Pressable style={styles.timerEdit} onPress={onEdit} hitSlop={8}>

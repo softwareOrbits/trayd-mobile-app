@@ -3,7 +3,9 @@ import { useThemedStyles } from '@/utils/useThemedStyles';
 import { type Theme } from '@/theme';
 import type { JobStatus } from '@/types';
 
-const TONES: Record<JobStatus, { bg: string; fg: string; label: string }> = {
+type BadgeTone = { bg: string; fg: string; label: string };
+
+const TONES: Partial<Record<string, BadgeTone>> = {
   scheduled: { bg: '#E5F0E9', fg: '#017636', label: 'Scheduled' },
   active: { bg: '#FBE4E4', fg: '#D14343', label: 'Live' },
   paused: { bg: '#EFF1F3', fg: '#5C6571', label: 'Paused' },
@@ -11,12 +13,17 @@ const TONES: Record<JobStatus, { bg: string; fg: string; label: string }> = {
   approved: { bg: '#E5F0E9', fg: '#017636', label: 'Approved' },
   downloaded: { bg: '#E5F0E9', fg: '#017636', label: 'Downloaded' },
   paid: { bg: '#E5F0E9', fg: '#017636', label: 'Paid' },
+  completed: { bg: '#E5F0E9', fg: '#017636', label: 'Completed' },
   cancelled: { bg: '#FBE4E4', fg: '#D14343', label: 'Cancelled' },
 };
 
 export const StatusBadge = ({ status }: { status: JobStatus }) => {
   const styles = useThemedStyles(makeStyles);
-  const tone = TONES[status];
+  const tone: BadgeTone = TONES[status] ?? {
+    bg: '#EFF1F3',
+    fg: '#5C6571',
+    label: String(status).replace(/_/g, ' '),
+  };
   return (
     <View style={[styles.badge, { backgroundColor: tone.bg }]}>
       <Text style={[styles.text, { color: tone.fg }]}>

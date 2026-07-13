@@ -22,11 +22,13 @@ import {
   pushSessionToWebView,
 } from '@/webview/webviewRegistry';
 import { ThemeProvider } from '@/theme';
-import { LoadingScreen, OfflineBanner, SyncReminderBanner } from '@/components/ui';
+import { LoadingScreen, OfflineBanner, SyncReminderBanner, toastConfig } from '@/components/ui';
 import { SyncProvider, useOnline } from '@/offline';
+import { CertComplianceProvider } from '@/compliance';
 import { warmCaches } from '@/offline/prefetch';
 import { fetchUnread, setUnread } from '@/store/notificationsSlice';
 import { registerPush } from '@/services/push';
+import ShiftCutoffProvider from '@/components/shift/ShiftCutoffProvider';
 import AppNavigator from '@/navigation/AppNavigator';
 
 LogBox.ignoreLogs(['Network request failed', 'TypeError: Network request failed']);
@@ -83,9 +85,11 @@ function Bootstrap() {
         <SafeAreaProvider>
           <StatusBar barStyle="dark-content" />
           <SyncProvider>
-            <AppShell />
+            <CertComplianceProvider>
+              <AppShell />
+            </CertComplianceProvider>
           </SyncProvider>
-          <Toast topOffset={100} />
+          <Toast topOffset={100} config={toastConfig} />
         </SafeAreaProvider>
       </BottomSheetModalProvider>
     </PaperProvider>
@@ -107,6 +111,7 @@ function AppShell() {
       <SafeAreaInsetsContext.Provider value={value}>
         <AppNavigator />
       </SafeAreaInsetsContext.Provider>
+      <ShiftCutoffProvider />
     </>
   );
 }

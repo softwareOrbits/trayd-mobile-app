@@ -34,11 +34,11 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Trayd uses your camera so you can take a profile photo.</string>
+	<string>Trayd uses your camera so you can photograph work on a customer's job site, capture receipts for materials, and take your profile photo.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>Trayd uses your location while you're working to confirm you're at the customer's job site, so your hours reach your timesheet without you logging them by hand.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Trayd needs access to your photos so you can choose a profile picture.</string>
+	<string>Trayd needs access to your photos so you can attach job site photos and material receipts to a job, and choose your profile picture.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>

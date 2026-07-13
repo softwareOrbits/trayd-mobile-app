@@ -9,3 +9,4 @@ export { default as LiveStateBadge } from './LiveStateBadge';
 export { default as TimerPill } from './TimerPill';
 export { default as JobTypeTag } from './JobTypeTag';
 export { default as CompletedJobItem } from './CompletedJobItem';
+export { default as CompletedDateFilter } from './CompletedDateFilter';

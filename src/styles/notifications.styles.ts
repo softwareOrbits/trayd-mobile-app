@@ -89,6 +89,7 @@ export const makeNotificationsStyles = (theme: Theme) =>
       justifyContent: 'center',
     },
     iconWrapUnread: { backgroundColor: theme.colors.white },
+    chevron: { alignSelf: 'center' },
     itemBody: { flex: 1, gap: 3 },
     itemTop: {
       flexDirection: 'row',

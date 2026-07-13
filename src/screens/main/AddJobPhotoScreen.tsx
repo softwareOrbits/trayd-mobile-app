@@ -17,7 +17,7 @@ import { isNetworkError } from '@/offline/errors';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeAddJobPhotoStyles } from '@/styles/addJobPhoto.styles';
-import { capturePhoto } from '@/utils/capturePhoto';
+import { acquirePhotos } from '@/utils/capturePhoto';
 import { goBackSafe } from '@/utils/navigation';
 import { toastError, toastSuccess } from '@/utils/toast';
 import { withTimeout } from '@/utils/withTimeout';
@@ -52,9 +52,15 @@ const AddJobPhotoScreen = () => {
   const [photos, setPhotos] = useState<PhotoAsset[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const openCamera = async () => {
-    const asset = await capturePhoto({ quality: 0.7, maxSize: 1600 });
-    if (asset) setPhotos(prev => [...prev, { ...asset, phase }]);
+  const addPhotos = async () => {
+    const assets = await acquirePhotos({
+      quality: 0.7,
+      maxSize: 1600,
+      selectionLimit: 6,
+    });
+    if (assets.length) {
+      setPhotos(prev => [...prev, ...assets.map(a => ({ ...a, phase }))]);
+    }
   };
 
   const removePhoto = (idx: number) =>
@@ -188,7 +194,7 @@ const AddJobPhotoScreen = () => {
                 {isActive ? (
                   <Pressable
                     style={styles.photoAddTile}
-                    onPress={openCamera}
+                    onPress={addPhotos}
                     disabled={saving}
                   >
                     <Ionicons

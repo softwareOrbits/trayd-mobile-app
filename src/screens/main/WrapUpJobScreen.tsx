@@ -40,6 +40,7 @@ import {
   type JobNote,
   type JobSegment,
 } from '@/services/jobs';
+import { getMyMemberRef } from '@/services/member';
 import { enqueueAction, queueFinish } from '@/services/outbox';
 import { enqueue, offlineActionBlocked } from '@/offline';
 import {
@@ -55,7 +56,7 @@ import { signOut } from '@/store/authSlice';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeWrapUpStyles } from '@/styles/wrapUp.styles';
-import { capturePhoto } from '@/utils/capturePhoto';
+import { acquirePhotos } from '@/utils/capturePhoto';
 import { isNetworkError } from '@/utils/errors';
 import { goBackSafe } from '@/utils/navigation';
 import { toastError, toastSuccess } from '@/utils/toast';
@@ -99,6 +100,13 @@ const WrapUpJobScreen = () => {
   const [pausing, setPausing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => Date.now());
+  const [myMemberId, setMyMemberId] = useState<string | null>(null);
+
+  useEffect(() => {
+    getMyMemberRef()
+      .then(r => setMyMemberId(r.id))
+      .catch(() => {});
+  }, []);
 
   // Loaded data
   const [detail, setDetail] = useState<JobDetail | null>(null);
@@ -154,9 +162,17 @@ const WrapUpJobScreen = () => {
   const [finalHours, setFinalHours] = useState(0);
   const [submittedAt, setSubmittedAt] = useState<string | null>(null);
 
+  // MY open segment. An unscoped `find` returns whichever crew member's segment
+  // sorts first, so editing the finish time here rewrote a colleague's clock —
+  // an audited write, stamped with my name.
   const openSegment = useMemo(
-    () => segments.find(s => s.finishTime == null) ?? null,
-    [segments],
+    () =>
+      myMemberId
+        ? segments.find(
+            s => s.finishTime == null && s.memberId === myMemberId,
+          ) ?? null
+        : null,
+    [segments, myMemberId],
   );
 
   const loadAfterPhotos = useCallback(async (jobId: string) => {
@@ -284,17 +300,25 @@ const WrapUpJobScreen = () => {
 
   const cutoffMs = finishDate ? finishDate.getTime() : now;
 
-  const hours = useMemo(() => {
-    let h = 0;
-    for (const s of segments) {
-      if (s.finishTime == null) {
-        h += Math.max(0, (cutoffMs - new Date(s.startTime).getTime()) / 3_600_000);
-      } else {
-        h += s.hours ?? 0;
-      }
-    }
-    return h;
-  }, [segments, cutoffMs]);
+  /**
+   * The job's total hours are wall clock — when the job started to when it
+   * finished — NOT the sum of the crew's segments. Segments stay per-member so
+   * the invoice can bill each lad's own time; summing them would multiply the
+   * job's duration by the size of the crew.
+   */
+  const jobStartMs = useMemo(() => {
+    if (detail?.startedAt) return Date.parse(detail.startedAt);
+    const earliest = segments.reduce<string | null>(
+      (min, s) => (!min || s.startTime < min ? s.startTime : min),
+      null,
+    );
+    return earliest ? Date.parse(earliest) : cutoffMs;
+  }, [detail?.startedAt, segments, cutoffMs]);
+
+  const hours = useMemo(
+    () => Math.max(0, (cutoffMs - jobStartMs) / 3_600_000),
+    [cutoffMs, jobStartMs],
+  );
 
   const labour = useMemo(() => {
     let l = 0;
@@ -317,13 +341,6 @@ const WrapUpJobScreen = () => {
   const subtotal = labour + materialsTotal;
   const vatAmount = subtotal * (vatRate / 100);
   const draftTotal = subtotal + vatAmount;
-
-  // Total shown on step 1 reflects the (possibly edited) start→finish span so
-  // editing either time updates it live; labour above stays segment-based.
-  const spanHours =
-    startDate && finishDate
-      ? Math.max(0, (finishDate.getTime() - startDate.getTime()) / 3_600_000)
-      : hours;
 
   // ----- Step 1: time edit (start or finish) -----
   const baseFor = (target: 'start' | 'finish') =>
@@ -412,7 +429,7 @@ const WrapUpJobScreen = () => {
   const addAfterPhoto = async () => {
     if (capturing) return;
     if (offlineActionBlocked()) return;
-    const asset = await capturePhoto({ quality: 0.7, maxSize: 1600 });
+    const [asset] = await acquirePhotos({ quality: 0.7, maxSize: 1600 });
     if (!asset) return;
     setCapturing(true);
     const stamp = Date.now();
@@ -598,10 +615,13 @@ const WrapUpJobScreen = () => {
           warnEdit,
         );
       }
+      // Explicit total: left null, the backend sums every crew segment, which
+      // double-counts a job worked by more than one lad. The job's hours are
+      // its duration; per-member segments remain the invoice's labour lines.
       const total = await finishJob({
         jobId: params.jobId,
         summary,
-        totalHours: null,
+        totalHours: Number(hours.toFixed(2)),
         atIso: finishIso,
       });
       setFinalHours(total || hours);
@@ -666,7 +686,11 @@ const WrapUpJobScreen = () => {
     setPausing(true);
     const atIso = new Date().toISOString();
     try {
-      await pauseJob(params.jobId, atIso);
+      // Crew-level: only `pause_job` sets jobs.status = 'paused', which is what
+      // the Resume tab filters on. `pause_member` would close my segment and
+      // leave the job sitting in Live, so this screen sent you to an empty tab.
+      await pauseJob(params.jobId, atIso, { crew: true });
+      dispatch(patchJobStatus({ id: params.jobId, status: 'paused' }));
       dispatch(fetchJobs());
       toastSuccess('Paused — see you tomorrow.');
       resetToJobsTab('resume');
@@ -677,6 +701,7 @@ const WrapUpJobScreen = () => {
           jobId: params.jobId,
           kind: 'pause',
           atIso,
+          crew: true,
         });
         dispatch(patchJobStatus({ id: params.jobId, status: 'paused' }));
         dispatch(setPendingJobStatus({ id: params.jobId, status: 'paused' }));
@@ -1065,8 +1090,8 @@ const WrapUpJobScreen = () => {
           </Text>
         </View>
         <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>TOTAL TIME ON SITE</Text>
-          <Text style={styles.totalValue}>{fmtHoursMin(spanHours)}</Text>
+          <Text style={styles.totalLabel}>HOURS WORKED</Text>
+          <Text style={styles.totalValue}>{fmtHoursMin(hours)}</Text>
         </View>
         <View style={styles.warnBox}>
           <Ionicons name="alert-circle" size={18} color={colors.warning} />

@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -32,6 +33,7 @@ const ConfirmInviteScreen = () => {
   const [member, setMember] = useState<MemberProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdult, setIsAdult] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -124,11 +126,40 @@ const ConfirmInviteScreen = () => {
           </View>
         )}
 
+        {member && !error ? (
+          <Pressable
+            style={styles.consentRow}
+            onPress={() => setIsAdult(v => !v)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: isAdult }}
+            accessibilityLabel="I confirm I am 18 years of age or older"
+          >
+            <View
+              style={[
+                styles.consentBox,
+                isAdult ? styles.consentBoxOn : styles.consentBoxOff,
+              ]}
+            >
+              {isAdult ? (
+                <Ionicons
+                  name="checkmark"
+                  size={15}
+                  color={colors.onPrimary}
+                />
+              ) : null}
+            </View>
+            <Text style={styles.consentText}>
+              I confirm I am 18 years of age or older.
+            </Text>
+          </Pressable>
+        ) : null}
+
         <View style={styles.footer}>
           {member && !error ? (
             <Button
               label="That's me"
               fullWidth
+              disabled={!isAdult}
               onPress={() =>
                 navigation.navigate('CreatePassword', {
                   email: member.email ?? '',

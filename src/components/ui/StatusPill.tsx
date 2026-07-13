@@ -26,11 +26,11 @@ export const StatusPill = ({
     info: { bg: colors.surface, fg: colors.textMuted },
     neutral: { bg: colors.surfaceMuted, fg: colors.textMuted },
   };
-  const t = tones[tone];
+  const t = tones[tone] ?? tones.neutral;
 
   return (
     <View style={[styles.badge, { backgroundColor: bg ?? t.bg }]}>
-      <Text style={[styles.text, { color: fg ?? t.fg }]}>
+      <Text numberOfLines={1} style={[styles.text, { color: fg ?? t.fg }]}>
         {label.toUpperCase()}
       </Text>
     </View>

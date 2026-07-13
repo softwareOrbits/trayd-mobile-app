@@ -11,6 +11,7 @@ import {
   fetchJobRoster,
   fetchJobSegments,
 } from '@/services/jobs';
+import { fetchDashboard } from '@/services/dashboard';
 import { saveJobCache, type JobBundle } from '@/services/jobCache';
 import { store } from '@/store';
 import { fetchJobs } from '@/store/jobsSlice';
@@ -61,6 +62,8 @@ async function run(): Promise<void> {
     fetchActiveRoster(),
     searchCustomers(),
     searchMaterials(),
+    // Seeds the dashboard read-cache so the very first offline open has numbers.
+    fetchDashboard(),
   ]);
 
   if (jobsResult.status === 'fulfilled' && isOnline()) {

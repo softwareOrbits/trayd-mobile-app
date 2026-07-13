@@ -22,7 +22,7 @@ import {
 
 import Toast from 'react-native-toast-message';
 
-import { AppToast, Avatar, Button, Input } from '@/components/ui';
+import { AppToast, Avatar, Button, Input, useBottomNavHeight } from '@/components/ui';
 import {
   WEEK_DAYS,
   fetchMemberStats,
@@ -35,6 +35,8 @@ import {
   type MemberProfile,
   type MemberStats,
 } from '@/services/member';
+import { CertComplianceBanner } from '@/compliance';
+import { deactivateMyAccount, reauthenticate } from '@/services/account';
 import { staticMapUrl } from '@/services/places';
 import { APP_VERSION } from '@/utils/appInfo';
 import { hasQueuedActions } from '@/services/outbox';
@@ -80,6 +82,7 @@ const ProfileScreen = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeProfileStyles);
   const insets = useSafeAreaInsets();
+  const navHeight = useBottomNavHeight();
   const dispatch = useAppDispatch();
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
@@ -96,6 +99,9 @@ const ProfileScreen = () => {
   const [phoneSaving, setPhoneSaving] = useState(false);
   const [photoSheet, setPhotoSheet] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [deactivateModal, setDeactivateModal] = useState(false);
+  const [deactivatePassword, setDeactivatePassword] = useState('');
+  const [deactivating, setDeactivating] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -146,6 +152,31 @@ const ProfileScreen = () => {
       toastError(e, 'Could not update phone.');
     } finally {
       setPhoneSaving(false);
+    }
+  };
+
+  const openDeactivate = () => {
+    setDeactivatePassword('');
+    setDeactivateModal(true);
+  };
+
+  const runDeactivate = async () => {
+    if (deactivating) return;
+    const email = member?.email;
+    if (!email) {
+      toastError(null, 'We could not read your email.');
+      return;
+    }
+    setDeactivating(true);
+    try {
+      await reauthenticate(email, deactivatePassword);
+      await deactivateMyAccount();
+      setDeactivateModal(false);
+      dispatch(signOut());
+    } catch (e) {
+      toastError(e, 'Could not deactivate your account.');
+    } finally {
+      setDeactivating(false);
     }
   };
 
@@ -217,7 +248,7 @@ const ProfileScreen = () => {
   const row = (
     label: string,
     value: string,
-    opts?: { onPress?: () => void; muted?: boolean },
+    opts?: { onPress?: () => void; muted?: boolean; danger?: boolean },
   ) => (
     <Pressable
       style={styles.row}
@@ -225,13 +256,25 @@ const ProfileScreen = () => {
       disabled={!opts?.onPress}
     >
       <View style={styles.rowBody}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        <Text style={[styles.rowValue, opts?.muted && styles.rowMuted]}>
+        <Text style={[styles.rowLabel, opts?.danger && styles.rowLabelDanger]}>
+          {label}
+        </Text>
+        <Text
+          style={[
+            styles.rowValue,
+            opts?.muted && styles.rowMuted,
+            opts?.danger && styles.rowValueDanger,
+          ]}
+        >
           {value}
         </Text>
       </View>
       {opts?.onPress ? (
-        <Ionicons name="chevron-forward" size={18} color={colors.placeholder} />
+        <Ionicons
+          name="chevron-forward"
+          size={18}
+          color={opts?.danger ? colors.error : colors.placeholder}
+        />
       ) : null}
     </Pressable>
   );
@@ -241,7 +284,7 @@ const ProfileScreen = () => {
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 16 },
+          { paddingTop: insets.top + 16, paddingBottom: navHeight + 24 },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -252,6 +295,7 @@ const ProfileScreen = () => {
             .toUpperCase() || 'PROFILE'}
         </Text>
         <Text style={styles.title}>Profile</Text>
+
 
         {/* Identity */}
         <View style={styles.identity}>
@@ -300,16 +344,35 @@ const ProfileScreen = () => {
 
         {/* Stats */}
         <View style={styles.statsCard}>
-          {[
-            { label: 'JOBS', value: String(stats?.jobs ?? 0) },
-            { label: 'HOURS', value: fmtHours(stats?.hours ?? 0) },
-          ].map((s, i) => (
-            <View key={s.label} style={styles.statCell}>
-              {i > 0 ? <View style={styles.statDivider} /> : null}
-              <Text style={styles.statValue}>{s.value}</Text>
-              <Text style={styles.statLabel}>{s.label}</Text>
-            </View>
-          ))}
+          <View style={styles.statsRow}>
+            {[
+              { label: 'JOBS', value: String(stats?.jobs ?? 0) },
+              { label: 'HOURS', value: fmtHours(stats?.hours ?? 0) },
+            ].map((s, i) => (
+              <View key={s.label} style={styles.statCell}>
+                {i > 0 ? <View style={styles.statDivider} /> : null}
+                <Text style={styles.statValue}>{s.value}</Text>
+                <Text style={styles.statLabel}>{s.label}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.statsBtn}>
+            <Button
+              label="View timesheet"
+              leftIcon="time-outline"
+              fullWidth
+              onPress={() => navigation.navigate('Timesheet')}
+            />
+          </View>
+        </View>
+
+        <CertComplianceBanner style={styles.certBanner} />
+        {/* Compliance */}
+        <Text style={styles.section}>COMPLIANCE</Text>
+        <View style={styles.card}>
+          {row('My Certifications', 'View & present your tickets', {
+            onPress: () => navigation.navigate('Certifications'),
+          })}
         </View>
 
         {/* Account */}
@@ -324,6 +387,10 @@ const ProfileScreen = () => {
           {row('Phone', member?.phone ?? 'Not set', {
             onPress: openPhone,
             muted: !member?.phone,
+          })}
+          <View style={styles.divider} />
+          {row('Deactivate account', 'Removes your access to Trayd', {
+            onPress: openDeactivate,
           })}
         </View>
 
@@ -441,6 +508,79 @@ const ProfileScreen = () => {
             </Pressable>
             <Pressable
               onPress={() => setConfirmLogout(false)}
+              style={styles.cancelBtn}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={deactivateModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeactivateModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setDeactivateModal(false)}
+          />
+          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 20 }]}>
+            <View style={styles.handle} />
+            <View style={styles.modalIconDanger}>
+              <Ionicons
+                name="person-remove-outline"
+                size={24}
+                color={colors.error}
+              />
+            </View>
+            <Text style={styles.modalTitle}>Deactivate your account?</Text>
+            <Text style={styles.modalText}>
+              You’ll be signed out and won’t be able to log in again. Your crew
+              won’t see you on jobs. Only{' '}
+              {member?.companyName ?? 'your company'} can bring you back.
+            </Text>
+            {queued ? (
+              <View style={styles.modalWarn}>
+                <Ionicons name="time-outline" size={16} color={colors.warning} />
+                <Text style={styles.modalWarnText}>
+                  You have work queued offline that hasn’t synced yet. Get back
+                  online and let it sync before you deactivate, or it will be
+                  lost.
+                </Text>
+              </View>
+            ) : null}
+            <View style={styles.phoneField}>
+              <Input
+                value={deactivatePassword}
+                onChangeText={setDeactivatePassword}
+                secureTextEntry
+                placeholder="Confirm your password"
+                autoCapitalize="none"
+              />
+            </View>
+            <Pressable
+              style={[
+                styles.logoutConfirm,
+                !deactivatePassword || deactivating
+                  ? styles.dangerDisabled
+                  : null,
+              ]}
+              disabled={!deactivatePassword || deactivating}
+              onPress={runDeactivate}
+            >
+              {deactivating ? (
+                <ActivityIndicator color={colors.error} />
+              ) : (
+                <Text style={styles.logoutConfirmText}>
+                  Deactivate my account
+                </Text>
+              )}
+            </Pressable>
+            <Pressable
+              onPress={() => setDeactivateModal(false)}
               style={styles.cancelBtn}
             >
               <Text style={styles.modalCancelText}>Cancel</Text>

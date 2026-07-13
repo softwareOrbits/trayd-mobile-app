@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
-import { launchCamera } from 'react-native-image-picker';
+import { acquirePhotos } from '@/utils/capturePhoto';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigation } from '@react-navigation/native';
@@ -8,7 +8,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Toast from 'react-native-toast-message';
 
-import { Button, Input, ImageThumb } from '@/components/ui';
+import { Button, CalendarModal, Input, ImageThumb } from '@/components/ui';
 import {
   CheckboxRow,
   CustomerCard,
@@ -36,11 +36,13 @@ import {
   addJobMaterial,
   addJobPhotos,
   startJob,
+  scheduleJob,
   DuplicateCustomerError,
 } from '@/services/jobs';
 import { searchMaterials, type CatalogMaterial } from '@/services/materials';
 import { fetchActiveRoster, type RosterEntry } from '@/services/member';
 import { enqueue, offlineActionBlocked } from '@/offline';
+import { useCertGate } from '@/compliance';
 import { isNetworkError } from '@/offline/errors';
 import { useAppDispatch } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
@@ -81,7 +83,9 @@ const StartJobScreen = () => {
   const [jobType, setJobType] = useState<string | null>(null);
   const [crew, setCrew] = useState<string[]>([]);
   const [photos, setPhotos] = useState<PhotoAsset[]>([]);
-  const [starting, setStarting] = useState(false);
+  const [busy, setBusy] = useState<'start' | 'schedule' | null>(null);
+  const [datePicker, setDatePicker] = useState(false);
+  const certBlocked = useCertGate();
 
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [newCustomer, setNewCustomer] = useState<NewCustomerPayload | null>(
@@ -224,40 +228,86 @@ const StartJobScreen = () => {
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
     );
 
-  const openCamera = async () => {
-    const res = await launchCamera({
-      mediaType: 'photo',
+  const addPhotos = async () => {
+    const assets = await acquirePhotos({
       quality: 0.7,
-      maxWidth: 1200,
-      maxHeight: 1200,
-      includeBase64: true,
+      maxSize: 1200,
+      selectionLimit: 6,
     });
-    if (res.didCancel) return;
-    if (res.errorCode) {
-      Toast.show({ type: 'error', text1: res.errorMessage ?? 'Camera error.' });
-      return;
-    }
-    const asset = res.assets?.[0];
-    if (asset?.uri) {
-      setPhotos(prev => [
-        ...prev,
-        { uri: asset.uri as string, base64: asset.base64, type: asset.type },
-      ]);
-    }
+    if (assets.length) setPhotos(prev => [...prev, ...assets]);
   };
 
   const removePhoto = (idx: number) =>
     setPhotos(prev => prev.filter((_, i) => i !== idx));
 
+  const attachMaterialsAndPhotos = async (jobId: string) => {
+    if (pickedMaterials.length) {
+      const results = await Promise.allSettled(
+        pickedMaterials.map(m =>
+          addJobMaterial({
+            jobId,
+            description: m.name,
+            quantity: 1,
+            unitCost: m.sellPrice,
+            source: 'van_stock',
+            unit: m.unit,
+          }),
+        ),
+      );
+      if (results.some(r => r.status === 'rejected')) {
+        Toast.show({ type: 'error', text1: 'Some materials failed to log.' });
+      }
+    }
+
+    const pendingPhotos = photos.filter(p => p.uri);
+    if (pendingPhotos.length) {
+      const stamp = Date.now();
+      const items = pendingPhotos.map((p, i) => ({
+        phase: 'before' as const,
+        uri: p.uri,
+        base64: p.base64,
+        type: p.type,
+        clientKey: `${jobId}-${stamp}-${i}`,
+      }));
+      const queuePhotosOffline = () =>
+        enqueue({
+          id: `${jobId}:photos:${stamp}`,
+          kind: 'job.addPhotos',
+          payload: { clientId: `${jobId}-${stamp}`, jobId, photos: items },
+        });
+      try {
+        const { uploaded, failed } = await withTimeout(
+          addJobPhotos({ jobId, photos: items }),
+          PHOTO_UPLOAD_TIMEOUT_MS,
+        );
+        if (!uploaded) {
+          await queuePhotosOffline();
+        } else if (failed) {
+          Toast.show({
+            type: 'error',
+            text1: `${failed} photo${failed === 1 ? '' : 's'} didn’t upload.`,
+          });
+        }
+      } catch (photoErr) {
+        if (isNetworkError(photoErr)) {
+          await queuePhotosOffline();
+        } else {
+          Toast.show({ type: 'error', text1: 'The photos didn’t upload.' });
+        }
+      }
+    }
+  };
+
   const finish = async () => {
-    if (starting) return;
+    if (busy) return;
     if (!customerId && !newCustomer) {
       Toast.show({ type: 'error', text1: 'Pick a customer first.' });
       setStep(1);
       return;
     }
+    if (certBlocked()) return;
     if (offlineActionBlocked()) return;
-    setStarting(true);
+    setBusy('start');
     const selfId = roster.find(r => r.isSelf)?.id;
     const memberIds = crew.length === 1 && crew[0] === selfId ? [] : crew;
     try {
@@ -273,69 +323,7 @@ const StartJobScreen = () => {
         pinCustomerGps(jobId, placeCoords);
       }
 
-      if (pickedMaterials.length) {
-        const results = await Promise.allSettled(
-          pickedMaterials.map(m =>
-            addJobMaterial({
-              jobId,
-              description: m.name,
-              quantity: 1,
-              unitCost: m.sellPrice,
-              source: 'van_stock',
-              unit: m.unit,
-            }),
-          ),
-        );
-        if (results.some(r => r.status === 'rejected')) {
-          Toast.show({
-            type: 'error',
-            text1: 'Job started, but some materials failed to log.',
-          });
-        }
-      }
-
-      const pendingPhotos = photos.filter(p => p.uri);
-      if (pendingPhotos.length) {
-        const stamp = Date.now();
-        const items = pendingPhotos.map((p, i) => ({
-          phase: 'before' as const,
-          uri: p.uri,
-          base64: p.base64,
-          type: p.type,
-          clientKey: `${jobId}-${stamp}-${i}`,
-        }));
-        const queuePhotosOffline = () =>
-          enqueue({
-            id: `${jobId}:photos:${stamp}`,
-            kind: 'job.addPhotos',
-            payload: { clientId: `${jobId}-${stamp}`, jobId, photos: items },
-          });
-        try {
-          const { uploaded, failed } = await withTimeout(
-            addJobPhotos({ jobId, photos: items }),
-            PHOTO_UPLOAD_TIMEOUT_MS,
-          );
-          if (!uploaded) {
-            await queuePhotosOffline();
-          } else if (failed) {
-            Toast.show({
-              type: 'error',
-              text1: `Job started — ${failed} photo${
-                failed === 1 ? '' : 's'
-              } didn’t upload.`,
-            });
-          }
-        } catch (photoErr) {
-          if (isNetworkError(photoErr)) {
-            await queuePhotosOffline();
-          } else {
-            Toast.show({
-              type: 'error',
-              text1: 'Job started, but the photos didn’t upload.',
-            });
-          }
-        }
-      }
+      await attachMaterialsAndPhotos(jobId);
 
       dispatch(fetchJobs());
       Toast.show({ type: 'success', text1: 'Job started.' });
@@ -415,7 +403,62 @@ const StartJobScreen = () => {
         });
       }
     } finally {
-      setStarting(false);
+      setBusy(null);
+    }
+  };
+
+  const resetToScheduled = () =>
+    navigation.reset({
+      index: 0,
+      routes: [
+        {
+          name: 'Tabs',
+          params: { screen: 'Jobs', params: { initialTab: 'scheduled' } },
+        },
+      ],
+    });
+
+  const openScheduleDate = () => {
+    if (busy) return;
+    if (!customerId && !newCustomer) {
+      Toast.show({ type: 'error', text1: 'Pick a customer first.' });
+      setStep(1);
+      return;
+    }
+    setDatePicker(true);
+  };
+
+  // A scheduled job with no date is invisible everywhere that groups by day —
+  // it fell into an "Unscheduled" bucket and never reached the dashboard.
+  const scheduleAndClose = async (scheduledDate: string) => {
+    if (busy) return;
+    if (offlineActionBlocked()) return;
+    setBusy('schedule');
+    const selfId = roster.find(r => r.isSelf)?.id;
+    const memberIds = crew.length === 1 && crew[0] === selfId ? [] : crew;
+    try {
+      const jobId = await scheduleJob({
+        customerId: customerId ?? undefined,
+        newCustomer: newCustomer ?? undefined,
+        jobType: (jobType ?? 'standard') as JobType,
+        memberIds,
+        gps: gps ?? undefined,
+        scheduledDate,
+      });
+      if (newCustomer && placeCoords) {
+        pinCustomerGps(jobId, placeCoords);
+      }
+      await attachMaterialsAndPhotos(jobId);
+      dispatch(fetchJobs());
+      Toast.show({ type: 'success', text1: 'Job saved & scheduled.' });
+      resetToScheduled();
+    } catch (e) {
+      Toast.show({
+        type: 'error',
+        text1: e instanceof Error ? e.message : 'Could not save the job.',
+      });
+    } finally {
+      setBusy(null);
     }
   };
 
@@ -761,7 +804,7 @@ const StartJobScreen = () => {
         {photos.map((p, i) => (
           <ImageThumb key={p.uri} uri={p.uri} onRemove={() => removePhoto(i)} />
         ))}
-        <Pressable style={styles.photoAddTile} onPress={openCamera}>
+        <Pressable style={styles.photoAddTile} onPress={addPhotos}>
           <Ionicons name="camera-outline" size={26} color={colors.textMuted} />
           <Text style={styles.photoText}>
             {photos.length ? 'Add another' : 'Add photo'}
@@ -772,42 +815,57 @@ const StartJobScreen = () => {
     footer = (
       <View style={styles.gap12}>
         <Button
-          label="Open camera"
+          label={photos.length ? 'Add another photo' : 'Add photos'}
           leftIcon="camera"
+          variant="outlined"
           fullWidth
-          disabled={starting}
-          onPress={openCamera}
+          disabled={!!busy}
+          onPress={addPhotos}
         />
-        <Pressable
+        <Button
+          label="Start job now"
+          fullWidth
+          loading={busy === 'start'}
+          disabled={!!busy}
           onPress={finish}
-          hitSlop={8}
-          style={styles.skipBtn}
-          disabled={starting}
-        >
-          <Text style={styles.skipText}>
-            {starting
-              ? 'Starting…'
-              : photos.length
-              ? 'Start the job'
-              : 'Skip — start the job'}
-          </Text>
-        </Pressable>
+        />
+        <Button
+          label="Save & schedule"
+          variant="outlined"
+          color="secondary"
+          fullWidth
+          loading={busy === 'schedule'}
+          disabled={!!busy}
+          onPress={openScheduleDate}
+        />
       </View>
     );
   }
 
   return (
-    <WizardScaffold
-      step={step}
-      total={TOTAL}
-      title={title}
-      subtitle={subtitle}
-      onBack={onBack}
-      onCancel={close}
-      footer={footer}
-    >
-      {bodyContent}
-    </WizardScaffold>
+    <>
+      <WizardScaffold
+        step={step}
+        total={TOTAL}
+        title={title}
+        subtitle={subtitle}
+        onBack={onBack}
+        onCancel={close}
+        footer={footer}
+      >
+        {bodyContent}
+      </WizardScaffold>
+      <CalendarModal
+        visible={datePicker}
+        value={null}
+        title="Schedule this job for"
+        onSelect={date => {
+          setDatePicker(false);
+          scheduleAndClose(date);
+        }}
+        onClose={() => setDatePicker(false)}
+      />
+    </>
   );
 };
 

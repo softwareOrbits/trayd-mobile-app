@@ -1,11 +1,24 @@
 import { PermissionsAndroid, Platform } from 'react-native';
-import messaging from '@react-native-firebase/messaging';
+import messaging, {
+  type FirebaseMessagingTypes,
+} from '@react-native-firebase/messaging';
 import Toast from 'react-native-toast-message';
 
 import { supabase } from './supabase';
 import { store } from '@/store';
 import { fetchUnread } from '@/store/notificationsSlice';
+import { openNotificationTarget } from '@/navigation/navigationRef';
+import { emitShiftPush, isShiftPush } from './shiftBus';
 import { getJwtClaims } from '@/utils/jwt';
+
+function jobIdFrom(
+  msg: FirebaseMessagingTypes.RemoteMessage | null,
+): string | null {
+  const data = (msg?.data ?? {}) as Record<string, unknown>;
+  const raw =
+    data.job_id ?? data.jobId ?? data.related_entity_id ?? data.entity_id;
+  return typeof raw === 'string' && raw ? raw : null;
+}
 
 async function currentSessionId(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
@@ -78,15 +91,30 @@ export async function registerPush(): Promise<void> {
         }),
         messaging().onMessage(msg => {
           store.dispatch(fetchUnread());
+          if (isShiftPush(msg.data as Record<string, unknown>)) emitShiftPush();
           const n = msg.notification;
           if (!n) return;
           Toast.show({
             type: 'info',
             text1: n.title ?? 'Trayd',
             text2: n.body ?? undefined,
+            onPress: () => {
+              Toast.hide();
+              openNotificationTarget(jobIdFrom(msg));
+            },
           });
         }),
+        messaging().onNotificationOpenedApp(msg => {
+          if (isShiftPush(msg.data as Record<string, unknown>)) emitShiftPush();
+          openNotificationTarget(jobIdFrom(msg));
+        }),
       );
+      messaging()
+        .getInitialNotification()
+        .then(msg => {
+          if (msg) openNotificationTarget(jobIdFrom(msg));
+        })
+        .catch(() => {});
     }
 
     const token = await messaging().getToken();

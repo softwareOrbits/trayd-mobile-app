@@ -17,18 +17,38 @@ const readPosition = (highAccuracy: boolean) =>
   });
 
 /**
+ * Shows the OS location prompt. On iOS this is the only call that surfaces it —
+ * `getCurrentPosition` alone stays silent, and the prompt never appears at all
+ * unless NSLocationWhenInUseUsageDescription is a non-empty string.
+ */
+export async function requestLocationPermission(): Promise<boolean> {
+  if (Platform.OS === 'android') {
+    const granted = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+    ).catch(() => PermissionsAndroid.RESULTS.DENIED);
+    return granted === PermissionsAndroid.RESULTS.GRANTED;
+  }
+  return new Promise<boolean>(resolve => {
+    try {
+      Geolocation.requestAuthorization(
+        () => resolve(true),
+        () => resolve(false),
+      );
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
+/**
  * One-shot current position. Resolves null (never rejects) when permission
  * is denied or no fix is available, so callers can degrade gracefully.
  * Tries GPS first, then falls back to network location (more reliable on
  * emulators and indoors).
  */
 export async function getCurrentPosition(): Promise<GpsPoint | null> {
-  if (Platform.OS === 'android') {
-    const granted = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-    ).catch(() => PermissionsAndroid.RESULTS.DENIED);
-    if (granted !== PermissionsAndroid.RESULTS.GRANTED) return null;
-  }
+  const granted = await requestLocationPermission();
+  if (!granted) return null;
   const precise = await readPosition(true);
   if (precise) return precise;
   return readPosition(false);

@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "1079186713682",
-    "project_id": "trayd-eec55",
-    "storage_bucket": "trayd-eec55.firebasestorage.app"
+    "project_number": "189209945699",
+    "project_id": "trayd-8ce90",
+    "storage_bucket": "trayd-8ce90.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1079186713682:android:87e9c3f3e1ceee64de438b",
+        "mobilesdk_app_id": "1:189209945699:android:addd1127c3993a73a17a56",
         "android_client_info": {
           "package_name": "com.trayd.app"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAviJcdsKvcTtsypYodO3Qo75BvFdGp2cM"
+          "current_key": "AIzaSyDPN_k3K-92-g5B2tVg9rvCvR7la1s8WTI"
         }
       ],
       "services": {

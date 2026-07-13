@@ -5,6 +5,12 @@ export { makeJobsStyles } from './jobs.styles';
 export { makeStartJobStyles } from './startJob.styles';
 export { makeWrapUpStyles } from './wrapUp.styles';
 
+export { makeDashboardStyles, makeDashboardHeaderStyles } from './dashboard.styles';
+export {
+  makeLeaveStyles,
+  makeLeaveHeaderStyles,
+  makeLeaveBodyStyles,
+} from './leave.styles';
 export { makeProfileStyles } from './profile.styles';
 export { makeEditJobStyles } from './editJob.styles';
 export { makeAddReceiptStyles } from './addReceipt.styles';
