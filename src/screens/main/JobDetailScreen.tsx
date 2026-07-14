@@ -1064,8 +1064,6 @@ const JobDetailScreen = () => {
       : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
-  // ----- Quote-visit variant (job_type === 'quote'): photos + scope notes,
-  // no materials/van-stock; submit becomes a Quote record (mds start §6). -----
   const isQuote = detail.jobType === 'quote';
   const scopeRows: { label: string; included: boolean }[] = [
     { label: 'Site photos', included: true },
@@ -1075,6 +1073,15 @@ const JobDetailScreen = () => {
 
   const quoteBody = (
     <>
+      {state === 'active' ? (
+        <View style={styles.block}>
+          <TimerCard
+            time={elapsed}
+            status={myTimerStatus}
+            onEdit={openTimeEdit}
+          />
+        </View>
+      ) : null}
       <Section title="Quote-visit scope" card>
         {scopeRows.map((r, i) => (
           <View
