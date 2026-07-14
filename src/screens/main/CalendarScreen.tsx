@@ -38,7 +38,7 @@ const localityOf = (addr: string | null) => {
   return parts.length > 1 ? parts[1] : '';
 };
 
-const timeOf = (t: string | null) => (t ? t.slice(0, 5) : '—');
+const timeOf = (t: string | null) => (t ? t.slice(0, 5) : null);
 
 const statusWord = (status: Job['status']) =>
   status === 'active'
@@ -233,6 +233,7 @@ const CalendarScreen = () => {
                 const badge = jobBadge(job.status);
                 const name = job.customerName ?? JOB_TYPE_LABEL[job.jobType];
                 const locality = localityOf(job.customerAddress);
+                const time = timeOf(job.scheduledStartTime);
                 return (
                   <Fragment key={job.id}>
                     {index > 0 ? <View style={styles.jobDivider} /> : null}
@@ -247,9 +248,7 @@ const CalendarScreen = () => {
                       />
                       <View style={styles.jobRowContent}>
                         <View style={styles.jobTimeCol}>
-                          <Text style={styles.jobTime}>
-                            {timeOf(job.scheduledStartTime)}
-                          </Text>
+                          {time ? <Text style={styles.jobTime}>{time}</Text> : null}
                           <StatusPill label={badge.label} bg={badge.bg} fg={badge.fg} />
                         </View>
                         <View style={styles.rowBody}>
