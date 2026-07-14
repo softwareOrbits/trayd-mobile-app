@@ -40,7 +40,11 @@ import {
   DuplicateCustomerError,
 } from '@/services/jobs';
 import { searchMaterials, type CatalogMaterial } from '@/services/materials';
-import { fetchActiveRoster, type RosterEntry } from '@/services/member';
+import {
+  fetchActiveRoster,
+  getMyMemberRef,
+  type RosterEntry,
+} from '@/services/member';
 import { enqueue, offlineActionBlocked } from '@/offline';
 import { useCertGate } from '@/compliance';
 import { isNetworkError } from '@/offline/errors';
@@ -97,6 +101,7 @@ const StartJobScreen = () => {
   const [customersLoading, setCustomersLoading] = useState(true);
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [rosterLoading, setRosterLoading] = useState(true);
+  const [myMemberId, setMyMemberId] = useState<string | null>(null);
   const [gps, setGps] = useState<GpsPoint | null>(null);
   const [nearest, setNearest] = useState<NearestCustomer | null>(null);
 
@@ -108,6 +113,10 @@ const StartJobScreen = () => {
   const [pickedMaterials, setPickedMaterials] = useState<CatalogMaterial[]>([]);
 
   useEffect(() => {
+    getMyMemberRef()
+      .then(r => setMyMemberId(r.id))
+      .catch(() => {});
+
     fetchActiveRoster()
       .then(rows => {
         setRoster(rows);
@@ -298,6 +307,9 @@ const StartJobScreen = () => {
     }
   };
 
+  const selfId = roster.find(r => r.isSelf)?.id ?? myMemberId ?? undefined;
+  const selfOnCrew = !!selfId && crew.includes(selfId);
+
   const finish = async () => {
     if (busy) return;
     if (!customerId && !newCustomer) {
@@ -308,7 +320,6 @@ const StartJobScreen = () => {
     if (certBlocked()) return;
     if (offlineActionBlocked()) return;
     setBusy('start');
-    const selfId = roster.find(r => r.isSelf)?.id;
     const memberIds = crew.length === 1 && crew[0] === selfId ? [] : crew;
     try {
       const jobId = await startJob({
@@ -434,7 +445,6 @@ const StartJobScreen = () => {
     if (busy) return;
     if (offlineActionBlocked()) return;
     setBusy('schedule');
-    const selfId = roster.find(r => r.isSelf)?.id;
     const memberIds = crew.length === 1 && crew[0] === selfId ? [] : crew;
     try {
       const jobId = await scheduleJob({
@@ -822,17 +832,19 @@ const StartJobScreen = () => {
           disabled={!!busy}
           onPress={addPhotos}
         />
-        <Button
-          label="Start job now"
-          fullWidth
-          loading={busy === 'start'}
-          disabled={!!busy}
-          onPress={finish}
-        />
+        {selfOnCrew ? (
+          <Button
+            label="Start job now"
+            fullWidth
+            loading={busy === 'start'}
+            disabled={!!busy}
+            onPress={finish}
+          />
+        ) : null}
         <Button
           label="Save & schedule"
-          variant="outlined"
-          color="secondary"
+          variant={selfOnCrew ? 'outlined' : 'filled'}
+          color={selfOnCrew ? 'secondary' : 'primary'}
           fullWidth
           loading={busy === 'schedule'}
           disabled={!!busy}

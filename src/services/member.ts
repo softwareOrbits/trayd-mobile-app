@@ -223,7 +223,7 @@ export async function fetchActiveRoster(): Promise<RosterEntry[]> {
       .order('full_name');
     if (error) throw new Error(error.message);
 
-    const out = (data ?? []).map(r => {
+    const out: RosterEntry[] = (data ?? []).map(r => {
       const role = pickOne<{ name: string | null }>(r.job_roles as never);
       return {
         id: r.id,
@@ -233,6 +233,20 @@ export async function fetchActiveRoster(): Promise<RosterEntry[]> {
         isSelf: r.user_id === userData.user.id,
       };
     });
+
+    if (!out.some(r => r.isSelf)) {
+      const me = await fetchMyMember().catch(() => null);
+      if (me) {
+        out.unshift({
+          id: me.id,
+          fullName: me.fullName,
+          email: me.email,
+          roleName: me.roleName,
+          isSelf: true,
+        });
+      }
+    }
+
     AsyncStorage.setItem(ROSTER_KEY, JSON.stringify(out)).catch(() => {});
     return out;
   } catch (e) {

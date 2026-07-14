@@ -890,6 +890,11 @@ const JobDetailScreen = () => {
     s => s.finishTime == null && s.memberId === myMemberId,
   );
   const myHasSegments = segments.some(s => s.memberId === myMemberId);
+  const iAmAssigned =
+    myMemberId != null &&
+    (crew.length
+      ? crew.some(c => c.id === myMemberId)
+      : detail.primaryMemberId === myMemberId);
   const myTimerStatus = iAmWorking
     ? 'RUNNING'
     : myHasSegments
@@ -1071,17 +1076,39 @@ const JobDetailScreen = () => {
     { label: 'Suggested materials', included: true },
   ];
 
+  const timerBlock =
+    iAmAssigned || myHasSegments ? (
+      <View style={styles.block}>
+        <TimerCard
+          time={elapsed}
+          status={myTimerStatus}
+          onEdit={openTimeEdit}
+        />
+      </View>
+    ) : null;
+
   const quoteBody = (
     <>
-      {state === 'active' ? (
+      {timerBlock}
+      {scheduleSection}
+      {detail.employerNote ? (
         <View style={styles.block}>
-          <TimerCard
-            time={elapsed}
-            status={myTimerStatus}
-            onEdit={openTimeEdit}
-          />
+          <Callout variant="note" icon="alert-circle">
+            <Text style={styles.calloutText}>
+              <Text style={styles.calloutStrong}>
+                Note from {detail.createdByName ?? 'your employer'}:{' '}
+              </Text>
+              {detail.employerNote}
+            </Text>
+          </Callout>
         </View>
       ) : null}
+      {roster.length ? (
+        <Section title="Roster" card={false}>
+          <RosterChips members={roster} />
+        </Section>
+      ) : null}
+      {daysSoFar}
       <Section title="Quote-visit scope" card>
         {scopeRows.map((r, i) => (
           <View
@@ -1174,7 +1201,7 @@ const JobDetailScreen = () => {
     </>
   );
 
-  const quoteFooter = (
+  const quoteFooter = iAmWorking ? (
     <View style={styles.footerStack}>
       <Button
         label="Submit quote to office"
@@ -1183,18 +1210,40 @@ const JobDetailScreen = () => {
         loading={acting}
         onPress={submitQuote}
       />
-      <Pressable
+      <Button
+        label="Continue tomorrow"
+        variant="outlined"
+        color="secondary"
+        fullWidth
+        loading={acting}
+        onPress={() => lifecycle('pause', 'Paused — see you tomorrow.')}
+      />
+    </View>
+  ) : (
+    <View style={styles.footerStack}>
+      <Button
+        label={myHasSegments ? 'Resume visit' : 'Start visit'}
+        leftIcon="play"
+        fullWidth
+        loading={acting}
         onPress={() =>
-          state === 'active'
-            ? lifecycle('pause', 'Saved — pick it up under Resume.')
-            : resetToJobsTab('resume')
+          lifecycle(
+            'resume',
+            myHasSegments ? 'Visit resumed.' : 'Visit started.',
+          )
         }
-        disabled={acting}
-        hitSlop={8}
-        style={styles.linkBtn}
-      >
-        <Text style={styles.linkText}>Save and come back</Text>
-      </Pressable>
+      />
+      {myHasSegments ? (
+        <Button
+          label="Submit quote to office"
+          variant="outlined"
+          color="secondary"
+          rightIcon="paper-plane"
+          fullWidth
+          loading={acting}
+          onPress={submitQuote}
+        />
+      ) : null}
     </View>
   );
 
@@ -1282,13 +1331,7 @@ const JobDetailScreen = () => {
       case 'active':
         return (
           <>
-            <View style={styles.block}>
-              <TimerCard
-                time={elapsed}
-                status={myTimerStatus}
-                onEdit={openTimeEdit}
-              />
-            </View>
+            {timerBlock}
             {scheduleSection}
             {detail.employerNote ? (
               <View style={styles.block}>
@@ -1450,6 +1493,17 @@ const JobDetailScreen = () => {
   };
 
   const footer = () => {
+    const clockable =
+      state === 'scheduled' || state === 'active' || state === 'paused';
+    if (clockable && !iAmAssigned) {
+      return (
+        <Text style={styles.waitingText}>
+          {roster.length
+            ? `Assigned to ${roster.map(r => r.name).join(', ')}`
+            : 'Not assigned to you'}
+        </Text>
+      );
+    }
     if (isQuote && (state === 'active' || state === 'paused')) {
       return quoteFooter;
     }
