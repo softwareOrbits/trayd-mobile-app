@@ -82,6 +82,7 @@ const JobsScreen = () => {
   }, [serverItems, pendingItems]);
   const status = useAppSelector(state => state.jobs.status);
   const user = useAppSelector(state => state.auth.user);
+  const isOwner = useAppSelector(state => state.auth.isOwner);
   const { pending, flushNow } = useSync();
   const online = useOnline();
   const [topTab, setTopTab] = useState<'jobs' | 'tasks'>('jobs');
@@ -480,7 +481,7 @@ const JobsScreen = () => {
         </View>
       )}
 
-      {topTab === 'jobs' ? (
+      {topTab === 'jobs' && isOwner ? (
         <FloatingActionButton
           label="Start a new job"
           icon="add"

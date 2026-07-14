@@ -94,8 +94,12 @@ export const makeJobDetailStyles = (theme: Theme) =>
     addLogRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: 8,
-      paddingTop: 14,
+      marginTop: 12,
+      paddingVertical: 12,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.divider,
     },
     addLogText: {
       fontSize: theme.typography.size.sm,
