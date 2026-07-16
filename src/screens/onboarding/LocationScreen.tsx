@@ -10,6 +10,7 @@ import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeOnboardingLocationStyles } from '@/styles/onboardingLocation.styles';
 import type { AuthStackParamList } from '@/types';
+import { usePrimingComplete } from '@/navigation/OnboardingStack';
 import OnboardingScaffold from './OnboardingScaffold';
 
 const LocationScreen = () => {
@@ -18,6 +19,7 @@ const LocationScreen = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
   const [asking, setAsking] = useState(false);
+  const skipAll = usePrimingComplete();
   const next = () => navigation.navigate('OnboardPhoto');
 
   const requestLocation = async () => {
@@ -58,6 +60,7 @@ const LocationScreen = () => {
             onPress={requestLocation}
           />
           <TextLink label="Maybe later" onPress={next} />
+          <TextLink label="Skip all setup" onPress={skipAll} />
         </>
       }
     />

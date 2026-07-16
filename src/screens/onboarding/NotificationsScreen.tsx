@@ -10,6 +10,7 @@ import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeOnboardingNotificationsStyles } from '@/styles/onboardingNotifications.styles';
 import type { AuthStackParamList } from '@/types';
+import { usePrimingComplete } from '@/navigation/OnboardingStack';
 import OnboardingScaffold from './OnboardingScaffold';
 
 const NotificationsScreen = () => {
@@ -17,6 +18,7 @@ const NotificationsScreen = () => {
   const styles = useThemedStyles(makeOnboardingNotificationsStyles);
   const navigation =
     useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
+  const skipAll = usePrimingComplete();
 
   const goNext = () => navigation.navigate('OnboardLocation');
 
@@ -48,6 +50,7 @@ const NotificationsScreen = () => {
             onPress={requestNotifications}
           />
           <TextLink label="Maybe later" onPress={goNext} />
+          <TextLink label="Skip all setup" onPress={skipAll} />
         </>
       }
     />
