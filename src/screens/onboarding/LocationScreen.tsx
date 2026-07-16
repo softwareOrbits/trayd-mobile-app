@@ -5,7 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { Button, TextLink } from '@/components/ui';
-import { requestLocationPermission } from '@/utils/location';
+import { ensureLocationPermission } from '@/utils/location';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeOnboardingLocationStyles } from '@/styles/onboardingLocation.styles';
@@ -24,7 +24,9 @@ const LocationScreen = () => {
     if (asking) return;
     setAsking(true);
     try {
-      await requestLocationPermission();
+      // ensure, not request: once the OS has stopped prompting, a bare request
+      // returns `blocked` with no dialog and the tap looks like it did nothing.
+      await ensureLocationPermission();
     } finally {
       setAsking(false);
       next();

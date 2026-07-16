@@ -28,6 +28,8 @@ export type MainTabParamList = {
 
 export type MainStackParamList = {
   Tabs: NavigatorScreenParams<MainTabParamList> | undefined;
+  Employer: undefined;
+  Notifications: undefined;
   JobDetail: { jobId: string };
   JobChat: { jobId: string };
   StartJob: undefined;
@@ -45,4 +47,5 @@ export type MainStackParamList = {
   Certifications: undefined;
   CertificationDetail: { cert: MemberCertification; holder: string };
   AddCertification: undefined;
+  EditCertification: { cert: MemberCertification; holder: string };
 };

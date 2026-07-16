@@ -12,6 +12,7 @@ import {
   TodayJobs,
   QuickAccess,
   VanIssuePromo,
+  PermissionBanner,
   type DashboardVariant,
 } from '@/components/dashboard';
 import { useAppDispatch } from '@/store/hooks';
@@ -49,6 +50,7 @@ const DashboardScreen = () => {
           <View style={styles.body}>
             {VARIANT === 'active' ? (
               <>
+                <PermissionBanner />
                 <TodayJobs />
                 <QuickAccess />
                 <VanIssuePromo />

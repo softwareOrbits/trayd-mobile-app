@@ -28,8 +28,12 @@ import {
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { BASE_URL } from '@env';
 
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
 import { useAppDispatch } from '@/store/hooks';
 import { setSelectedView, signOut } from '@/store/authSlice';
+import type { MainStackParamList } from '@/types';
 import { supabase } from '@/services/supabase';
 import { savePdfAndShare } from '@/services/pdf';
 import {
@@ -64,6 +68,8 @@ const EmployerWebViewScreen = () => {
   const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<MainStackParamList>>();
 
   const webRef = useRef<WebView>(null);
   const canGoBackRef = useRef(false);
@@ -71,6 +77,15 @@ const EmployerWebViewScreen = () => {
 
   const [bootstrap, setBootstrap] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const configured = !!BASE_URL;
+
+  const retry = useCallback(() => {
+    setLoadError(null);
+    setReady(false);
+    webRef.current?.reload();
+  }, []);
 
   // Seed the injected script from the freshest session before the WebView loads.
   useEffect(() => {
@@ -119,9 +134,12 @@ const EmployerWebViewScreen = () => {
   }, []);
 
   // Android hardware back: navigate WebView history, else return to the chooser.
+  // Skip when a screen is pushed on top (Notifications/JobDetail) so the native
+  // stack can pop it first.
   useEffect(() => {
     if (Platform.OS !== 'android') return;
     const onBack = () => {
+      if (!navigation.isFocused()) return false;
       if (canGoBackRef.current) {
         webRef.current?.goBack();
         return true;
@@ -131,7 +149,7 @@ const EmployerWebViewScreen = () => {
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
     return () => sub.remove();
-  }, [dispatch]);
+  }, [dispatch, navigation]);
 
   const onMessage = useCallback(
     (event: WebViewMessageEvent) => {
@@ -150,6 +168,9 @@ const EmployerWebViewScreen = () => {
           // the native app tears the screen down.
           setReady(false);
           dispatch(signOut());
+          break;
+        case NativeMessage.SWITCH_VIEW:
+          dispatch(setSelectedView(null));
           break;
         case NativeMessage.SAVE_PDF:
           savePdfAndShare(msg.filename, msg.base64).catch(() => undefined);
@@ -181,30 +202,23 @@ const EmployerWebViewScreen = () => {
     canGoBackRef.current = navState.canGoBack;
   }, []);
 
+  const onLoadError = useCallback((description?: string) => {
+    setLoadError(description || 'The dashboard could not be loaded.');
+    setReady(true);
+  }, []);
+
   return (
     <View style={styles.flex}>
-      {/* Native header — makes it feel like a screen, not a browser tab. */}
-      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <Pressable
-          onPress={() => dispatch(setSelectedView(null))}
-          style={styles.headerBtn}
-          hitSlop={8}
-        >
-          <Ionicons name="swap-horizontal" size={20} color={colors.white} />
-          <Text style={styles.headerBtnText}>Switch view</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Dashboard</Text>
-        <Pressable
-          onPress={() => dispatch(signOut())}
-          style={styles.headerIconBtn}
-          hitSlop={8}
-        >
-          <Ionicons name="log-out-outline" size={22} color={colors.white} />
-        </Pressable>
-      </View>
-
-      <View style={styles.flex}>
-        {bootstrap ? (
+      {/* No native header: the web app renders its own. Back out via the web's
+          SWITCH_VIEW message or Android hardware back. The inset strip is tinted
+          to the web header's navy so the notch area doesn't read as a gap. */}
+      <View
+        style={[
+          styles.flex,
+          { paddingTop: insets.top, backgroundColor: colors.secondary },
+        ]}
+      >
+        {configured && bootstrap ? (
           <TypedWebView
             ref={webRef}
             source={{ uri: BASE_URL }}
@@ -213,6 +227,10 @@ const EmployerWebViewScreen = () => {
             onMessage={onMessage}
             onShouldStartLoadWithRequest={onShouldStartLoad}
             onNavigationStateChange={onNavStateChange}
+            onError={e => onLoadError(e.nativeEvent.description)}
+            onHttpError={e =>
+              onLoadError(`Server responded ${e.nativeEvent.statusCode}.`)
+            }
             domStorageEnabled
             javaScriptEnabled
             allowsInlineMediaPlayback
@@ -224,7 +242,25 @@ const EmployerWebViewScreen = () => {
           />
         ) : null}
 
-        {!ready ? (
+        {!configured || loadError ? (
+          <View style={[styles.veil, { backgroundColor: colors.background }]}>
+            <Ionicons
+              name="cloud-offline-outline"
+              size={44}
+              color={colors.textMuted}
+            />
+            <Text style={styles.errorText}>
+              {configured
+                ? loadError
+                : 'The employer dashboard address (BASE_URL) isn’t configured.'}
+            </Text>
+            {configured ? (
+              <Pressable onPress={retry} style={styles.retryBtn} hitSlop={8}>
+                <Text style={styles.retryText}>Try again</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : !ready ? (
           <View style={[styles.veil, { backgroundColor: colors.background }]}>
             <Image
               source={require('@assets/images/small_logo.png')}
@@ -242,26 +278,6 @@ const EmployerWebViewScreen = () => {
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     flex: { flex: 1, backgroundColor: theme.colors.background },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 12,
-      paddingBottom: 10,
-      backgroundColor: theme.colors.secondary,
-    },
-    headerBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    headerBtnText: {
-      color: theme.colors.white,
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-    },
-    headerTitle: {
-      color: theme.colors.white,
-      fontSize: theme.typography.size.lg,
-      fontFamily: theme.fonts.bold,
-    },
-    headerIconBtn: { padding: 2 },
     veil: {
       position: 'absolute',
       top: 0,
@@ -273,6 +289,25 @@ const makeStyles = (theme: Theme) =>
       gap: 20,
     },
     veilLogo: { width: 96, height: 70 },
+    errorText: {
+      paddingHorizontal: 40,
+      textAlign: 'center',
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.regular,
+      color: theme.colors.text,
+      lineHeight: 22,
+    },
+    retryBtn: {
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: theme.radii.pill,
+      backgroundColor: theme.colors.primary,
+    },
+    retryText: {
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.bold,
+      color: theme.colors.onPrimary,
+    },
   });
 
 export default EmployerWebViewScreen;

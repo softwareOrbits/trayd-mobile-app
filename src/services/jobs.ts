@@ -21,6 +21,7 @@ type ListRow = {
   customer_id: string | null;
   customer_name: string | null;
   customer_address: string | null;
+  customer_eircode: string | null;
   primary_member_id: string | null;
   primary_member_name: string | null;
   invoice_total: number | string | null;
@@ -59,6 +60,7 @@ const mapList = (r: ListRow): Job => ({
   customerId: r.customer_id,
   customerName: r.customer_name,
   customerAddress: r.customer_address,
+  customerEircode: r.customer_eircode ?? null,
   primaryMemberId: r.primary_member_id,
   primaryMemberName: r.primary_member_name,
   invoiceTotal: num(r.invoice_total),

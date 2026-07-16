@@ -3,6 +3,8 @@ import {
   type BottomTabBarProps,
 } from '@react-navigation/bottom-tabs';
 import { BottomNav } from '@/components/ui';
+import { NavCollapseProvider, useNavCollapse } from '@/utils/navCollapse';
+import { haptics } from '@/utils/haptics';
 import type { MainTabParamList, NavItem } from '@/types';
 import DashboardScreen from '@/screens/main/DashboardScreen';
 import CalendarScreen from '@/screens/main/CalendarScreen';
@@ -20,7 +22,7 @@ type TabConfig = NavItem & {
 const NAV_TABS: TabConfig[] = [
   { name: 'Home', key: 'Home', label: 'Home', icon: 'home-outline', activeIcon: 'home', component: DashboardScreen },
   { name: 'Calendar', key: 'Calendar', label: 'Calendar', icon: 'calendar-outline', activeIcon: 'calendar', component: CalendarScreen },
-  { name: 'Jobs', key: 'Jobs', label: 'Jobs', icon: 'build-outline', activeIcon: 'build', raised: true, component: JobsScreen },
+  { name: 'Jobs', key: 'Jobs', label: 'Jobs', icon: 'build-outline', activeIcon: 'build', component: JobsScreen },
   { name: 'Leave', key: 'Leave', label: 'Leave', icon: 'sunny-outline', activeIcon: 'sunny', component: LeaveScreen },
   { name: 'Fleet', key: 'Fleet', label: 'Fleet', icon: 'bus-outline', activeIcon: 'bus', component: FleetScreen },
 ];
@@ -34,37 +36,43 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const TabBar = ({ state, navigation }: BottomTabBarProps) => {
   const activeKey = state.routes[state.index].name;
-  const items: NavItem[] = NAV_TABS.map(({ key, label, icon, activeIcon, badge, raised }) => ({
+  const { collapsed } = useNavCollapse();
+  const items: NavItem[] = NAV_TABS.map(({ key, label, icon, activeIcon, badge }) => ({
     key,
     label,
     icon,
     activeIcon,
     badge,
-    raised,
   }));
 
   return (
     <BottomNav
       activeKey={activeKey}
       items={items}
-      onChange={key => navigation.navigate(key as keyof MainTabParamList)}
+      collapsed={collapsed}
+      onChange={key => {
+        haptics.select();
+        navigation.navigate(key as keyof MainTabParamList);
+      }}
     />
   );
 };
 
 const MainTabs = () => (
-  <Tab.Navigator
-    initialRouteName="Home"
-    screenOptions={{ headerShown: false }}
-    tabBar={props => <TabBar {...props} />}
-  >
-    {NAV_TABS.map(tab => (
-      <Tab.Screen key={tab.name} name={tab.name} component={tab.component} />
-    ))}
-    {HIDDEN_TABS.map(tab => (
-      <Tab.Screen key={tab.name} name={tab.name} component={tab.component} />
-    ))}
-  </Tab.Navigator>
+  <NavCollapseProvider>
+    <Tab.Navigator
+      initialRouteName="Home"
+      screenOptions={{ headerShown: false }}
+      tabBar={props => <TabBar {...props} />}
+    >
+      {NAV_TABS.map(tab => (
+        <Tab.Screen key={tab.name} name={tab.name} component={tab.component} />
+      ))}
+      {HIDDEN_TABS.map(tab => (
+        <Tab.Screen key={tab.name} name={tab.name} component={tab.component} />
+      ))}
+    </Tab.Navigator>
+  </NavCollapseProvider>
 );
 
 export default MainTabs;

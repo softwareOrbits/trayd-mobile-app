@@ -76,6 +76,7 @@ export const makeProfileStyles = (theme: Theme) =>
     },
     syncBadgeTextQueued: { color: theme.colors.warning },
 
+    employerBtn: { marginTop: 18 },
     statsCard: {
       backgroundColor: theme.colors.secondary,
       borderRadius: theme.radii.lg,

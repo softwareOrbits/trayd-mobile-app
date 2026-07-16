@@ -19,6 +19,7 @@ import {
   LEAVE_TYPE_LABEL_LONG,
   STATUS_GROUP,
   type Job,
+  type JobStatus,
   type LeaveRequest,
   type MainStackParamList,
 } from '@/types';
@@ -32,20 +33,18 @@ const mondayOf = (base: Date) => {
   return d;
 };
 
-const localityOf = (addr: string | null) => {
-  if (!addr) return '';
-  const parts = addr.split(',').map(s => s.trim()).filter(Boolean);
-  return parts.length > 1 ? parts[1] : '';
-};
-
 const timeOf = (t: string | null) => (t ? t.slice(0, 5) : null);
 
-const statusWord = (status: Job['status']) =>
-  status === 'active'
-    ? 'running'
-    : status === 'paused'
-    ? 'paused'
-    : 'scheduled';
+const STATUS_WORD: Record<JobStatus, string> = {
+  scheduled: 'scheduled',
+  active: 'running',
+  paused: 'suspended',
+  awaiting_review: 'awaiting review',
+  approved: 'approved',
+  downloaded: 'downloaded',
+  paid: 'paid',
+  cancelled: 'cancelled',
+};
 
 const dayTitle = (key: string, todayKey: string) => {
   const formatted = new Date(`${key}T00:00:00`).toLocaleDateString('en-GB', {
@@ -55,6 +54,15 @@ const dayTitle = (key: string, todayKey: string) => {
   });
   return key === todayKey ? `Today · ${formatted}` : formatted;
 };
+
+const groupLabel = (key: string) =>
+  new Date(`${key}T00:00:00`)
+    .toLocaleDateString('en-GB', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    })
+    .toUpperCase();
 
 const CalendarScreen = () => {
   const { colors } = useTheme();
@@ -68,6 +76,7 @@ const CalendarScreen = () => {
   const { collapsed, onScroll } = useCollapsibleOnScroll();
 
   const todayKey = dateKey(new Date());
+  const [mode, setMode] = useState<'day' | 'past'>('day');
   const [selected, setSelected] = useState(todayKey);
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
@@ -96,7 +105,7 @@ const CalendarScreen = () => {
   const jobsByDay = useMemo(() => {
     const map = new Map<string, Job[]>();
     for (const job of jobs) {
-      if (!job.scheduledDate || !STATUS_GROUP[job.status]) continue;
+      if (!job.scheduledDate) continue;
       const bucket = map.get(job.scheduledDate) ?? [];
       bucket.push(job);
       map.set(job.scheduledDate, bucket);
@@ -154,23 +163,117 @@ const CalendarScreen = () => {
   const dayLeaves = leavesByDay.get(selected) ?? [];
   const isEmpty = dayJobs.length === 0 && dayLeaves.length === 0;
 
+  /**
+   * Every job dated before today — scheduled, suspended, cancelled, done alike —
+   * newest first, grouped by date. No status filter: this is the full history.
+   */
+  const pastSections = useMemo(() => {
+    const past = jobs
+      .filter(j => j.scheduledDate != null && j.scheduledDate < todayKey)
+      .sort((a, b) => {
+        const byDate = (b.scheduledDate ?? '').localeCompare(
+          a.scheduledDate ?? '',
+        );
+        if (byDate !== 0) return byDate;
+        return (b.scheduledStartTime ?? '').localeCompare(
+          a.scheduledStartTime ?? '',
+        );
+      });
+
+    const map = new Map<string, Job[]>();
+    for (const job of past) {
+      const key = job.scheduledDate as string;
+      const bucket = map.get(key) ?? [];
+      bucket.push(job);
+      map.set(key, bucket);
+    }
+    return [...map.entries()];
+  }, [jobs, todayKey]);
+
+  const pastCount = pastSections.reduce((s, [, list]) => s + list.length, 0);
+
   const jobBadge = (status: Job['status']) => {
+    if (status === 'cancelled')
+      return { label: 'CANCELLED', bg: colors.surfaceMuted, fg: colors.textMuted, accent: colors.placeholder };
     const group = STATUS_GROUP[status];
     if (group === 'live')
       return { label: 'LIVE', bg: colors.primary, fg: colors.onPrimary, accent: colors.primary };
     if (group === 'paused')
-      return { label: 'PAUSED', bg: colors.warningBg, fg: colors.warning, accent: colors.warning };
+      return { label: 'SUSPENDED', bg: colors.warningBg, fg: colors.warning, accent: colors.warning };
     if (group === 'done')
       return { label: 'DONE', bg: colors.surfaceMuted, fg: colors.green, accent: colors.green };
     return { label: 'NEXT', bg: colors.secondary, fg: colors.white, accent: colors.secondary };
+  };
+
+  const renderJobRow = (job: Job, index: number) => {
+    const badge = jobBadge(job.status);
+    const name = job.customerName ?? JOB_TYPE_LABEL[job.jobType];
+    const eircode = job.customerEircode?.trim() || null;
+    const time = timeOf(job.scheduledStartTime);
+    return (
+      <Fragment key={job.id}>
+        {index > 0 ? <View style={styles.jobDivider} /> : null}
+        <Pressable
+          style={styles.jobRow}
+          onPress={() => navigation.navigate('JobDetail', { jobId: job.id })}
+        >
+          <View style={[styles.jobAccentBar, { backgroundColor: badge.accent }]} />
+          <View style={styles.jobRowContent}>
+            <View style={styles.jobTimeCol}>
+              {time ? <Text style={styles.jobTime}>{time}</Text> : null}
+              {eircode ? (
+                <Text style={styles.jobEircode} numberOfLines={1}>
+                  {eircode}
+                </Text>
+              ) : null}
+              <StatusPill label={badge.label} bg={badge.bg} fg={badge.fg} />
+            </View>
+            <View style={styles.rowBody}>
+              <Text style={styles.jobTitle} numberOfLines={1}>
+                {name}
+              </Text>
+              <Text style={styles.rowSub}>
+                {JOB_TYPE_LABEL[job.jobType]} · {STATUS_WORD[job.status]}
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={colors.placeholder}
+            />
+          </View>
+        </Pressable>
+      </Fragment>
+    );
   };
 
   return (
     <View style={styles.flex}>
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.eyebrow}>CALENDAR</Text>
-        <Text style={styles.title}>{dayTitle(selected, todayKey)}</Text>
+        <Text style={styles.title}>
+          {mode === 'day' ? dayTitle(selected, todayKey) : 'Previous jobs'}
+        </Text>
 
+        <View style={styles.segment}>
+          {(['day', 'past'] as const).map(key => {
+            const on = mode === key;
+            return (
+              <Pressable
+                key={key}
+                onPress={() => setMode(key)}
+                style={[styles.segmentBtn, on && styles.segmentBtnActive]}
+              >
+                <Text style={[styles.segmentText, on && styles.segmentTextActive]}>
+                  {key === 'day' ? 'Day' : 'Past'}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {mode === 'past' ? null : (
+        <>
         <View style={styles.monthRow}>
           <Text style={styles.monthLabel}>{monthLabel}</Text>
           <View style={styles.weekNav}>
@@ -206,6 +309,8 @@ const CalendarScreen = () => {
             );
           })}
         </View>
+        </>
+        )}
       </View>
 
       <ScrollView
@@ -214,6 +319,28 @@ const CalendarScreen = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: navHeight + 24 }]}
       >
+        {mode === 'past' ? (
+          pastCount === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>No previous jobs</Text>
+              <Text style={styles.emptyText}>
+                Work dated before today will show up here.
+              </Text>
+            </View>
+          ) : (
+            pastSections.map(([key, list]) => (
+              <Fragment key={key}>
+                <View style={styles.sectionHead}>
+                  <View style={styles.sectionDot} />
+                  <Text style={styles.sectionLabel}>{groupLabel(key)}</Text>
+                  <Text style={styles.sectionCount}>· {list.length}</Text>
+                </View>
+                <View style={styles.card}>{list.map(renderJobRow)}</View>
+              </Fragment>
+            ))
+          )
+        ) : (
+          <>
         {isEmpty ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>Nothing scheduled</Text>
@@ -228,48 +355,7 @@ const CalendarScreen = () => {
               <Text style={styles.sectionLabel}>JOBS</Text>
               <Text style={styles.sectionCount}>· {dayJobs.length}</Text>
             </View>
-            <View style={styles.card}>
-              {dayJobs.map((job, index) => {
-                const badge = jobBadge(job.status);
-                const name = job.customerName ?? JOB_TYPE_LABEL[job.jobType];
-                const locality = localityOf(job.customerAddress);
-                const time = timeOf(job.scheduledStartTime);
-                return (
-                  <Fragment key={job.id}>
-                    {index > 0 ? <View style={styles.jobDivider} /> : null}
-                    <Pressable
-                      style={styles.jobRow}
-                      onPress={() =>
-                        navigation.navigate('JobDetail', { jobId: job.id })
-                      }
-                    >
-                      <View
-                        style={[styles.jobAccentBar, { backgroundColor: badge.accent }]}
-                      />
-                      <View style={styles.jobRowContent}>
-                        <View style={styles.jobTimeCol}>
-                          {time ? <Text style={styles.jobTime}>{time}</Text> : null}
-                          <StatusPill label={badge.label} bg={badge.bg} fg={badge.fg} />
-                        </View>
-                        <View style={styles.rowBody}>
-                          <Text style={styles.jobTitle} numberOfLines={1}>
-                            {locality ? `${name} — ${locality}` : name}
-                          </Text>
-                          <Text style={styles.rowSub}>
-                            {JOB_TYPE_LABEL[job.jobType]} · {statusWord(job.status)}
-                          </Text>
-                        </View>
-                        <Ionicons
-                          name="chevron-forward"
-                          size={18}
-                          color={colors.placeholder}
-                        />
-                      </View>
-                    </Pressable>
-                  </Fragment>
-                );
-              })}
-            </View>
+            <View style={styles.card}>{dayJobs.map(renderJobRow)}</View>
           </>
         ) : null}
 
@@ -325,8 +411,10 @@ const CalendarScreen = () => {
             </View>
           </>
         ) : null}
+          </>
+        )}
 
-        {!isEmpty ? (
+        {(mode === 'past' ? pastCount > 0 : !isEmpty) ? (
           <Text style={styles.footer}>TAP ANY ENTRY FOR THE FULL DETAIL</Text>
         ) : null}
       </ScrollView>

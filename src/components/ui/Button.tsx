@@ -7,6 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { haptics } from '@/utils/haptics';
 import { ButtonColor, ButtonProps, ButtonVariant } from '@/types';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -81,6 +82,7 @@ export const Button = ({
       onPress={onPress}
       onPressIn={() => {
         if (!inactive) {
+          haptics.tap();
           scale.value = withTiming(0.97, { duration: 90 });
         }
       }}

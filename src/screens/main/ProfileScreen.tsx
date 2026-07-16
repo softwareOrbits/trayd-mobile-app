@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { Fragment, useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -14,12 +14,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import {
-  launchCamera,
-  launchImageLibrary,
-  type Asset,
-} from 'react-native-image-picker';
-
 import Toast from 'react-native-toast-message';
 
 import { AppToast, Avatar, Button, Input, useBottomNavHeight } from '@/components/ui';
@@ -36,17 +30,40 @@ import {
   type MemberStats,
 } from '@/services/member';
 import { CertComplianceBanner } from '@/compliance';
+import {
+  PERMISSION_KINDS,
+  PERMISSION_LABEL,
+  openPermissionSettings,
+  type PermissionState,
+} from '@/utils/permissions';
+import { usePermissionStatus } from '@/utils/usePermissionStatus';
+import {
+  capturePhoto,
+  pickPhotos,
+  type CapturedPhoto,
+} from '@/utils/capturePhoto';
 import { deactivateMyAccount, reauthenticate } from '@/services/account';
 import { staticMapUrl } from '@/services/places';
 import { APP_VERSION } from '@/utils/appInfo';
 import { hasQueuedActions } from '@/services/outbox';
-import { useAppDispatch } from '@/store/hooks';
-import { signOut } from '@/store/authSlice';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { setSelectedView, signOut } from '@/store/authSlice';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeProfileStyles } from '@/styles/profile.styles';
 import { toastError } from '@/utils/toast';
 import type { MainStackParamList } from '@/types';
+
+/**
+ * Neither OS lets an app revoke its own permission, so "turn off" can only ever
+ * mean "open Settings" — every settled row deep-links there.
+ */
+const PERMISSION_VALUE: Record<PermissionState, string> = {
+  granted: 'Allowed · tap to turn off',
+  denied: 'Not allowed · tap to turn on',
+  blocked: 'Off · tap to open Settings',
+  unavailable: 'Not available on this device',
+};
 
 /** Compact summary of the working-hours column for the profile row. */
 const summariseHours = (raw: unknown): string => {
@@ -84,6 +101,8 @@ const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
   const navHeight = useBottomNavHeight();
   const dispatch = useAppDispatch();
+  const isOwner = useAppSelector(s => s.auth.isOwner);
+  const { status: permissions, fix: fixPermission } = usePermissionStatus();
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
 
@@ -180,11 +199,8 @@ const ProfileScreen = () => {
     }
   };
 
-  const handlePhotoAsset = async (asset: Asset | undefined) => {
-    if (!asset?.base64) {
-      Toast.show({ type: 'error', text1: "Couldn't read that image." });
-      return;
-    }
+  const handlePhotoAsset = async (asset: CapturedPhoto | undefined) => {
+    if (!asset?.base64) return;
     setPhotoUploading(true);
     try {
       const path = await uploadProfilePhoto({
@@ -203,38 +219,14 @@ const ProfileScreen = () => {
 
   const takePhoto = async () => {
     setPhotoSheet(false);
-    const res = await launchCamera({
-      mediaType: 'photo',
-      includeBase64: true,
-      quality: 0.7,
-      maxWidth: 1024,
-      maxHeight: 1024,
-      cameraType: 'front',
-    });
-    if (res.didCancel) return;
-    if (res.errorCode) {
-      Toast.show({ type: 'error', text1: res.errorMessage ?? 'Camera error.' });
-      return;
-    }
-    handlePhotoAsset(res.assets?.[0]);
+    const photo = await capturePhoto({ maxSize: 1024, cameraType: 'front' });
+    if (photo) handlePhotoAsset(photo);
   };
 
   const pickPhoto = async () => {
     setPhotoSheet(false);
-    const res = await launchImageLibrary({
-      mediaType: 'photo',
-      includeBase64: true,
-      quality: 0.7,
-      maxWidth: 1024,
-      maxHeight: 1024,
-      selectionLimit: 1,
-    });
-    if (res.didCancel) return;
-    if (res.errorCode) {
-      Toast.show({ type: 'error', text1: res.errorMessage ?? 'Library error.' });
-      return;
-    }
-    handlePhotoAsset(res.assets?.[0]);
+    const [photo] = await pickPhotos({ maxSize: 1024 });
+    if (photo) handlePhotoAsset(photo);
   };
 
   const serviceArea = parseServiceArea(member?.serviceArea);
@@ -342,6 +334,16 @@ const ProfileScreen = () => {
           </View>
         </View>
 
+        {isOwner ? (
+          <Button
+            label="Switch to Employer View"
+            leftIcon="briefcase-outline"
+            fullWidth
+            style={styles.employerBtn}
+            onPress={() => dispatch(setSelectedView('employer'))}
+          />
+        ) : null}
+
         {/* Stats */}
         <View style={styles.statsCard}>
           <View style={styles.statsRow}>
@@ -372,6 +374,32 @@ const ProfileScreen = () => {
         <View style={styles.card}>
           {row('My Certifications', 'View & present your tickets', {
             onPress: () => navigation.navigate('Certifications'),
+          })}
+        </View>
+
+        {/* Permissions */}
+        <Text style={styles.section}>PERMISSIONS</Text>
+        <View style={styles.card}>
+          {PERMISSION_KINDS.map((kind, index) => {
+            const state = permissions?.[kind];
+            // Granted goes straight to Settings (the only place it can be
+            // turned off); denied tries the OS prompt first.
+            const onPress =
+              !state || state === 'unavailable'
+                ? undefined
+                : state === 'granted'
+                  ? openPermissionSettings
+                  : () => fixPermission(kind);
+            return (
+              <Fragment key={kind}>
+                {index > 0 ? <View style={styles.divider} /> : null}
+                {row(
+                  PERMISSION_LABEL[kind],
+                  state ? PERMISSION_VALUE[state] : 'Checking…',
+                  { onPress, muted: !!state && state !== 'granted' },
+                )}
+              </Fragment>
+            );
           })}
         </View>
 

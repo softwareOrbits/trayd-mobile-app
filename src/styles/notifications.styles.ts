@@ -22,6 +22,7 @@ export const makeNotificationsStyles = (theme: Theme) =>
       letterSpacing: 1.5,
       color: theme.colors.secondary,
     },
+    backBtn: { marginLeft: -6, marginBottom: 2 },
     eyebrow: {
       marginTop: 12,
       fontSize: 11,

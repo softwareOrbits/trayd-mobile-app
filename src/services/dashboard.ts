@@ -20,6 +20,7 @@ export type DashboardJob = {
   status: JobStatus;
   customerName: string | null;
   customerAddress: string | null;
+  customerEircode: string | null;
   scheduledStartTime: string | null;
   myHours: number;
   myRunning: boolean;
@@ -43,6 +44,7 @@ type DashboardPayload = {
     status: string;
     customer_name: string | null;
     customer_address: string | null;
+    customer_eircode: string | null;
     scheduled_start_time: string | null;
     my_hours: number | string | null;
     my_running: boolean;
@@ -69,6 +71,7 @@ const mapPayload = (p: DashboardPayload): DashboardData => ({
     status: j.status as JobStatus,
     customerName: j.customer_name,
     customerAddress: j.customer_address,
+    customerEircode: j.customer_eircode ?? null,
     scheduledStartTime: j.scheduled_start_time,
     myHours: num(j.my_hours),
     myRunning: j.my_running === true,

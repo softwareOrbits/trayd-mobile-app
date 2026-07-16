@@ -1,58 +1,69 @@
+import { useCallback, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { fetchLeaveBalances } from '@/services/leave';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeDashboardBodyStyles } from '@/styles/dashboard.styles';
-import type { MainTabParamList } from '@/types';
-import { useDashboard } from './DashboardProvider';
+import type { LeaveBalance, MainTabParamList } from '@/types';
 
-const fmtHM = (hours: number) => {
-  const totalMin = Math.max(0, Math.round(hours * 60));
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  return `${h}h ${`${m}`.padStart(2, '0')}m`;
-};
+const fmtDays = (n: number) =>
+  Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '');
 
 export const QuickAccess = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeDashboardBodyStyles);
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
-  const { data } = useDashboard();
-  const sheet = data?.hours ?? null;
+  const [balances, setBalances] = useState<LeaveBalance[] | null>(null);
 
-  const progress =
-    sheet && sheet.targetHours > 0
-      ? Math.min(1, sheet.hours / sheet.targetHours)
-      : 0;
-  const title = sheet ? `This week · ${fmtHM(sheet.hours)}` : 'This week · —';
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      fetchLeaveBalances()
+        .then(b => active && setBalances(b))
+        .catch(() => {});
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
+  const entitlement =
+    balances?.reduce((s, b) => s + b.entitlement, 0) ?? 0;
+  const used = balances?.reduce((s, b) => s + b.used, 0) ?? 0;
+  const left = Math.max(0, entitlement - used);
+  const leaveProgress = entitlement > 0 ? Math.min(1, used / entitlement) : 0;
+  const leaveTitle = balances
+    ? `Leave · ${fmtDays(used)} of ${fmtDays(entitlement)} days`
+    : 'Leave · —';
 
   return (
     <View style={styles.section}>
       <Text style={styles.sectionLabel}>QUICK ACCESS</Text>
       <Pressable
         style={[styles.card, styles.quickCard]}
-        onPress={() => navigation.navigate('Jobs', { initialTab: 'live' })}
+        onPress={() => navigation.navigate('Leave')}
       >
         <View style={styles.quickTop}>
-          <View style={styles.hoursIcon}>
-            <Ionicons name="time-outline" size={22} color={colors.warning} />
+          <View style={styles.leaveIcon}>
+            <Ionicons name="sunny-outline" size={22} color={colors.secondary} />
           </View>
           <View style={styles.quickBody}>
             <View style={styles.quickTitleRow}>
-              <Text style={styles.quickTitle}>{title}</Text>
-              {sheet?.running ? (
-                <View style={styles.runningWrap}>
-                  <View style={styles.runningDot} />
-                  <Text style={styles.runningText}>RUNNING</Text>
-                </View>
+              <Text style={styles.quickTitle}>{leaveTitle}</Text>
+              {balances ? (
+                <Text style={styles.leaveMeta}>{fmtDays(left)}d LEFT</Text>
               ) : null}
             </View>
             <View style={styles.progressTrack}>
               <View
-                style={[styles.progressFill, { width: `${progress * 100}%` }]}
+                style={[
+                  styles.progressFillLeave,
+                  { width: `${leaveProgress * 100}%` },
+                ]}
               />
             </View>
           </View>

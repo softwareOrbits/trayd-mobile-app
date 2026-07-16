@@ -16,6 +16,7 @@ export const NativeMessage = {
   READY: 'READY',
   /** Web-initiated sign-out (e.g. OwnerGuard bounced a non-owner). */
   SIGNED_OUT: 'SIGNED_OUT',
+  SWITCH_VIEW: 'SWITCH_VIEW',
   /** Web wants the native share sheet for a generated PDF. */
   SAVE_PDF: 'SAVE_PDF',
 } as const;
@@ -23,6 +24,7 @@ export const NativeMessage = {
 export type NativeInboundMessage =
   | { type: typeof NativeMessage.READY }
   | { type: typeof NativeMessage.SIGNED_OUT }
+  | { type: typeof NativeMessage.SWITCH_VIEW }
   | { type: typeof NativeMessage.SAVE_PDF; filename: string; base64: string };
 
 /**

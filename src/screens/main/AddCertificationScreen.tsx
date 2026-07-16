@@ -8,7 +8,6 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { launchImageLibrary } from 'react-native-image-picker';
 import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -23,6 +22,7 @@ import {
 } from '@/services/certifications';
 import { offlineActionBlocked } from '@/offline';
 import { useCertCompliance } from '@/compliance';
+import { acquirePhotos } from '@/utils/capturePhoto';
 import { toastError } from '@/utils/toast';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
@@ -56,25 +56,13 @@ const AddCertificationScreen = () => {
   const { refresh: refreshCompliance } = useCertCompliance();
 
   const addPhoto = async () => {
-    const res = await launchImageLibrary({
-      mediaType: 'photo',
-      includeBase64: true,
-      quality: 0.7,
-      maxWidth: 1600,
-      maxHeight: 1600,
-      selectionLimit: 1,
-    });
-    if (res.didCancel) return;
-    const asset = res.assets?.[0];
-    if (!asset?.base64) {
-      Toast.show({ type: 'error', text1: 'Couldn’t read that image.' });
-      return;
-    }
+    const [photo] = await acquirePhotos({ selectionLimit: 1 });
+    if (!photo) return;
     setPhotoUploading(true);
     try {
       const path = await uploadCertDocument({
-        base64: asset.base64,
-        type: asset.type,
+        base64: photo.base64,
+        type: photo.type,
       });
       setPhotoPath(path);
     } catch (e) {

@@ -28,8 +28,6 @@ const localityOf = (addr: string | null) => {
   return parts.length > 1 ? parts[1] : '';
 };
 
-const timeOf = (t: string | null) => (t ? t.slice(0, 5) : '—');
-
 /** Cumulative time worked, coarse enough to fit the row: 3d 4h · 4h 20m · 45m. */
 const formatWorked = (hours: number) => {
   const mins = Math.max(0, Math.round(hours * 60));
@@ -95,9 +93,10 @@ export const TodayJobs = () => {
     const locality = localityOf(job.customerAddress);
     return {
       key: job.jobId,
-      time: live
-        ? formatWorked(elapsedOf(job, fetchedAt, now))
-        : timeOf(job.scheduledStartTime),
+      // A live job's running clock is worth more than its eircode; a scheduled
+      // one shows where it is instead of when it was booked.
+      time: live ? formatWorked(elapsedOf(job, fetchedAt, now)) : null,
+      eircode: live ? null : job.customerEircode?.trim() || null,
       status: live ? (job.status === 'paused' ? 'paused' : 'live') : 'next',
       tone: (live ? 'live' : 'next') as JobTone,
       title: locality ? `${name} — ${locality}` : name,
@@ -148,9 +147,16 @@ export const TodayJobs = () => {
                   />
                   <View style={styles.jobRowContent}>
                     <View style={styles.jobTimeCol}>
-                      <Text style={styles.jobTime} numberOfLines={1}>
-                        {item.time}
-                      </Text>
+                      {item.time ? (
+                        <Text style={styles.jobTime} numberOfLines={1}>
+                          {item.time}
+                        </Text>
+                      ) : null}
+                      {item.eircode ? (
+                        <Text style={styles.jobEircode} numberOfLines={1}>
+                          {item.eircode}
+                        </Text>
+                      ) : null}
                       <StatusPill label={item.status} bg={pill.bg} fg={pill.fg} />
                     </View>
                     <View style={styles.rowBody}>

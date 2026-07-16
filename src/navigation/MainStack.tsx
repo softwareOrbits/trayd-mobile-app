@@ -15,12 +15,14 @@ import ServiceAreaScreen from '@/screens/main/ServiceAreaScreen';
 import StartJobScreen from '@/screens/startJob/StartJobScreen';
 import ViewChooserScreen from '@/screens/main/ViewChooserScreen';
 import EmployerWebViewScreen from '@/screens/main/EmployerWebViewScreen';
+import NotificationsScreen from '@/screens/main/NotificationsScreen';
 import NewLeaveRequestScreen from '@/screens/main/NewLeaveRequestScreen';
 import LeaveRequestDetailScreen from '@/screens/main/LeaveRequestDetailScreen';
 import TimesheetScreen from '@/screens/main/TimesheetScreen';
 import CertificationsScreen from '@/screens/main/CertificationsScreen';
 import CertificationDetailScreen from '@/screens/main/CertificationDetailScreen';
 import AddCertificationScreen from '@/screens/main/AddCertificationScreen';
+import EditCertificationScreen from '@/screens/main/EditCertificationScreen';
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
 
@@ -91,6 +93,15 @@ const FieldStack = () => (
       component={CertificationDetailScreen}
     />
     <Stack.Screen name="AddCertification" component={AddCertificationScreen} />
+    <Stack.Screen name="EditCertification" component={EditCertificationScreen} />
+  </Stack.Navigator>
+);
+
+const EmployerStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="Employer" component={EmployerWebViewScreen} />
+    <Stack.Screen name="Notifications" component={NotificationsScreen} />
+    <Stack.Screen name="JobDetail" component={JobDetailScreen} />
   </Stack.Navigator>
 );
 
@@ -104,7 +115,7 @@ const MainStack = () => {
   const isOwner = useAppSelector(s => s.auth.isOwner);
 
   if (isOwner && selectedView === null) return <ViewChooserScreen />;
-  if (isOwner && selectedView === 'employer') return <EmployerWebViewScreen />;
+  if (isOwner && selectedView === 'employer') return <EmployerStack />;
   return <FieldStack />;
 };
 

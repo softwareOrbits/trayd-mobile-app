@@ -115,6 +115,7 @@ export async function queueOfflineJob(
     customerId: input.customerId ?? null,
     customerName: input.customerName,
     customerAddress: input.customerAddress,
+    customerEircode: input.newCustomer?.eircode ?? null,
     primaryMemberId: input.primaryMemberId,
     primaryMemberName: input.memberName,
     invoiceTotal: 0,

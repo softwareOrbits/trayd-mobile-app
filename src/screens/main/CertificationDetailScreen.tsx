@@ -1,6 +1,5 @@
-import { Linking, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Toast from 'react-native-toast-message';
 import {
   useNavigation,
   useRoute,
@@ -11,7 +10,7 @@ import { Pressable } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { Button } from '@/components/ui';
-import { certDocumentUrl, daysToExpiry } from '@/services/certifications';
+import { daysToExpiry } from '@/services/certifications';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeCertificationStyles } from '@/styles/certifications.styles';
@@ -81,19 +80,6 @@ const CertificationDetailScreen = () => {
     { label: 'EXPIRES', value: fmtDate(cert.expiresOn) },
   ];
 
-  const viewCertificate = async () => {
-    if (!cert.documentPath) {
-      Toast.show({ type: 'info', text1: 'No card photo on this one.' });
-      return;
-    }
-    const url = await certDocumentUrl(cert.documentPath);
-    if (!url) {
-      Toast.show({ type: 'error', text1: 'Could not open the card.' });
-      return;
-    }
-    Linking.openURL(url);
-  };
-
   return (
     <View style={styles.flex}>
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
@@ -140,7 +126,13 @@ const CertificationDetailScreen = () => {
         </View>
 
         <View style={{ height: 20 }} />
-        <Button label="View certificate" fullWidth onPress={viewCertificate} />
+        <Button
+          label="Edit certificate"
+          fullWidth
+          onPress={() =>
+            navigation.navigate('EditCertification', { cert, holder })
+          }
+        />
       </ScrollView>
     </View>
   );

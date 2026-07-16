@@ -93,6 +93,7 @@ import { dayNumberFor, formatElapsed } from '@/utils/liveMeta';
 import { formatDuration } from '@/utils/duration';
 import { isNetworkError } from '@/utils/errors';
 import { toastError, toastSuccess } from '@/utils/toast';
+import { haptics } from '@/utils/haptics';
 import {
   detailStateFor,
   JOB_TYPE_LABEL,
@@ -760,6 +761,7 @@ const JobDetailScreen = () => {
               <Menu.Item
                 onPress={() => {
                   setMenuOpen(false);
+                  haptics.warning();
                   setConfirm('cancel');
                 }}
                 leadingIcon={({ size }) => (
@@ -777,6 +779,7 @@ const JobDetailScreen = () => {
               <Menu.Item
                 onPress={() => {
                   setMenuOpen(false);
+                  haptics.warning();
                   setConfirm('delete');
                 }}
                 leadingIcon={({ size }) => (
@@ -1011,6 +1014,7 @@ const JobDetailScreen = () => {
   const onDeletePhoto = (id: string) => {
     const target = photos.find(p => p.id === id);
     if (!target) return;
+    haptics.warning();
     Alert.alert('Remove photo?', 'This permanently deletes the photo.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -1469,6 +1473,19 @@ const JobDetailScreen = () => {
             ) : null}
             {scheduleSection}
             {daysSoFar}
+            {materials.length ? (
+              <Section
+                title={state === 'scheduled' ? 'Materials needed' : 'Materials'}
+              >
+                {materials.map((m, i) => (
+                  <LineItemRow
+                    key={m.id}
+                    item={lineItems[i]}
+                    last={i === materials.length - 1}
+                  />
+                ))}
+              </Section>
+            ) : null}
             {detail.customerAddress || detail.customerEircode ? (
               <Section title="Location" card={false}>
                 <LocationCard

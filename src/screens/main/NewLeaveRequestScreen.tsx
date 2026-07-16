@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import {
+  Alert,
   InteractionManager,
   Pressable,
   ScrollView,
@@ -32,10 +33,16 @@ import {
 import { isNetworkError } from '@/utils/errors';
 import { withTimeout } from '@/utils/withTimeout';
 import { goBackSafe } from '@/utils/navigation';
+import { haptics } from '@/utils/haptics';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeNewLeaveStyles } from '@/styles/leave.styles';
-import type { LeaveBalance, LeaveType, MainStackParamList } from '@/types';
+import {
+  LEAVE_TYPE_LABEL,
+  type LeaveBalance,
+  type LeaveType,
+  type MainStackParamList,
+} from '@/types';
 
 const SUBMIT_TIMEOUT_MS = 12_000;
 
@@ -72,7 +79,9 @@ const NewLeaveRequestScreenInner = () => {
   );
 
   const balance = balances.find(b => b.type === type);
-  const capped = (balance?.entitlement ?? 0) > 0;
+  const entitlement = balance?.entitlement ?? 0;
+  const capped = entitlement > 0;
+  const noAllocation = type !== 'other' && entitlement === 0;
   const available = balance
     ? Math.max(0, balance.entitlement - balance.used)
     : 0;
@@ -80,8 +89,34 @@ const NewLeaveRequestScreenInner = () => {
   const hasRange = !!(from && to);
   const workingDays = hasRange ? countWorkingDays(from, to) : 0;
   const remaining = Math.max(0, available - workingDays);
+  const overspend = capped && hasRange && workingDays > available;
 
-  const submit = async () => {
+  const submit = () => {
+    if (!from || !to || submitting) return;
+    if (noAllocation || overspend) {
+      haptics.warning();
+      const label = LEAVE_TYPE_LABEL[type];
+      const message = noAllocation
+        ? `You have no allocated ${label} days this year. You can still send this request, but approving it is entirely at your employer’s discretion.`
+        : `This request is ${workingDays} working day${
+            workingDays === 1 ? '' : 's'
+          } but you only have ${available} ${label} day${
+            available === 1 ? '' : 's'
+          } left. You can still send it, but approving the extra is entirely at your employer’s discretion.`;
+      Alert.alert(
+        noAllocation ? 'No allocated days' : 'Over your remaining days',
+        message,
+        [
+          { text: 'Go back', style: 'cancel' },
+          { text: 'Submit anyway', onPress: doSubmit },
+        ],
+      );
+      return;
+    }
+    doSubmit();
+  };
+
+  const doSubmit = async () => {
     if (!from || !to || submitting) return;
     setSubmitting(true);
     try {
@@ -141,7 +176,19 @@ const NewLeaveRequestScreenInner = () => {
         </View>
 
         <View style={styles.banner}>
-          {capped ? (
+          {overspend ? (
+            <>
+              <Ionicons
+                name="alert-circle-outline"
+                size={26}
+                color={colors.warning}
+              />
+              <Text style={styles.bannerText}>
+                Over your {available} remaining day{available === 1 ? '' : 's'} —
+                the extra is at your employer’s discretion.
+              </Text>
+            </>
+          ) : capped ? (
             <>
               <Text style={styles.bannerNum}>
                 {hasRange ? remaining : available}
@@ -150,6 +197,18 @@ const NewLeaveRequestScreenInner = () => {
                 {hasRange
                   ? `day${remaining === 1 ? '' : 's'} remaining after this request`
                   : `day${available === 1 ? '' : 's'} available this year`}
+              </Text>
+            </>
+          ) : noAllocation ? (
+            <>
+              <Ionicons
+                name="alert-circle-outline"
+                size={26}
+                color={colors.warning}
+              />
+              <Text style={styles.bannerText}>
+                No allocated days — approval is entirely at your employer’s
+                discretion.
               </Text>
             </>
           ) : (

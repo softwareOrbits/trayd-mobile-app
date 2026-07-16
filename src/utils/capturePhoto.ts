@@ -7,6 +7,8 @@ import {
 } from 'react-native-image-picker';
 import Toast from 'react-native-toast-message';
 
+import { ensurePermission, promptOpenSettings } from './permissions';
+
 export type CapturedPhoto = {
   uri: string;
   base64: string;
@@ -16,6 +18,7 @@ export type CapturedPhoto = {
 export type PhotoOptions = {
   quality?: PhotoQuality;
   maxSize?: number;
+  cameraType?: 'front' | 'back';
 };
 
 const settleTransitions = () =>
@@ -26,8 +29,15 @@ const settleTransitions = () =>
 const toPhotos = (
   res: ImagePickerResponse,
   fallbackError: string,
+  kind: 'camera' | 'photos',
 ): CapturedPhoto[] => {
   if (res.didCancel) return [];
+  // The picker can still bounce on permission even after our own check (e.g.
+  // revoked while backgrounded) — send the user to Settings, don't just toast.
+  if (res.errorCode === 'permission') {
+    promptOpenSettings(kind);
+    return [];
+  }
   if (res.errorCode) {
     Toast.show({ type: 'error', text1: res.errorMessage ?? fallbackError });
     return [];
@@ -40,6 +50,7 @@ const toPhotos = (
 export async function capturePhoto(
   opts?: PhotoOptions,
 ): Promise<CapturedPhoto | null> {
+  if (!(await ensurePermission('camera'))) return null;
   // Let the screen's navigation/modal animation finish before launching the
   // camera — opening it mid-transition is what makes it jerk on open.
   await settleTransitions();
@@ -49,13 +60,15 @@ export async function capturePhoto(
     maxWidth: opts?.maxSize ?? 1600,
     maxHeight: opts?.maxSize ?? 1600,
     includeBase64: true,
+    cameraType: opts?.cameraType ?? 'back',
   });
-  return toPhotos(res, 'Camera error.')[0] ?? null;
+  return toPhotos(res, 'Camera error.', 'camera')[0] ?? null;
 }
 
 export async function pickPhotos(
   opts?: PhotoOptions & { selectionLimit?: number },
 ): Promise<CapturedPhoto[]> {
+  if (!(await ensurePermission('photos'))) return [];
   await settleTransitions();
   const res = await launchImageLibrary({
     mediaType: 'photo',
@@ -65,7 +78,7 @@ export async function pickPhotos(
     includeBase64: true,
     selectionLimit: opts?.selectionLimit ?? 1,
   });
-  return toPhotos(res, 'Could not open your photos.');
+  return toPhotos(res, 'Could not open your photos.', 'photos');
 }
 
 function choosePhotoSource(): Promise<'camera' | 'library' | null> {
