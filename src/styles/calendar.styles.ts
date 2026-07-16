@@ -23,6 +23,32 @@ export const makeCalendarStyles = (theme: Theme) =>
       color: theme.colors.text,
     },
 
+    segment: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 14,
+    },
+    segmentBtn: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+      borderRadius: theme.radii.md,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.creamBorder,
+    },
+    segmentBtnActive: {
+      backgroundColor: theme.colors.secondary,
+      borderColor: theme.colors.secondary,
+    },
+    segmentText: {
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.bold,
+      color: theme.colors.text,
+    },
+    segmentTextActive: { color: theme.colors.white },
+
     monthRow: {
       marginTop: 16,
       flexDirection: 'row',
@@ -132,7 +158,7 @@ export const makeCalendarStyles = (theme: Theme) =>
       paddingVertical: 12,
     },
     jobDivider: { height: 1, backgroundColor: theme.colors.divider },
-    jobTimeCol: { width: 62, alignItems: 'flex-start', gap: 6 },
+    jobTimeCol: { width: 76, alignItems: 'flex-start', gap: 6 },
     leaveIcon: {
       width: 38,
       height: 38,
@@ -145,6 +171,12 @@ export const makeCalendarStyles = (theme: Theme) =>
       fontSize: theme.typography.size.md,
       fontFamily: theme.fonts.bold,
       color: theme.colors.text,
+    },
+    jobEircode: {
+      fontSize: 11,
+      letterSpacing: 0.3,
+      fontFamily: theme.fonts.monoBold,
+      color: theme.colors.textMuted,
     },
     rowBody: { flex: 1 },
     jobTitle: {

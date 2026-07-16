@@ -152,7 +152,17 @@ const NotificationsScreen = () => {
   return (
     <View style={[styles.flex, { paddingTop: insets.top + 12 }]}>
       <View style={styles.header}>
-        <Text style={styles.logo}>TRAYD</Text>
+        {navigation.canGoBack() ? (
+          <Pressable
+            onPress={() => navigation.goBack()}
+            hitSlop={8}
+            style={styles.backBtn}
+          >
+            <Ionicons name="chevron-back" size={24} color={colors.secondary} />
+          </Pressable>
+        ) : (
+          <Text style={styles.logo}>TRAYD</Text>
+        )}
         <Text style={styles.eyebrow}>
           {unread > 0 ? `${unread} NEW` : 'ALL CLEAR'}
         </Text>

@@ -7,7 +7,6 @@ import {
 } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,6 +19,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setSelectedView, signOut } from '@/store/authSlice';
 import { fetchOnboardingComplete } from '@/services/onboarding';
+import { fetchMyMember } from '@/services/member';
 import { Button } from '@/components/ui';
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
@@ -40,11 +40,25 @@ const ViewChooserScreen = () => {
   const [checking, setChecking] = useState(true);
   const [onboarded, setOnboarded] = useState(false);
   const [selected, setSelected] = useState<SelectedView>('field');
+  const [fullName, setFullName] = useState<string | null>(null);
+
+  // Sign-in only stores id/email on `auth.user`, so greeting off it fell back to
+  // the email prefix — which reads as the trade name on a business address.
+  // `business_members.full_name` is the actual person.
+  useEffect(() => {
+    let active = true;
+    fetchMyMember()
+      .then(m => active && setFullName(m.fullName))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const firstName = useMemo(() => {
-    const source = user?.name || user?.email?.split('@')[0] || '';
-    return source.split(/[\s.]+/)[0];
-  }, [user]);
+    const source = fullName || user?.name || '';
+    return source.trim().split(/\s+/)[0] ?? '';
+  }, [fullName, user]);
 
   useEffect(() => {
     let active = true;
@@ -76,14 +90,7 @@ const ViewChooserScreen = () => {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.brandRow}>
-        <Image
-          source={require('@assets/images/small_logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-      </View>
-
+      <Text style={styles.eyebrow}>TRAYD</Text>
       <Text style={styles.title}>
         How do you want to work today{firstName ? `, ${firstName}` : ''}?
       </Text>
@@ -254,8 +261,13 @@ const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     flex: { flex: 1, backgroundColor: theme.colors.background },
     content: { flexGrow: 1, paddingHorizontal: 24 },
-    brandRow: { alignItems: 'flex-start', marginBottom: 20 },
-    logo: { width: 64, height: 47 },
+    eyebrow: {
+      fontSize: theme.typography.size.xs,
+      fontFamily: theme.fonts.monoBold,
+      letterSpacing: 2,
+      color: theme.colors.textMuted,
+      marginBottom: 10,
+    },
     title: {
       fontSize: theme.typography.size.xxl,
       fontFamily: theme.fonts.bold,

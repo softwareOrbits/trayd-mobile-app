@@ -38,6 +38,7 @@ export type Job = {
   customerId: string | null;
   customerName: string | null;
   customerAddress: string | null;
+  customerEircode: string | null;
   primaryMemberId: string | null;
   primaryMemberName: string | null;
   invoiceTotal: number;

@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { Image, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import {
-  launchCamera,
-  launchImageLibrary,
-  type Asset,
-} from 'react-native-image-picker';
 import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { Button, TextLink } from '@/components/ui';
+import {
+  capturePhoto,
+  pickPhotos,
+  type CapturedPhoto,
+} from '@/utils/capturePhoto';
 import { uploadProfilePhoto } from '@/services/member';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
@@ -29,11 +29,8 @@ const ProfilePhotoScreen = () => {
 
   const next = () => navigation.navigate('OnboardDone');
 
-  const handleAsset = async (asset: Asset | undefined) => {
-    if (!asset?.base64) {
-      Toast.show({ type: 'error', text1: "Couldn't read that image." });
-      return;
-    }
+  const handleAsset = async (asset: CapturedPhoto | undefined) => {
+    if (!asset?.base64) return;
     setPreview(asset.uri ?? null);
     setUploading(true);
     try {
@@ -51,38 +48,16 @@ const ProfilePhotoScreen = () => {
     }
   };
 
+  // Both go through the shared helpers so the OS prompt fires, and a blocked
+  // permission offers Settings instead of dying with a toast.
   const takePhoto = async () => {
-    const res = await launchCamera({
-      mediaType: 'photo',
-      includeBase64: true,
-      quality: 0.7,
-      maxWidth: 1024,
-      maxHeight: 1024,
-      cameraType: 'front',
-    });
-    if (res.didCancel) return;
-    if (res.errorCode) {
-      Toast.show({ type: 'error', text1: res.errorMessage ?? 'Camera error.' });
-      return;
-    }
-    handleAsset(res.assets?.[0]);
+    const photo = await capturePhoto({ maxSize: 1024, cameraType: 'front' });
+    if (photo) handleAsset(photo);
   };
 
   const pickFromLibrary = async () => {
-    const res = await launchImageLibrary({
-      mediaType: 'photo',
-      includeBase64: true,
-      quality: 0.7,
-      maxWidth: 1024,
-      maxHeight: 1024,
-      selectionLimit: 1,
-    });
-    if (res.didCancel) return;
-    if (res.errorCode) {
-      Toast.show({ type: 'error', text1: res.errorMessage ?? 'Library error.' });
-      return;
-    }
-    handleAsset(res.assets?.[0]);
+    const [photo] = await pickPhotos({ maxSize: 1024 });
+    if (photo) handleAsset(photo);
   };
 
   return (

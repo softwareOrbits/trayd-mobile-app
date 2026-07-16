@@ -9,16 +9,22 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
-import { useNavigation } from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { Button, CalendarModal, Input } from '@/components/ui';
 import {
-  addCertification,
   fetchCertificationTypes,
+  updateCertification,
   uploadCertDocument,
+  statusOf,
   type CertificationType,
+  type MemberCertification,
 } from '@/services/certifications';
 import { offlineActionBlocked } from '@/offline';
 import { useCertCompliance } from '@/compliance';
@@ -36,20 +42,32 @@ const fmtDisplay = (iso: string) =>
     year: 'numeric',
   });
 
-const AddCertificationScreen = () => {
+const EditCertificationScreen = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeCertificationStyles);
   const insets = useSafeAreaInsets();
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
+  const { params } =
+    useRoute<RouteProp<MainStackParamList, 'EditCertification'>>();
+  const { cert, holder } = params;
 
   const [types, setTypes] = useState<CertificationType[]>([]);
   const [typeSheet, setTypeSheet] = useState(false);
-  const [selected, setSelected] = useState<CertificationType | null>(null);
-  const [number, setNumber] = useState('');
-  const [issued, setIssued] = useState('');
-  const [expires, setExpires] = useState('');
-  const [photoPath, setPhotoPath] = useState<string | null>(null);
+  const [selected, setSelected] = useState<CertificationType | null>(
+    cert.typeId
+      ? {
+          id: cert.typeId,
+          name: cert.typeName,
+          issuingBody: cert.issuingBody,
+          isMandatory: false,
+        }
+      : null,
+  );
+  const [number, setNumber] = useState(cert.certNumber ?? '');
+  const [issued, setIssued] = useState(cert.issuedOn ?? '');
+  const [expires, setExpires] = useState(cert.expiresOn ?? '');
+  const [photoPath, setPhotoPath] = useState<string | null>(cert.documentPath);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [datePicker, setDatePicker] = useState<'issue' | 'expiry' | null>(null);
   const [saving, setSaving] = useState(false);
@@ -98,7 +116,8 @@ const AddCertificationScreen = () => {
     }
     setSaving(true);
     try {
-      await addCertification({
+      await updateCertification({
+        id: cert.id,
         certificationTypeId: selected.id,
         certNumber: number.trim(),
         issuedOn: issued || null,
@@ -106,8 +125,19 @@ const AddCertificationScreen = () => {
         documentPath: photoPath,
       });
       await refreshCompliance();
-      Toast.show({ type: 'success', text1: 'Certification added.' });
-      navigation.goBack();
+      Toast.show({ type: 'success', text1: 'Certification updated.' });
+      const updated: MemberCertification = {
+        ...cert,
+        typeId: selected.id,
+        typeName: selected.name,
+        issuingBody: selected.issuingBody,
+        certNumber: number.trim() || null,
+        issuedOn: issued || null,
+        expiresOn: expires || null,
+        documentPath: photoPath,
+        status: statusOf(expires || null),
+      };
+      navigation.navigate('CertificationDetail', { cert: updated, holder });
     } catch (e) {
       Toast.show({
         type: 'error',
@@ -131,7 +161,7 @@ const AddCertificationScreen = () => {
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={styles.eyebrow}>PROFILE · COMPLIANCE</Text>
-          <Text style={styles.title}>Add a certification</Text>
+          <Text style={styles.title}>Edit certification</Text>
         </View>
       </View>
 
@@ -148,10 +178,7 @@ const AddCertificationScreen = () => {
         </Text>
         <Pressable style={styles.select} onPress={() => setTypeSheet(true)}>
           <Text
-            style={[
-              styles.selectText,
-              !selected && styles.selectPlaceholder,
-            ]}
+            style={[styles.selectText, !selected && styles.selectPlaceholder]}
           >
             {selected ? selected.name : 'Choose a type'}
           </Text>
@@ -213,7 +240,8 @@ const AddCertificationScreen = () => {
 
         <View style={{ height: 18 }} />
         <Text style={styles.fieldLabel}>
-          PHOTO OF THE CARD <Text style={{ color: colors.textMuted }}>· OPTIONAL</Text>
+          PHOTO OF THE CARD{' '}
+          <Text style={{ color: colors.textMuted }}>· OPTIONAL</Text>
         </Text>
         <Pressable
           style={styles.photoTile}
@@ -240,15 +268,12 @@ const AddCertificationScreen = () => {
 
         <View style={{ height: 24 }} />
         <Button
-          label="Save certification"
+          label="Save changes"
           fullWidth
           loading={saving}
           disabled={saving}
           onPress={save}
         />
-        <Text style={styles.hint}>
-          This appears in your certifications list straight away.
-        </Text>
       </ScrollView>
 
       <Modal
@@ -303,4 +328,4 @@ const AddCertificationScreen = () => {
   );
 };
 
-export default AddCertificationScreen;
+export default EditCertificationScreen;

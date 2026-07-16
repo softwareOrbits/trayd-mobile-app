@@ -9,11 +9,11 @@ export type NavItem = {
     icon: IconName;
     activeIcon?: IconName;
     badge?: number;
-    raised?: boolean;
 };
 export type BottomNavProps = {
     items: NavItem[];
     activeKey: string;
+    collapsed?: boolean;
     onChange: (key: string) => void;
 };
 export type ButtonVariant = 'filled' | 'outlined' | 'ghost';

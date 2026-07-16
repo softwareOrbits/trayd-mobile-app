@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { Button, TextLink } from '@/components/ui';
 import { registerPush } from '@/services/push';
+import { ensurePermission } from '@/utils/permissions';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeOnboardingNotificationsStyles } from '@/styles/onboardingNotifications.styles';
@@ -20,7 +21,9 @@ const NotificationsScreen = () => {
   const goNext = () => navigation.navigate('OnboardLocation');
 
   const requestNotifications = async () => {
-    await registerPush();
+    // Surface the OS dialog first; registerPush only gets a token once granted.
+    await ensurePermission('notifications');
+    await registerPush().catch(() => {});
     goNext();
   };
 

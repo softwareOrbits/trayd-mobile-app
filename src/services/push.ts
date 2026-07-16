@@ -10,6 +10,7 @@ import { fetchUnread } from '@/store/notificationsSlice';
 import { openNotificationTarget } from '@/navigation/navigationRef';
 import { emitShiftPush, isShiftPush } from './shiftBus';
 import { getJwtClaims } from '@/utils/jwt';
+import { haptics } from '@/utils/haptics';
 
 function jobIdFrom(
   msg: FirebaseMessagingTypes.RemoteMessage | null,
@@ -99,12 +100,14 @@ export async function registerPush(): Promise<void> {
             text1: n.title ?? 'Trayd',
             text2: n.body ?? undefined,
             onPress: () => {
+              haptics.tap();
               Toast.hide();
               openNotificationTarget(jobIdFrom(msg));
             },
           });
         }),
         messaging().onNotificationOpenedApp(msg => {
+          haptics.tap();
           if (isShiftPush(msg.data as Record<string, unknown>)) emitShiftPush();
           openNotificationTarget(jobIdFrom(msg));
         }),

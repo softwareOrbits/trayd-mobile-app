@@ -148,6 +148,29 @@ export async function addCertification(input: {
   return data.id as string;
 }
 
+export async function updateCertification(input: {
+  id: string;
+  certificationTypeId: string;
+  certNumber?: string | null;
+  issuedOn?: string | null;
+  expiresOn?: string | null;
+  documentPath?: string | null;
+}): Promise<void> {
+  const me = await getMyMemberRef();
+  const { error } = await supabase
+    .from('member_certifications')
+    .update({
+      certification_type_id: input.certificationTypeId,
+      cert_number: input.certNumber || null,
+      issued_on: input.issuedOn || null,
+      expires_on: input.expiresOn || null,
+      document_path: input.documentPath || null,
+    })
+    .eq('id', input.id)
+    .eq('business_member_id', me.id);
+  if (error) throw new Error(error.message);
+}
+
 export async function uploadCertDocument(asset: {
   base64: string;
   type?: string | null;

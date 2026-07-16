@@ -19,6 +19,9 @@ import Toast from 'react-native-toast-message';
 
 import { BackButton, Button, Input } from '@/components/ui';
 import { supabase } from '@/services/supabase';
+import { fetchMyMember } from '@/services/member';
+import { useAppDispatch } from '@/store/hooks';
+import { setCredentials } from '@/store/authSlice';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeCreatePasswordStyles } from '@/styles/createPassword.styles';
@@ -40,6 +43,7 @@ const CreatePasswordScreen = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
   const { params } = useRoute<RouteProp<AuthStackParamList, 'CreatePassword'>>();
+  const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(false);
   const isOnboarding = params.mode === 'onboard';
 
@@ -65,13 +69,37 @@ const CreatePasswordScreen = () => {
     if (isOnboarding) {
       // Activate membership (invited -> active) now that a password is set.
       const { error: acceptError } = await supabase.rpc('accept_team_invite');
-      setLoading(false);
       // Tolerate re-entry: a missing pending invite means it's already active.
       if (acceptError && !/no pending invite/i.test(acceptError.message)) {
+        setLoading(false);
         Toast.show({ type: 'error', text1: acceptError.message });
         return;
       }
-      navigation.navigate('OnboardNotifications');
+
+      // Sign in here rather than at the end of onboarding: the permission
+      // priming screens now sit behind the logged-in gate, so every new and
+      // returning user walks the same path into the app.
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        setLoading(false);
+        Toast.show({ type: 'error', text1: 'Session expired. Please log in.' });
+        navigation.navigate('Login');
+        return;
+      }
+      const member = await fetchMyMember().catch(() => null);
+      setLoading(false);
+      dispatch(
+        setCredentials({
+          accessToken: data.session.access_token,
+          refreshToken: data.session.refresh_token,
+          user: {
+            id: data.session.user.id,
+            email: member?.email ?? data.session.user.email ?? undefined,
+            name: member?.fullName ?? undefined,
+            photo: member?.photoPath ?? undefined,
+          },
+        }),
+      );
       return;
     }
 

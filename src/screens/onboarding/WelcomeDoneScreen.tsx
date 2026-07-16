@@ -1,12 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import Toast from 'react-native-toast-message';
 
-import { useAppDispatch } from '@/store/hooks';
-import { setCredentials } from '@/store/authSlice';
 import { Button } from '@/components/ui';
-import { supabase } from '@/services/supabase';
+import { usePrimingComplete } from '@/navigation/OnboardingStack';
 import {
   fetchMyMember,
   fetchMyNextJob,
@@ -24,11 +21,10 @@ const firstName = (fullName: string | null | undefined) =>
 const WelcomeDoneScreen = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeWelcomeDoneStyles);
-  const dispatch = useAppDispatch();
+  const complete = usePrimingComplete();
 
   const [member, setMember] = useState<MemberProfile | null>(null);
   const [nextJob, setNextJob] = useState<NextJob | null>(null);
-  const [entering, setEntering] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -43,28 +39,6 @@ const WelcomeDoneScreen = () => {
       active = false;
     };
   }, []);
-
-  const enter = async () => {
-    setEntering(true);
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) {
-      setEntering(false);
-      Toast.show({ type: 'error', text1: 'Session expired. Please log in.' });
-      return;
-    }
-    dispatch(
-      setCredentials({
-        accessToken: data.session.access_token,
-        refreshToken: data.session.refresh_token,
-        user: {
-          id: data.session.user.id,
-          email: member?.email ?? data.session.user.email ?? undefined,
-          name: member?.fullName ?? undefined,
-          photo: member?.photoPath ?? undefined,
-        },
-      }),
-    );
-  };
 
   return (
     <OnboardingScaffold
@@ -85,14 +59,7 @@ const WelcomeDoneScreen = () => {
           "You're all set. Jobs will show up here."
         )
       }
-      footer={
-        <Button
-          label="Enter Trayd"
-          fullWidth
-          loading={entering}
-          onPress={enter}
-        />
-      }
+      footer={<Button label="Enter Trayd" fullWidth onPress={complete} />}
     >
       {nextJob ? (
         <View style={styles.jobCard}>

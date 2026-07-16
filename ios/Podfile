@@ -12,8 +12,19 @@ require Pod::Executable.execute_command('node', ['-p',
 # debug symbols. Override with `RCT_USE_PREBUILT_RNCORE=1` for faster release/CI.
 ENV['RCT_USE_PREBUILT_RNCORE'] ||= '0'
 
+require_relative '../node_modules/react-native-permissions/scripts/setup'
+
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
+
+# Only these handlers get compiled in. Anything not listed here is reported as
+# `unavailable` at runtime, so this list must match the Info.plist usage strings.
+setup_permissions([
+  'Camera',
+  'LocationWhenInUse',
+  'Notifications',
+  'PhotoLibrary',
+])
 
 linkage = ENV['USE_FRAMEWORKS']
 if linkage != nil

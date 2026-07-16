@@ -15,6 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { haptics } from '@/utils/haptics';
 import type { IconName } from '@/types';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -80,6 +81,7 @@ export const FloatingActionButton = ({
         accessibilityLabel={label}
         onPress={onPress}
         onPressIn={() => {
+          haptics.tap();
           scale.value = withTiming(0.96, { duration: 90 });
         }}
         onPressOut={() => {

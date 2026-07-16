@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -22,11 +22,11 @@ type StatCard = { label: string; value: string; caption: string };
 const STATS: Record<DashboardVariant, [StatCard, StatCard]> = {
   welcome: [
     { label: 'TOTAL JOBS', value: '0', caption: 'this week' },
-    { label: 'LEAVE LEFT', value: '21d', caption: 'of 21 · 2025' },
+    { label: 'HOURS DONE', value: '0h 00m', caption: 'this week' },
   ],
   active: [
     { label: 'TOTAL JOBS', value: '0', caption: 'this week' },
-    { label: 'LEAVE LEFT', value: '0d', caption: 'of 21 · 2026' },
+    { label: 'HOURS DONE', value: '0h 00m', caption: 'this week' },
   ],
 };
 
@@ -42,9 +42,12 @@ const firstNameOf = (fullName?: string | null) => {
   return name ? name.split(/\s+/)[0] : '';
 };
 
-/** Half-days are real (0.5) — show them, but don't print "21.0d". */
-const fmtDays = (n: number) =>
-  Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '');
+const fmtHM = (hours: number) => {
+  const totalMin = Math.max(0, Math.round(hours * 60));
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}h ${`${m}`.padStart(2, '0')}m`;
+};
 
 const initialsOf = (fullName?: string | null) => {
   const parts = (fullName ?? '').trim().split(/\s+/).filter(Boolean);
@@ -98,24 +101,20 @@ export const DashboardHeader = ({
     ? { ...STATS[variant][0], value: String(data.jobsThisWeek) }
     : STATS[variant][0];
 
-  const leaveCard: StatCard = data
+  const hoursCard: StatCard = data
     ? {
-        label: 'LEAVE LEFT',
-        value: `${fmtDays(Math.max(0, data.leave.left))}d`,
-        caption: `of ${fmtDays(data.leave.entitlement)} · ${data.leave.year}`,
+        label: 'HOURS DONE',
+        value: fmtHM(data.hours.hours),
+        caption: 'this week',
       }
     : STATS[variant][1];
 
-  const stats: [StatCard, StatCard] = [jobsCard, leaveCard];
+  const stats: [StatCard, StatCard] = [jobsCard, hoursCard];
 
   return (
     <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
       <View style={styles.topRow}>
-        <Image
-          source={require('@assets/images/sidebar_logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <Text style={styles.eyebrow}>{formatStamp(now, isActive)}</Text>
         <View style={styles.actions}>
           <Pressable
             onPress={() => navigation.navigate('Notifications')}
@@ -156,7 +155,6 @@ export const DashboardHeader = ({
         </View>
       </View>
 
-      <Text style={styles.eyebrow}>{formatStamp(now, isActive)}</Text>
       <Text style={styles.greeting}>{greeting}</Text>
 
       {isActive ? null : (

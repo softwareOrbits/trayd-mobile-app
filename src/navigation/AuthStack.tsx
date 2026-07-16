@@ -6,10 +6,6 @@ import VerifyIdentityScreen from '@/screens/auth/VerifyIdentityScreen';
 import CreatePasswordScreen from '@/screens/auth/CreatePasswordScreen';
 import InviteCodeScreen from '@/screens/auth/InviteCodeScreen';
 import ConfirmInviteScreen from '@/screens/auth/ConfirmInviteScreen';
-import NotificationsScreen from '@/screens/onboarding/NotificationsScreen';
-import LocationScreen from '@/screens/onboarding/LocationScreen';
-import ProfilePhotoScreen from '@/screens/onboarding/ProfilePhotoScreen';
-import WelcomeDoneScreen from '@/screens/onboarding/WelcomeDoneScreen';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
@@ -21,10 +17,6 @@ const AuthStack = () => (
     <Stack.Screen name="CreatePassword" component={CreatePasswordScreen} />
     <Stack.Screen name="InviteCode" component={InviteCodeScreen} />
     <Stack.Screen name="ConfirmInvite" component={ConfirmInviteScreen} />
-    <Stack.Screen name="OnboardNotifications" component={NotificationsScreen} />
-    <Stack.Screen name="OnboardLocation" component={LocationScreen} />
-    <Stack.Screen name="OnboardPhoto" component={ProfilePhotoScreen} />
-    <Stack.Screen name="OnboardDone" component={WelcomeDoneScreen} />
   </Stack.Navigator>
 );
 

@@ -18,6 +18,7 @@ import {
 } from '@/components/leave/leave.helpers';
 import { canCancelRequest, cancelLeaveRequest } from '@/services/leave';
 import { goBackSafe } from '@/utils/navigation';
+import { haptics } from '@/utils/haptics';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeLeaveDetailStyles } from '@/styles/leave.styles';
@@ -92,6 +93,7 @@ const LeaveRequestDetailScreenInner = () => {
   ];
 
   const confirmCancel = () => {
+    haptics.warning();
     Alert.alert(
       'Cancel this request?',
       `${LEAVE_TYPE_LABEL_LONG[request.type]} · ${formatRangeArrow(

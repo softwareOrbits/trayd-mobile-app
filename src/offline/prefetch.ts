@@ -13,6 +13,7 @@ import {
 } from '@/services/jobs';
 import { fetchDashboard } from '@/services/dashboard';
 import { saveJobCache, type JobBundle } from '@/services/jobCache';
+import { STATUS_GROUP } from '@/types';
 import { store } from '@/store';
 import { fetchJobs } from '@/store/jobsSlice';
 
@@ -67,8 +68,12 @@ async function run(): Promise<void> {
   ]);
 
   if (jobsResult.status === 'fulfilled' && isOnline()) {
+    const warmable = jobsResult.value.filter(j => {
+      const group = STATUS_GROUP[j.status];
+      return group === 'live' || group === 'paused' || group === 'upcoming';
+    });
     await prefetchJobBundles(
-      jobsResult.value.slice(0, JOB_PREFETCH_LIMIT).map(j => j.id),
+      warmable.slice(0, JOB_PREFETCH_LIMIT).map(j => j.id),
     );
   }
 }
