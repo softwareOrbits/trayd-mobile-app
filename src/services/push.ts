@@ -9,6 +9,7 @@ import { store } from '@/store';
 import { fetchUnread } from '@/store/notificationsSlice';
 import { openNotificationTarget } from '@/navigation/navigationRef';
 import { emitShiftPush, isShiftPush } from './shiftBus';
+import { isLeaveNotification, type NotificationTarget } from './notifications';
 import { getJwtClaims } from '@/utils/jwt';
 import { haptics } from '@/utils/haptics';
 
@@ -19,6 +20,18 @@ function jobIdFrom(
   const raw =
     data.job_id ?? data.jobId ?? data.related_entity_id ?? data.entity_id;
   return typeof raw === 'string' && raw ? raw : null;
+}
+
+function targetFrom(
+  msg: FirebaseMessagingTypes.RemoteMessage | null,
+): NotificationTarget {
+  const data = (msg?.data ?? {}) as Record<string, unknown>;
+  const type = data.type ?? data.notification_type;
+  if (typeof type === 'string' && isLeaveNotification(type)) {
+    return { screen: 'Leave' };
+  }
+  const jobId = jobIdFrom(msg);
+  return jobId ? { screen: 'JobDetail', jobId } : null;
 }
 
 async function currentSessionId(): Promise<string | null> {
@@ -102,20 +115,20 @@ export async function registerPush(): Promise<void> {
             onPress: () => {
               haptics.tap();
               Toast.hide();
-              openNotificationTarget(jobIdFrom(msg));
+              openNotificationTarget(targetFrom(msg));
             },
           });
         }),
         messaging().onNotificationOpenedApp(msg => {
           haptics.tap();
           if (isShiftPush(msg.data as Record<string, unknown>)) emitShiftPush();
-          openNotificationTarget(jobIdFrom(msg));
+          openNotificationTarget(targetFrom(msg));
         }),
       );
       messaging()
         .getInitialNotification()
         .then(msg => {
-          if (msg) openNotificationTarget(jobIdFrom(msg));
+          if (msg) openNotificationTarget(targetFrom(msg));
         })
         .catch(() => {});
     }

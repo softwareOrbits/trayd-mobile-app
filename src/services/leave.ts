@@ -258,6 +258,13 @@ export async function fetchLeaveRequests(): Promise<LeaveRequest[]> {
   }
 }
 
+export async function fetchLeaveRequestById(
+  id: string,
+): Promise<LeaveRequest | null> {
+  const all = await fetchLeaveRequests();
+  return all.find(r => r.id === id) ?? null;
+}
+
 async function fetchLiveRequests(): Promise<LeaveRequest[]> {
   const me = await getMyMemberRef();
   const types = await loadLeaveTypes();

@@ -37,10 +37,11 @@ const usePrimingGate = (isLoggedIn: boolean, userId: string | null) => {
     };
   }, [isLoggedIn, userId]);
 
-  const complete = useCallback(() => {
-    if (userId) markPermissionsPrimed(userId);
-    setPrimed(true);
-  }, [userId]);
+  useEffect(() => {
+    if (primed === false && userId) markPermissionsPrimed(userId);
+  }, [primed, userId]);
+
+  const complete = useCallback(() => setPrimed(true), []);
 
   return { primed, complete };
 };

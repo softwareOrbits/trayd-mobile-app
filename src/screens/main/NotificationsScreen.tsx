@@ -1,4 +1,4 @@
-import { type ComponentProps, useCallback, useState } from 'react';
+import { type ComponentProps, useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -16,9 +16,11 @@ import {
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  targetFor,
   type NotificationItem,
 } from '@/services/notifications';
 import type { MainStackParamList } from '@/types';
+import { openNotificationTarget } from '@/navigation/navigationRef';
 import { useAppDispatch } from '@/store/hooks';
 import { setUnread } from '@/store/notificationsSlice';
 import { useTheme } from '@/theme';
@@ -29,6 +31,7 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 
 const iconFor = (item: NotificationItem): IconName => {
   const s = `${item.type ?? ''} ${item.title}`.toLowerCase();
+  if (s.includes('leave')) return 'calendar-outline';
   if (s.includes('assign') || s.includes('job')) return 'briefcase-outline';
   if (s.includes('paid') || s.includes('payment')) return 'cash-outline';
   if (s.includes('invoice') || s.includes('approv'))
@@ -64,15 +67,19 @@ const NotificationsScreen = () => {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const readPending = useRef(new Set<string>());
 
   const unread = items.filter(i => !i.read).length;
 
   const load = useCallback(async () => {
     const result = await listNotifications().catch(() => null);
-    if (result) {
-      setItems(result.items);
-      dispatch(setUnread(result.unread));
-    }
+    if (!result) return;
+    const pending = readPending.current;
+    const merged = pending.size
+      ? result.items.map(i => (pending.has(i.id) ? { ...i, read: true } : i))
+      : result.items;
+    setItems(merged);
+    dispatch(setUnread(merged.filter(i => !i.read).length));
   }, [dispatch]);
 
   useFocusEffect(
@@ -104,9 +111,13 @@ const NotificationsScreen = () => {
         prev.map(i => (i.id === item.id ? { ...i, read: true } : i)),
       );
       dispatch(setUnread(Math.max(0, unread - 1)));
-      markNotificationRead(item.id).catch(() => {});
+      readPending.current.add(item.id);
+      markNotificationRead(item.id).catch(() => {
+        readPending.current.delete(item.id);
+      });
     }
-    if (item.jobId) navigation.navigate('JobDetail', { jobId: item.jobId });
+    const target = targetFor(item);
+    if (target) openNotificationTarget(target);
   };
 
   const renderItem = ({ item }: { item: NotificationItem }) => (
@@ -138,7 +149,7 @@ const NotificationsScreen = () => {
         ) : null}
         <Text style={styles.itemTime}>{fmtAgo(item.createdAt)}</Text>
       </View>
-      {item.jobId ? (
+      {targetFor(item) ? (
         <Ionicons
           name="chevron-forward"
           size={16}

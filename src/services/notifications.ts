@@ -9,11 +9,56 @@ export type NotificationItem = {
   createdAt: string;
   read: boolean;
   jobId: string | null;
+  leaveId: string | null;
 };
 
 export type NotificationList = {
   items: NotificationItem[];
   unread: number;
+};
+
+export type NotificationTarget =
+  | { screen: 'JobDetail'; jobId: string }
+  | { screen: 'LeaveRequestDetail'; leaveId: string }
+  | { screen: 'Leave' }
+  | null;
+
+export const isLeaveNotification = (type: string | null | undefined) =>
+  !!type?.startsWith('leave_');
+
+const TYPE_TITLES: Record<string, string> = {
+  job_submitted: 'Job submitted for review',
+  job_assigned: 'Job assigned',
+  job_started: 'Job started',
+  job_completed: 'Job completed',
+  job_cancelled: 'Job cancelled',
+  quote_approved: 'Quote approved',
+  invoice_approved: 'Invoice approved',
+  invoice_downloaded: 'Invoice downloaded',
+  invoice_sent: 'Invoice sent',
+  invoice_paid: 'Invoice paid',
+  leave_requested: 'Leave requested',
+  leave_approved: 'Leave approved',
+  leave_declined: 'Leave declined',
+  shift_reminder: 'Shift reminder',
+  shift_force_stop: 'Shift ended',
+};
+
+const titleForType = (type: string | null | undefined) =>
+  (type && TYPE_TITLES[type]) || 'Notification';
+
+export const targetFor = (item: {
+  type: string | null;
+  jobId: string | null;
+  leaveId: string | null;
+}): NotificationTarget => {
+  if (isLeaveNotification(item.type)) {
+    return item.leaveId
+      ? { screen: 'LeaveRequestDetail', leaveId: item.leaveId }
+      : { screen: 'Leave' };
+  }
+  if (item.jobId) return { screen: 'JobDetail', jobId: item.jobId };
+  return null;
 };
 
 type UserNotifRow = {
@@ -53,6 +98,25 @@ const shortDate = (iso: string | null | undefined) => {
 const customerNameOf = (job: JobRow): string | null => {
   const c = Array.isArray(job.customers) ? job.customers[0] : job.customers;
   return c?.name?.trim() || null;
+};
+
+const metaString = (n: NotifRow | undefined, key: string): string | null => {
+  const v = n?.metadata?.[key];
+  return typeof v === 'string' && v ? v : null;
+};
+
+const jobIdOf = (n: NotifRow | undefined): string | null => {
+  if (!n || isLeaveNotification(n.type)) return null;
+  return n.related_entity_id ?? metaString(n, 'job_id');
+};
+
+const leaveIdOf = (n: NotifRow | undefined): string | null => {
+  if (!n || !isLeaveNotification(n.type)) return null;
+  return (
+    n.related_entity_id ??
+    metaString(n, 'leave_request_id') ??
+    metaString(n, 'leave_id')
+  );
 };
 
 async function loadJobsById(ids: string[]): Promise<Map<string, JobRow>> {
@@ -98,13 +162,7 @@ export async function listNotifications(limit = 30): Promise<NotificationList> {
   const jobIds = [
     ...new Set(
       ((notifs ?? []) as NotifRow[])
-        .map(
-          n =>
-            n.related_entity_id ??
-            (typeof n.metadata?.job_id === 'string'
-              ? (n.metadata.job_id as string)
-              : null),
-        )
+        .map(jobIdOf)
         .filter((id): id is string => !!id),
     ),
   ];
@@ -114,15 +172,11 @@ export async function listNotifications(limit = 30): Promise<NotificationList> {
 
   const items: NotificationItem[] = deduped.map(r => {
     const n = byId.get(r.notification_id);
-    const jobId =
-      n?.related_entity_id ??
-      (typeof n?.metadata?.job_id === 'string'
-        ? (n.metadata.job_id as string)
-        : null);
+    const jobId = jobIdOf(n);
     const job = jobId ? jobsById.get(jobId) : undefined;
     const customer = job ? customerNameOf(job) : null;
 
-    let title = n?.title ?? n?.type ?? 'Notification';
+    let title = n?.title?.trim() || titleForType(n?.type);
     if (job && customer) {
       const when = shortDate(job.finished_at ?? job.scheduled_date ?? r.created_at);
       title = when ? `${customer} · ${when}` : customer;
@@ -140,6 +194,7 @@ export async function listNotifications(limit = 30): Promise<NotificationList> {
       // it the row renders with no chevron and taps do nothing, which is what
       // "notifications are unclickable" meant.
       jobId,
+      leaveId: leaveIdOf(n),
     };
   });
 
