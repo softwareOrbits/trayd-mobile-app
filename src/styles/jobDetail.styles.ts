@@ -5,7 +5,6 @@ import type { Theme } from '@/theme';
 export const makeJobDetailStyles = (theme: Theme) =>
   StyleSheet.create({
     flex: { flex: 1, backgroundColor: theme.colors.background },
-    certBanner: { marginHorizontal: 20, marginTop: 12 },
     dangerBtn: {
       alignSelf: 'stretch',
       alignItems: 'center',

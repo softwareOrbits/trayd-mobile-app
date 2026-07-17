@@ -33,21 +33,15 @@ export const makeShiftStyles = (theme: Theme) =>
       color: theme.colors.textMuted,
       lineHeight: 22,
     },
-    list: {
-      gap: 4,
-      paddingVertical: 4,
-    },
-    listItem: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.text,
-    },
     primaryBtn: {
       marginTop: 4,
       backgroundColor: theme.colors.primary,
       borderRadius: theme.radii.md,
       paddingVertical: 16,
       alignItems: 'center',
+    },
+    btnBusy: {
+      opacity: 0.6,
     },
     primaryText: {
       fontSize: theme.typography.size.md,

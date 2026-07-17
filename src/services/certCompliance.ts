@@ -61,13 +61,6 @@ const blockerFor = (
   return null;
 };
 
-export function summariseBlocker(b: CertBlocker): string {
-  const name = b.typeName.charAt(0).toUpperCase() + b.typeName.slice(1);
-  if (b.reason === 'missing') return `${name} is not added yet`;
-  if (b.reason === 'no_document') return `${name} has no document uploaded`;
-  return `${name} has expired`;
-}
-
 export async function loadCachedCompliance(): Promise<CertCompliance | null> {
   try {
     const raw = await AsyncStorage.getItem(CACHE_KEY);
@@ -77,11 +70,6 @@ export async function loadCachedCompliance(): Promise<CertCompliance | null> {
   }
 }
 
-/**
- * Fails open: offline with no cached verdict resolves to compliant, so a lad
- * on a site with no signal is never locked out of his own job by a check we
- * couldn't run.
- */
 export async function fetchCertCompliance(): Promise<CertCompliance> {
   if (!isOnline()) {
     return (await loadCachedCompliance()) ?? COMPLIANT;

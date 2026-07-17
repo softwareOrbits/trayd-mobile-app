@@ -40,6 +40,23 @@ export function authStorageKey(): string {
 /** Serialise a value so it is safe to embed inside injected JS as a string literal. */
 const asJsString = (value: string): string => JSON.stringify(value);
 
+const LOCK_VIEWPORT_JS = `(function(){try{
+  var CONTENT = 'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no';
+  function apply(){
+    var metas = document.querySelectorAll('meta[name="viewport"]');
+    if (!metas.length) {
+      var m = document.createElement('meta');
+      m.setAttribute('name', 'viewport');
+      m.setAttribute('content', CONTENT);
+      (document.head || document.documentElement).appendChild(m);
+      return;
+    }
+    for (var i = 0; i < metas.length; i++) metas[i].setAttribute('content', CONTENT);
+  }
+  apply();
+  document.addEventListener('DOMContentLoaded', apply);
+}catch(e){}})();`;
+
 /**
  * Runs at document-start (`injectedJavaScriptBeforeContentLoaded`) on every load
  * and reload, BEFORE the web bundle executes. Flags the native shell and seeds
@@ -52,6 +69,7 @@ export function buildBootstrapScript(session: Session): string {
     window.__TRAYD_NATIVE__ = true;
     localStorage.setItem(${key}, ${value});
   }catch(e){}})();
+  ${LOCK_VIEWPORT_JS}
   true;`;
 }
 

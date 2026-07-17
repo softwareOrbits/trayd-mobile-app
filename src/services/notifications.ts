@@ -40,8 +40,8 @@ const TYPE_TITLES: Record<string, string> = {
   leave_requested: 'Leave requested',
   leave_approved: 'Leave approved',
   leave_declined: 'Leave declined',
-  shift_reminder: 'Shift reminder',
-  shift_force_stop: 'Shift ended',
+  timer_stopping_soon: 'Timer stopping soon',
+  timer_auto_paused: 'Timer stopped',
 };
 
 const titleForType = (type: string | null | undefined) =>

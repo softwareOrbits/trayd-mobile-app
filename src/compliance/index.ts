@@ -3,4 +3,3 @@ export {
   useCertCompliance,
 } from './CertComplianceProvider';
 export { default as CertComplianceBanner } from './CertComplianceBanner';
-export { default as useCertGate } from './useCertGate';

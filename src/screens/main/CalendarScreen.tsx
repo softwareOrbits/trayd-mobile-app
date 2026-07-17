@@ -5,7 +5,12 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { AskTraydFab, StatusPill, useBottomNavHeight } from '@/components/ui';
+import {
+  AskTraydFab,
+  CalendarModal,
+  StatusPill,
+  useBottomNavHeight,
+} from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
 import { fetchLeaveRequests } from '@/services/leave';
@@ -64,6 +69,16 @@ const groupLabel = (key: string) =>
     })
     .toUpperCase();
 
+const filterLabel = (key: string) => {
+  const d = new Date(`${key}T00:00:00`);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    ...(sameYear ? {} : { year: '2-digit' }),
+  });
+};
+
 const CalendarScreen = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeCalendarStyles);
@@ -80,6 +95,9 @@ const CalendarScreen = () => {
   const [selected, setSelected] = useState(todayKey);
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
+  const [fromDate, setFromDate] = useState<string | null>(null);
+  const [toDate, setToDate] = useState<string | null>(null);
+  const [picker, setPicker] = useState<'from' | 'to' | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -165,11 +183,18 @@ const CalendarScreen = () => {
 
   /**
    * Every job dated before today — scheduled, suspended, cancelled, done alike —
-   * newest first, grouped by date. No status filter: this is the full history.
+   * newest first, grouped by date. No status filter: this is the full history,
+   * narrowed only by the From/To dates when the user sets them.
    */
   const pastSections = useMemo(() => {
     const past = jobs
-      .filter(j => j.scheduledDate != null && j.scheduledDate < todayKey)
+      .filter(
+        j =>
+          j.scheduledDate != null &&
+          j.scheduledDate < todayKey &&
+          (fromDate == null || j.scheduledDate >= fromDate) &&
+          (toDate == null || j.scheduledDate <= toDate),
+      )
       .sort((a, b) => {
         const byDate = (b.scheduledDate ?? '').localeCompare(
           a.scheduledDate ?? '',
@@ -188,9 +213,25 @@ const CalendarScreen = () => {
       map.set(key, bucket);
     }
     return [...map.entries()];
-  }, [jobs, todayKey]);
+  }, [jobs, todayKey, fromDate, toDate]);
 
   const pastCount = pastSections.reduce((s, [, list]) => s + list.length, 0);
+  const filtered = fromDate != null || toDate != null;
+
+  const pickDate = (key: string) => {
+    if (picker === 'from') {
+      setFromDate(key);
+      if (toDate != null && key > toDate) setToDate(null);
+    } else if (picker === 'to') {
+      setToDate(key);
+      if (fromDate != null && key < fromDate) setFromDate(null);
+    }
+  };
+
+  const clearFilter = () => {
+    setFromDate(null);
+    setToDate(null);
+  };
 
   const jobBadge = (status: Job['status']) => {
     if (status === 'cancelled')
@@ -272,7 +313,49 @@ const CalendarScreen = () => {
           })}
         </View>
 
-        {mode === 'past' ? null : (
+        {mode === 'past' ? (
+          <View style={styles.filterRow}>
+            {(['from', 'to'] as const).map(edge => {
+              const value = edge === 'from' ? fromDate : toDate;
+              return (
+                <Pressable
+                  key={edge}
+                  style={[styles.filterChip, value != null && styles.filterChipOn]}
+                  onPress={() => setPicker(edge)}
+                >
+                  <Ionicons
+                    name="calendar-outline"
+                    size={16}
+                    color={value != null ? colors.secondary : colors.placeholder}
+                  />
+                  <View>
+                    <Text style={styles.filterChipLabel}>
+                      {edge === 'from' ? 'FROM' : 'TO'}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.filterChipValue,
+                        value == null && styles.filterChipValueEmpty,
+                      ]}
+                    >
+                      {value != null ? filterLabel(value) : 'Any date'}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+            {filtered ? (
+              <Pressable
+                style={styles.filterClear}
+                onPress={clearFilter}
+                hitSlop={6}
+                accessibilityLabel="Clear date filter"
+              >
+                <Ionicons name="close" size={16} color={colors.text} />
+              </Pressable>
+            ) : null}
+          </View>
+        ) : (
         <>
         <View style={styles.monthRow}>
           <Text style={styles.monthLabel}>{monthLabel}</Text>
@@ -322,9 +405,13 @@ const CalendarScreen = () => {
         {mode === 'past' ? (
           pastCount === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>No previous jobs</Text>
+              <Text style={styles.emptyTitle}>
+                {filtered ? 'Nothing in those dates' : 'No previous jobs'}
+              </Text>
               <Text style={styles.emptyText}>
-                Work dated before today will show up here.
+                {filtered
+                  ? 'Widen the range or clear the filter.'
+                  : 'Work dated before today will show up here.'}
               </Text>
             </View>
           ) : (
@@ -418,6 +505,14 @@ const CalendarScreen = () => {
           <Text style={styles.footer}>TAP ANY ENTRY FOR THE FULL DETAIL</Text>
         ) : null}
       </ScrollView>
+
+      <CalendarModal
+        visible={picker != null}
+        value={picker === 'from' ? fromDate : toDate}
+        title={picker === 'from' ? 'Show jobs from' : 'Show jobs up to'}
+        onSelect={pickDate}
+        onClose={() => setPicker(null)}
+      />
 
       <AskTraydFab collapsed={collapsed} />
     </View>

@@ -66,7 +66,6 @@ import {
 import { enqueueAction, flushOutbox, queueFinish } from '@/services/outbox';
 import { loadJobCache, saveJobCache } from '@/services/jobCache';
 import { offlineActionBlocked } from '@/offline';
-import { CertComplianceBanner, useCertGate } from '@/compliance';
 import {
   addMaterial as addMaterialOffline,
   editMaterial as editMaterialOffline,
@@ -147,7 +146,6 @@ const JobDetailScreen = () => {
   const [offline, setOffline] = useState(false);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
-  const certBlocked = useCertGate();
   const [now, setNow] = useState(() => Date.now());
 
   // Live session subresources (job_materials / job_photos / job_notes /
@@ -360,7 +358,6 @@ const JobDetailScreen = () => {
   // action is queued with its timestamp and replayed on reconnect (mds §1).
   const lifecycle = async (action: 'pause' | 'resume', label: string) => {
     if (!detail || acting) return;
-    if (action === 'resume' && certBlocked()) return;
     if (offlineActionBlocked()) return;
     setActing(true);
     const atIso = new Date().toISOString();
@@ -1600,7 +1597,6 @@ const JobDetailScreen = () => {
   return (
     <View style={styles.flex}>
       {header}
-      <CertComplianceBanner style={styles.certBanner} />
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.content}

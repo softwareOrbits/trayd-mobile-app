@@ -46,7 +46,6 @@ import {
   type RosterEntry,
 } from '@/services/member';
 import { enqueue, offlineActionBlocked } from '@/offline';
-import { useCertGate } from '@/compliance';
 import { isNetworkError } from '@/offline/errors';
 import { useAppDispatch } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
@@ -89,7 +88,6 @@ const StartJobScreen = () => {
   const [photos, setPhotos] = useState<PhotoAsset[]>([]);
   const [busy, setBusy] = useState<'start' | 'schedule' | null>(null);
   const [datePicker, setDatePicker] = useState(false);
-  const certBlocked = useCertGate();
 
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [newCustomer, setNewCustomer] = useState<NewCustomerPayload | null>(
@@ -317,7 +315,6 @@ const StartJobScreen = () => {
       setStep(1);
       return;
     }
-    if (certBlocked()) return;
     if (offlineActionBlocked()) return;
     setBusy('start');
     const memberIds = crew.length === 1 && crew[0] === selfId ? [] : crew;

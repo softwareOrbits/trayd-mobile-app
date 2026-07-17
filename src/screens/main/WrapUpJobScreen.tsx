@@ -895,14 +895,14 @@ const WrapUpJobScreen = () => {
         <JobFooter>
           <Button
             label="Continue tomorrow"
+            variant="outlined"
+            color="secondary"
             fullWidth
             loading={pausing}
             onPress={continueTomorrow}
           />
           <Button
             label="Finish & submit"
-            variant="outlined"
-            color="secondary"
             fullWidth
             disabled={pausing}
             onPress={() => setPhase('wizard')}
