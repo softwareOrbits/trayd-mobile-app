@@ -36,12 +36,12 @@ type Row = { key: string; name: string; label: string };
 export const CertComplianceBanner = ({ style }: { style?: ViewStyle }) => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeCertComplianceStyles);
-  const { compliance } = useCertCompliance();
+  const { compliance, dismissed, dismiss } = useCertCompliance();
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
 
   const { blockers, expiringSoon } = compliance;
-  if (!blockers.length && !expiringSoon.length) return null;
+  if (dismissed || (!blockers.length && !expiringSoon.length)) return null;
 
   const blocking = blockers.length > 0;
   const accent = blocking ? colors.error : colors.warning;
@@ -73,15 +73,22 @@ export const CertComplianceBanner = ({ style }: { style?: ViewStyle }) => {
         <View style={styles.headText}>
           <Text style={[styles.title, { color: accent }]}>
             {blocking
-              ? 'You can’t start a job yet'
+              ? 'Certifications need attention'
               : 'Certification expiring soon'}
           </Text>
           <Text style={styles.subtitle}>
             {blocking
-              ? 'Your employer needs these before you go on the clock.'
+              ? 'Your employer needs these on file.'
               : 'Renew these to stay on the clock.'}
           </Text>
         </View>
+        <Pressable
+          onPress={dismiss}
+          hitSlop={10}
+          accessibilityLabel="Dismiss certification notice"
+        >
+          <Ionicons name="close" size={18} color={colors.textMuted} />
+        </Pressable>
       </View>
 
       <View style={styles.list}>

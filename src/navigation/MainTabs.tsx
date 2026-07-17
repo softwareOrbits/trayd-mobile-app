@@ -4,7 +4,6 @@ import {
 } from '@react-navigation/bottom-tabs';
 import { BottomNav } from '@/components/ui';
 import { NavCollapseProvider, useNavCollapse } from '@/utils/navCollapse';
-import { haptics } from '@/utils/haptics';
 import type { MainTabParamList, NavItem } from '@/types';
 import DashboardScreen from '@/screens/main/DashboardScreen';
 import CalendarScreen from '@/screens/main/CalendarScreen';
@@ -50,10 +49,7 @@ const TabBar = ({ state, navigation }: BottomTabBarProps) => {
       activeKey={activeKey}
       items={items}
       collapsed={collapsed}
-      onChange={key => {
-        haptics.select();
-        navigation.navigate(key as keyof MainTabParamList);
-      }}
+      onChange={key => navigation.navigate(key as keyof MainTabParamList)}
     />
   );
 };

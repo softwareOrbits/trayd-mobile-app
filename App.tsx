@@ -28,7 +28,7 @@ import { CertComplianceProvider } from '@/compliance';
 import { warmCaches } from '@/offline/prefetch';
 import { fetchUnread, setUnread } from '@/store/notificationsSlice';
 import { registerPush } from '@/services/push';
-import ShiftCutoffProvider from '@/components/shift/ShiftCutoffProvider';
+import AutoStopProvider from '@/components/shift/AutoStopProvider';
 import AppNavigator from '@/navigation/AppNavigator';
 
 LogBox.ignoreLogs(['Network request failed', 'TypeError: Network request failed']);
@@ -111,7 +111,7 @@ function AppShell() {
       <SafeAreaInsetsContext.Provider value={value}>
         <AppNavigator />
       </SafeAreaInsetsContext.Provider>
-      <ShiftCutoffProvider />
+      <AutoStopProvider />
     </>
   );
 }

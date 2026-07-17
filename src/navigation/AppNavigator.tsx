@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 
 // Imported directly rather than via the `@/components/ui` barrel: that barrel
@@ -11,6 +11,7 @@ import {
   markPermissionsPrimed,
 } from '@/services/permissionPriming';
 import { LightTheme } from '@/theme/navigation';
+import { haptics } from '@/utils/haptics';
 import { navigationRef, flushPendingNotificationTarget } from './navigationRef';
 import AuthStack from './AuthStack';
 import MainStack from './MainStack';
@@ -46,10 +47,28 @@ const usePrimingGate = (isLoggedIn: boolean, userId: string | null) => {
   return { primed, complete };
 };
 
+const useNavHaptic = () => {
+  const routeKey = useRef<string | undefined>(undefined);
+
+  const sync = useCallback(() => {
+    routeKey.current = navigationRef.getCurrentRoute()?.key;
+  }, []);
+
+  const onStateChange = useCallback(() => {
+    const next = navigationRef.getCurrentRoute()?.key;
+    if (!next || next === routeKey.current) return;
+    routeKey.current = next;
+    haptics.nav();
+  }, []);
+
+  return { sync, onStateChange };
+};
+
 const AppNavigator = () => {
   const isLoggedIn = useAppSelector(state => state.auth.isLoggedIn);
   const userId = useAppSelector(state => state.auth.user?.id ?? null);
   const { primed, complete } = usePrimingGate(isLoggedIn, userId);
+  const { sync, onStateChange } = useNavHaptic();
 
   // NavigationContainer needs a navigator child, so the read-the-flag gap waits
   // outside it. Cold starts are already behind the boot splash, so this is only
@@ -60,7 +79,11 @@ const AppNavigator = () => {
     <NavigationContainer
       ref={navigationRef}
       theme={LightTheme}
-      onReady={flushPendingNotificationTarget}
+      onReady={() => {
+        sync();
+        flushPendingNotificationTarget();
+      }}
+      onStateChange={onStateChange}
     >
       {!isLoggedIn ? (
         <AuthStack />

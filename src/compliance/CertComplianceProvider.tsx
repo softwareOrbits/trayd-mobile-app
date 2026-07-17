@@ -20,14 +20,26 @@ import {
 type CertComplianceValue = {
   compliance: CertCompliance;
   loading: boolean;
+  dismissed: boolean;
+  dismiss: () => void;
   refresh: () => Promise<void>;
 };
 
 const CertComplianceContext = createContext<CertComplianceValue>({
   compliance: COMPLIANT,
   loading: false,
+  dismissed: false,
+  dismiss: () => {},
   refresh: async () => {},
 });
+
+const signatureOf = (c: CertCompliance) =>
+  [
+    ...c.blockers.map(b => `${b.typeId}:${b.reason}`),
+    ...c.expiringSoon.map(e => `${e.typeId}:expiring`),
+  ]
+    .sort()
+    .join('|');
 
 export const CertComplianceProvider = ({
   children,
@@ -37,6 +49,9 @@ export const CertComplianceProvider = ({
   const isLoggedIn = useAppSelector(s => s.auth.isLoggedIn);
   const [compliance, setCompliance] = useState<CertCompliance>(COMPLIANT);
   const [loading, setLoading] = useState(false);
+  const [dismissedSignature, setDismissedSignature] = useState<string | null>(
+    null,
+  );
 
   const refresh = useCallback(async () => {
     if (!isLoggedIn) return;
@@ -54,6 +69,7 @@ export const CertComplianceProvider = ({
   useEffect(() => {
     if (!isLoggedIn) {
       setCompliance(COMPLIANT);
+      setDismissedSignature(null);
       return;
     }
     refresh();
@@ -63,9 +79,21 @@ export const CertComplianceProvider = ({
     return () => sub.remove();
   }, [isLoggedIn, refresh]);
 
+  const signature = signatureOf(compliance);
+  const dismiss = useCallback(
+    () => setDismissedSignature(signature),
+    [signature],
+  );
+
   const value = useMemo(
-    () => ({ compliance, loading, refresh }),
-    [compliance, loading, refresh],
+    () => ({
+      compliance,
+      loading,
+      dismissed: dismissedSignature === signature,
+      dismiss,
+      refresh,
+    }),
+    [compliance, loading, dismissedSignature, signature, dismiss, refresh],
   );
 
   return (

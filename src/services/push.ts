@@ -8,7 +8,7 @@ import { supabase } from './supabase';
 import { store } from '@/store';
 import { fetchUnread } from '@/store/notificationsSlice';
 import { openNotificationTarget } from '@/navigation/navigationRef';
-import { emitShiftPush, isShiftPush } from './shiftBus';
+import { emitTimerPush, timerPushFrom } from './timerBus';
 import { isLeaveNotification, type NotificationTarget } from './notifications';
 import { getJwtClaims } from '@/utils/jwt';
 import { haptics } from '@/utils/haptics';
@@ -105,7 +105,11 @@ export async function registerPush(): Promise<void> {
         }),
         messaging().onMessage(msg => {
           store.dispatch(fetchUnread());
-          if (isShiftPush(msg.data as Record<string, unknown>)) emitShiftPush();
+          const timerPush = timerPushFrom(msg.data as Record<string, unknown>);
+          if (timerPush) {
+            emitTimerPush(timerPush);
+            return;
+          }
           const n = msg.notification;
           if (!n) return;
           Toast.show({
@@ -121,14 +125,18 @@ export async function registerPush(): Promise<void> {
         }),
         messaging().onNotificationOpenedApp(msg => {
           haptics.tap();
-          if (isShiftPush(msg.data as Record<string, unknown>)) emitShiftPush();
+          const timerPush = timerPushFrom(msg.data as Record<string, unknown>);
+          if (timerPush) emitTimerPush(timerPush);
           openNotificationTarget(targetFrom(msg));
         }),
       );
       messaging()
         .getInitialNotification()
         .then(msg => {
-          if (msg) openNotificationTarget(targetFrom(msg));
+          if (!msg) return;
+          const timerPush = timerPushFrom(msg.data as Record<string, unknown>);
+          if (timerPush) emitTimerPush(timerPush);
+          openNotificationTarget(targetFrom(msg));
         })
         .catch(() => {});
     }

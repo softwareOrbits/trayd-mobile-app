@@ -10,7 +10,7 @@ export const makeDashboardStyles = (theme: Theme) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: theme.colors.background },
     scrollContent: { flexGrow: 1 },
-    certBanner: { marginBottom: 16 },
+    certBanner: { marginHorizontal: 16, marginTop: 16, marginBottom: 4 },
     body: {
       flexGrow: 1,
       backgroundColor: theme.colors.background,

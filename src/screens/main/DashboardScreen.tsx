@@ -15,6 +15,7 @@ import {
   PermissionBanner,
   type DashboardVariant,
 } from '@/components/dashboard';
+import { CertComplianceBanner } from '@/compliance';
 import { useAppDispatch } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
 import { useThemedStyles } from '@/utils/useThemedStyles';
@@ -51,6 +52,7 @@ const DashboardScreen = () => {
             {VARIANT === 'active' ? (
               <>
                 <PermissionBanner />
+                <CertComplianceBanner style={styles.certBanner} />
                 <TodayJobs />
                 <QuickAccess />
                 <VanIssuePromo />
