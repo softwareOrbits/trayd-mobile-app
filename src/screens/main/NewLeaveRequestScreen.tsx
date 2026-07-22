@@ -83,7 +83,7 @@ const NewLeaveRequestScreenInner = () => {
   const capped = entitlement > 0;
   const noAllocation = type !== 'other' && entitlement === 0;
   const available = balance
-    ? Math.max(0, balance.entitlement - balance.used)
+    ? Math.max(0, balance.entitlement - balance.used - balance.pending)
     : 0;
 
   const hasRange = !!(from && to);
