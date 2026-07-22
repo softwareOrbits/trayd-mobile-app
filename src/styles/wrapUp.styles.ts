@@ -646,7 +646,7 @@ export const makeWrapUpStyles = (theme: Theme) =>
       fontFamily: theme.fonts.monoBold,
       color: theme.colors.onPrimary,
     },
-    finishCard: {
+    altCard: {
       marginTop: 14,
       backgroundColor: theme.colors.surface,
       borderRadius: theme.radii.lg,
@@ -655,17 +655,17 @@ export const makeWrapUpStyles = (theme: Theme) =>
       padding: 16,
       gap: 6,
     },
-    finishCardHead: {
+    altCardHead: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
     },
-    finishCardTitle: {
+    altCardTitle: {
       fontSize: theme.typography.size.md,
       fontFamily: theme.fonts.semibold,
       color: theme.colors.text,
     },
-    finishCardText: {
+    altCardText: {
       fontSize: theme.typography.size.sm,
       color: theme.colors.textMuted,
       lineHeight: 19,

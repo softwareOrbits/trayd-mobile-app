@@ -5,15 +5,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
 import {
-  declareOvertime,
-  fetchAutoStopSettings,
-  formatStopTime,
-} from '@/services/overtime';
-import {
   TIMER_AUTO_PAUSED,
   onTimerPush,
   type TimerPush,
 } from '@/services/timerBus';
+import {
+  refreshOvertime,
+  resetOvertime,
+  setOvertimeDeclared,
+  useOvertime,
+} from './useOvertime';
 import { navigationRef } from '@/navigation/navigationRef';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { toastError } from '@/utils/toast';
@@ -26,23 +27,16 @@ export default function AutoStopProvider() {
   const isLoggedIn = useAppSelector(s => s.auth.isLoggedIn);
 
   const [prompt, setPrompt] = useState<TimerPush | null>(null);
-  const [stopLabel, setStopLabel] = useState(() => formatStopTime(null));
   const [declaring, setDeclaring] = useState(false);
+  const { stopLabel } = useOvertime();
 
   useEffect(() => {
     if (!isLoggedIn) {
       setPrompt(null);
+      resetOvertime();
       return;
     }
-    let active = true;
-    fetchAutoStopSettings()
-      .then(settings => {
-        if (active) setStopLabel(formatStopTime(settings.stopTime));
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
+    refreshOvertime().catch(() => {});
   }, [isLoggedIn]);
 
   useEffect(() => {
@@ -58,7 +52,7 @@ export default function AutoStopProvider() {
   const stayOn = async () => {
     setDeclaring(true);
     try {
-      await declareOvertime();
+      await setOvertimeDeclared(true);
       setPrompt(null);
     } catch (e) {
       toastError(e, `Could not save that — your timer will stop at ${stopLabel}.`);

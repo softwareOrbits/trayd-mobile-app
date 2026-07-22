@@ -36,6 +36,12 @@ const fmtDisplay = (iso: string) =>
     year: 'numeric',
   });
 
+const todayIso = () => {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+};
+
 const AddCertificationScreen = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeCertificationStyles);
@@ -47,7 +53,7 @@ const AddCertificationScreen = () => {
   const [typeSheet, setTypeSheet] = useState(false);
   const [selected, setSelected] = useState<CertificationType | null>(null);
   const [number, setNumber] = useState('');
-  const [issued, setIssued] = useState('');
+  const [issued, setIssued] = useState(todayIso);
   const [expires, setExpires] = useState('');
   const [photoPath, setPhotoPath] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);

@@ -29,6 +29,16 @@ const MONTHS = [
   'November',
   'December',
 ];
+const MONTHS_SHORT = MONTHS.map(m => m.slice(0, 3));
+
+const CELL_HEIGHT = 44;
+const GRID_ROWS = 6;
+const GRID_CELLS = GRID_ROWS * 7;
+const GRID_HEIGHT = CELL_HEIGHT * GRID_ROWS;
+const WEEKDAY_HEIGHT = 18;
+const BODY_GAP = 12;
+const BODY_HEIGHT = WEEKDAY_HEIGHT + BODY_GAP + GRID_HEIGHT;
+const MONTH_CELL_HEIGHT = BODY_HEIGHT / 4;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const toKey = (d: Date) =>
@@ -54,15 +64,19 @@ export const CalendarModal = ({
 
   const selected = useMemo(() => parseKey(value), [value]);
   const [view, setView] = useState(() => selected ?? new Date());
+  const [pickingMonth, setPickingMonth] = useState(false);
 
   useEffect(() => {
-    if (visible) setView(selected ?? new Date());
+    if (visible) {
+      setView(selected ?? new Date());
+      setPickingMonth(false);
+    }
   }, [visible, selected]);
 
   const year = view.getFullYear();
   const month = view.getMonth();
   const todayKey = toKey(new Date());
-  const selectedKey = selected ? toKey(selected) : null;
+  const highlightKey = selected ? toKey(selected) : todayKey;
 
   const cells = useMemo(() => {
     const lead = mondayIndex(new Date(year, month, 1).getDay());
@@ -70,13 +84,32 @@ export const CalendarModal = ({
     const out: (number | null)[] = [];
     for (let i = 0; i < lead; i += 1) out.push(null);
     for (let d = 1; d <= daysInMonth; d += 1) out.push(d);
-    while (out.length % 7 !== 0) out.push(null);
+    while (out.length < GRID_CELLS) out.push(null);
     return out;
   }, [year, month]);
 
-  const shift = (delta: number) => setView(new Date(year, month + delta, 1));
+  const shift = (delta: number) =>
+    setView(
+      pickingMonth
+        ? new Date(year + delta, month, 1)
+        : new Date(year, month + delta, 1),
+    );
+
   const choose = (day: number) => {
     onSelect(toKey(new Date(year, month, day)));
+    onClose();
+  };
+
+  const chooseMonth = (index: number) => {
+    setView(new Date(year, index, 1));
+    setPickingMonth(false);
+  };
+
+  const jumpToToday = () => {
+    const now = new Date();
+    setView(new Date(now.getFullYear(), now.getMonth(), 1));
+    setPickingMonth(false);
+    onSelect(toKey(now));
     onClose();
   };
 
@@ -101,7 +134,20 @@ export const CalendarModal = ({
             <Pressable onPress={() => shift(-1)} hitSlop={10} style={styles.navBtn}>
               <Ionicons name="chevron-back" size={20} color={colors.secondary} />
             </Pressable>
-            <Text style={styles.monthLabel}>{`${MONTHS[month]} ${year}`}</Text>
+            <Pressable
+              onPress={() => setPickingMonth(v => !v)}
+              hitSlop={8}
+              style={styles.monthTap}
+            >
+              <Text style={styles.monthLabel}>
+                {pickingMonth ? `${year}` : `${MONTHS[month]} ${year}`}
+              </Text>
+              <Ionicons
+                name={pickingMonth ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={colors.secondary}
+              />
+            </Pressable>
             <Pressable onPress={() => shift(1)} hitSlop={10} style={styles.navBtn}>
               <Ionicons
                 name="chevron-forward"
@@ -111,47 +157,86 @@ export const CalendarModal = ({
             </Pressable>
           </View>
 
-          <View style={styles.weekRow}>
-            {WEEKDAYS.map(w => (
-              <Text key={w} style={styles.weekday}>
-                {w}
-              </Text>
-            ))}
-          </View>
-
-          <View style={styles.grid}>
-            {cells.map((day, i) => {
-              if (day == null)
-                return <View key={`empty-${i}`} style={styles.cell} />;
-              const key = `${year}-${pad(month + 1)}-${pad(day)}`;
-              const isSelected = key === selectedKey;
-              const isToday = key === todayKey;
-              return (
-                <Pressable
-                  key={key}
-                  style={styles.cell}
-                  onPress={() => choose(day)}
-                >
-                  <View
-                    style={[
-                      styles.dayPill,
-                      isSelected && styles.daySelected,
-                      !isSelected && isToday && styles.dayToday,
-                    ]}
+          <View style={styles.body}>
+            {pickingMonth ? (
+              <View style={styles.monthGrid}>
+              {MONTHS_SHORT.map((label, index) => {
+                const isCurrent = index === month;
+                return (
+                  <Pressable
+                    key={label}
+                    style={styles.monthCell}
+                    onPress={() => chooseMonth(index)}
                   >
-                    <Text
+                    <View
                       style={[
-                        styles.dayText,
-                        isSelected && styles.dayTextSelected,
+                        styles.monthPill,
+                        isCurrent && styles.monthPillActive,
                       ]}
                     >
-                      {day}
-                    </Text>
-                  </View>
-                </Pressable>
-              );
-            })}
+                      <Text
+                        style={[
+                          styles.monthText,
+                          isCurrent && styles.monthTextActive,
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <>
+              <View style={styles.weekRow}>
+                {WEEKDAYS.map(w => (
+                  <Text key={w} style={styles.weekday}>
+                    {w}
+                  </Text>
+                ))}
+              </View>
+
+              <View style={styles.grid}>
+                {cells.map((day, i) => {
+                  if (day == null)
+                    return <View key={`empty-${i}`} style={styles.cell} />;
+                  const key = `${year}-${pad(month + 1)}-${pad(day)}`;
+                  const isSelected = key === highlightKey;
+                  const isToday = key === todayKey;
+                  return (
+                    <Pressable
+                      key={key}
+                      style={styles.cell}
+                      onPress={() => choose(day)}
+                    >
+                      <View
+                        style={[
+                          styles.dayPill,
+                          isSelected && styles.daySelected,
+                          !isSelected && isToday && styles.dayToday,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.dayText,
+                            isSelected && styles.dayTextSelected,
+                          ]}
+                        >
+                          {day}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+                </View>
+              </>
+            )}
           </View>
+
+          <Pressable onPress={jumpToToday} hitSlop={8} style={styles.todayBtn}>
+            <Text style={styles.todayText}>Today</Text>
+          </Pressable>
         </View>
       </View>
     </Modal>
@@ -195,24 +280,37 @@ export const makeStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    monthTap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+    },
     monthLabel: {
       fontSize: theme.typography.size.md,
       fontFamily: theme.fonts.semibold,
       color: theme.colors.text,
     },
-    weekRow: { flexDirection: 'row' },
+    body: { height: BODY_HEIGHT, gap: BODY_GAP },
+    weekRow: { flexDirection: 'row', height: WEEKDAY_HEIGHT },
     weekday: {
       width: '14.2857%',
       textAlign: 'center',
       fontSize: 11,
+      lineHeight: WEEKDAY_HEIGHT,
       fontFamily: theme.fonts.monoBold,
       letterSpacing: 0.5,
       color: theme.colors.textMuted,
     },
-    grid: { flexDirection: 'row', flexWrap: 'wrap' },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      height: GRID_HEIGHT,
+    },
     cell: {
       width: '14.2857%',
-      aspectRatio: 1,
+      height: CELL_HEIGHT,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -233,6 +331,38 @@ export const makeStyles = (theme: Theme) =>
     dayTextSelected: {
       color: theme.colors.onPrimary,
       fontFamily: theme.fonts.bold,
+    },
+    monthGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      height: BODY_HEIGHT,
+    },
+    monthCell: {
+      width: '33.3333%',
+      height: MONTH_CELL_HEIGHT,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    monthPill: {
+      paddingVertical: 10,
+      paddingHorizontal: 18,
+      borderRadius: theme.radii.pill,
+    },
+    monthPillActive: { backgroundColor: theme.colors.primary },
+    monthText: {
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.medium,
+      color: theme.colors.text,
+    },
+    monthTextActive: {
+      color: theme.colors.onPrimary,
+      fontFamily: theme.fonts.bold,
+    },
+    todayBtn: { alignItems: 'center', paddingVertical: 4 },
+    todayText: {
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.bold,
+      color: theme.colors.primary,
     },
   });
 

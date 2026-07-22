@@ -49,7 +49,7 @@ import {
   removeMaterial as removeMaterialOffline,
 } from '@/offline/materialActions';
 import { loadJobCache, saveJobCache } from '@/services/jobCache';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchJobs, patchJobStatus } from '@/store/jobsSlice';
 import { setPendingJobStatus } from '@/store/pendingJobsSlice';
 import { signOut } from '@/store/authSlice';
@@ -81,6 +81,7 @@ const WrapUpJobScreen = () => {
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const { params } = useRoute<RouteProp<MainStackParamList, 'WrapUpJob'>>();
   const dispatch = useAppDispatch();
+  const isOwner = useAppSelector(s => s.auth.isOwner);
 
   const resetToJobsTab = useCallback(
     (initialTab: JobTabKey) =>
@@ -794,7 +795,7 @@ const WrapUpJobScreen = () => {
             fullWidth
             onPress={() => resetToJobsTab('done')}
           />
-          {success ? (
+          {success && isOwner ? (
             <Pressable
               onPress={() =>
                 navigation.reset({
@@ -865,14 +866,12 @@ const WrapUpJobScreen = () => {
 
           <View style={styles.recommendCard}>
             <View style={styles.recommendTop}>
-              <Text style={styles.recommendBadge}>RECOMMENDED</Text>
-              <Ionicons name="time-outline" size={18} color={colors.onPrimary} />
+              <Text style={styles.recommendBadge}>JOB’S COMPLETE</Text>
+              <Ionicons name="checkmark" size={18} color={colors.onPrimary} />
             </View>
-            <Text style={styles.recommendTitle}>Continue tomorrow</Text>
+            <Text style={styles.recommendTitle}>Finish &amp; submit</Text>
             <Text style={styles.recommendText}>
-              Job stays open · status changes to{' '}
-              <Text style={styles.recommendStrong}>Paused</Text> · everything
-              carries over.
+              Submit to your office now · single-day invoice generated.
             </Text>
             <View style={styles.recommendStat}>
               <Text style={styles.recommendStatText}>
@@ -881,18 +880,26 @@ const WrapUpJobScreen = () => {
             </View>
           </View>
 
-          <View style={styles.finishCard}>
-            <View style={styles.finishCardHead}>
-              <Text style={styles.finishCardTitle}>Job’s complete — finish</Text>
-              <Ionicons name="checkmark" size={18} color={colors.secondary} />
+          <View style={styles.altCard}>
+            <View style={styles.altCardHead}>
+              <Text style={styles.altCardTitle}>Continue tomorrow</Text>
+              <Ionicons name="time-outline" size={18} color={colors.secondary} />
             </View>
-            <Text style={styles.finishCardText}>
-              Submit to your office now · single-day invoice generated.
+            <Text style={styles.altCardText}>
+              Job stays open · status changes to{' '}
+              <Text style={styles.recommendStrong}>Paused</Text> · everything
+              carries over.
             </Text>
           </View>
         </View>
 
         <JobFooter>
+          <Button
+            label="Finish & submit"
+            fullWidth
+            disabled={pausing}
+            onPress={() => setPhase('wizard')}
+          />
           <Button
             label="Continue tomorrow"
             variant="outlined"
@@ -900,12 +907,6 @@ const WrapUpJobScreen = () => {
             fullWidth
             loading={pausing}
             onPress={continueTomorrow}
-          />
-          <Button
-            label="Finish & submit"
-            fullWidth
-            disabled={pausing}
-            onPress={() => setPhase('wizard')}
           />
         </JobFooter>
       </View>
