@@ -80,6 +80,7 @@ import {
 import { fetchMyMember } from '@/services/member';
 import { signOut } from '@/store/authSlice';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import OvertimeChip from '@/components/shift/OvertimeChip';
 import { fetchJobs, patchJobStatus } from '@/store/jobsSlice';
 import { setPendingJobStatus } from '@/store/pendingJobsSlice';
 import { getMappedId } from '@/offline/idRemap';
@@ -137,6 +138,7 @@ const JobDetailScreen = () => {
   const isPendingJob = useAppSelector(s =>
     s.pendingJobs.items.some(j => j.id === params.jobId),
   );
+  const isOwner = useAppSelector(s => s.auth.isOwner);
   const pendingRef = useRef(false);
   pendingRef.current = isPendingJob && !getMappedId(params.jobId);
   const cachedJobRef = useRef(cachedJob);
@@ -706,14 +708,14 @@ const JobDetailScreen = () => {
   const manageState = detail ? detailStateFor(detail.status) : null;
   const ownerId = detail?.createdById ?? detail?.primaryMemberId ?? null;
   const ownsJob = !!detail && !!myMemberId && ownerId === myMemberId;
-  const menuEdit = ownsJob && manageState === 'scheduled';
+  const menuEdit = (isOwner || ownsJob) && manageState === 'scheduled';
   const menuCancel =
-    ownsJob &&
+    isOwner &&
     (manageState === 'scheduled' ||
       manageState === 'active' ||
       manageState === 'paused');
   const menuDelete =
-    ownsJob && (manageState === 'scheduled' || manageState === 'cancelled');
+    isOwner && (manageState === 'scheduled' || manageState === 'cancelled');
   const canManage = menuEdit || menuCancel || menuDelete;
 
   const header = (
@@ -1085,6 +1087,7 @@ const JobDetailScreen = () => {
           status={myTimerStatus}
           onEdit={openTimeEdit}
         />
+        <OvertimeChip running={iAmWorking} />
       </View>
     ) : null;
 
