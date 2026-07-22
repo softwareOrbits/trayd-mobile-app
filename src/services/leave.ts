@@ -144,7 +144,7 @@ const FALLBACK_ENTITLEMENT: Record<LeaveType, number> = {
   other: 0,
 };
 
-const BALANCES_CACHE_KEY = 'leavebalances:v1';
+const BALANCES_CACHE_KEY = 'leavebalances:v2';
 const REQUESTS_CACHE_KEY = 'leaverequests:v1';
 
 export async function fetchLeaveBalances(): Promise<LeaveBalance[]> {
@@ -166,6 +166,7 @@ export async function fetchLeaveBalances(): Promise<LeaveBalance[]> {
     return LEAVE_TYPES.map(type => ({
       type,
       used: 0,
+      pending: 0,
       entitlement: FALLBACK_ENTITLEMENT[type],
       year,
     }));
@@ -203,19 +204,28 @@ async function fetchLiveBalances(year: number): Promise<LeaveBalance[]> {
     total_days: number | string;
   }[];
 
+  const systemIds = new Set(
+    types.filter(t => uiTypeFor(t) !== 'other').map(t => t.id),
+  );
+
   return LEAVE_TYPES.map(ui => {
-    const ids = types.filter(t => uiTypeFor(t) === ui).map(t => t.id);
+    const ids = new Set(types.filter(t => uiTypeFor(t) === ui).map(t => t.id));
+    const inBucket = (typeId: string) =>
+      ui === 'other' ? !systemIds.has(typeId) : ids.has(typeId);
     const entitlement = ents
-      .filter(e => ids.includes(e.leave_type_id))
+      .filter(e => inBucket(e.leave_type_id))
       .reduce((s, e) => s + num(e.days_per_year), 0);
-    const used = reqs
-      .filter(
-        r =>
-          ids.includes(r.leave_type_id) &&
-          (r.status === 'approved' || r.status === 'pending'),
-      )
-      .reduce((s, r) => s + num(r.total_days), 0);
-    return { type: ui, used, entitlement, year };
+    const daysWhere = (status: string) =>
+      reqs
+        .filter(r => inBucket(r.leave_type_id) && r.status === status)
+        .reduce((s, r) => s + num(r.total_days), 0);
+    return {
+      type: ui,
+      used: daysWhere('approved'),
+      pending: daysWhere('pending'),
+      entitlement,
+      year,
+    };
   });
 }
 

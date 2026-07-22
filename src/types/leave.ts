@@ -64,6 +64,7 @@ export const LEAVE_BALANCE_FRAMING: Record<LeaveType, LeaveBalanceFraming> = {
 export type LeaveBalance = {
   type: LeaveType;
   used: number;
+  pending: number;
   entitlement: number;
   year: number;
 };

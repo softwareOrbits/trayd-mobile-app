@@ -34,8 +34,10 @@ export const QuickAccess = () => {
   const entitlement =
     balances?.reduce((s, b) => s + b.entitlement, 0) ?? 0;
   const used = balances?.reduce((s, b) => s + b.used, 0) ?? 0;
-  const left = Math.max(0, entitlement - used);
-  const leaveProgress = entitlement > 0 ? Math.min(1, used / entitlement) : 0;
+  const pending = balances?.reduce((s, b) => s + b.pending, 0) ?? 0;
+  const left = Math.max(0, entitlement - used - pending);
+  const leaveProgress =
+    entitlement > 0 ? Math.min(1, (used + pending) / entitlement) : 0;
   const leaveTitle = balances
     ? `Leave · ${fmtDays(used)} of ${fmtDays(entitlement)} days`
     : 'Leave · —';

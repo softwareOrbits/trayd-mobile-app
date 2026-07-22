@@ -31,7 +31,9 @@ const accentFor = (type: LeaveType, colors: AppColors) => {
 const describe = (balance: LeaveBalance) => {
   const framing = LEAVE_BALANCE_FRAMING[balance.type];
   const capped = balance.entitlement > 0;
-  const progress = capped ? Math.min(1, balance.used / balance.entitlement) : 0;
+  const committed = balance.used + balance.pending;
+  const progress = capped ? Math.min(1, committed / balance.entitlement) : 0;
+  const note = balance.pending ? `${balance.pending} pending` : null;
 
   if (framing === 'used') {
     return {
@@ -39,16 +41,24 @@ const describe = (balance: LeaveBalance) => {
       caption: `of ${balance.entitlement} used`,
       progress,
       showBar: capped,
+      note,
     };
   }
   if (framing === 'taken') {
-    return { value: balance.used, caption: 'days taken', progress: 0, showBar: false };
+    return {
+      value: balance.used,
+      caption: 'days taken',
+      progress: 0,
+      showBar: false,
+      note,
+    };
   }
   return {
-    value: Math.max(0, balance.entitlement - balance.used),
+    value: Math.max(0, balance.entitlement - committed),
     caption: `of ${balance.entitlement} left`,
     progress,
     showBar: capped,
+    note,
   };
 };
 
@@ -84,6 +94,16 @@ export const LeaveBalanceGrid = ({ balances }: LeaveBalanceGridProps) => {
                 {d.caption}
               </Text>
             </View>
+            {d.note ? (
+              <Text
+                style={[
+                  styles.cardSubCaption,
+                  navy && styles.cardSubCaptionOnNavy,
+                ]}
+              >
+                {d.note}
+              </Text>
+            ) : null}
             {d.showBar ? (
               <View style={[styles.cardTrack, navy && styles.cardTrackOnNavy]}>
                 <View
