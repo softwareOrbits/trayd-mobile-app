@@ -71,7 +71,7 @@ export const makeStyles = (theme: Theme) =>
       paddingBottom: 10,
       backgroundColor: theme.colors.background,
     },
-    side: { width: 72, justifyContent: 'center' },
+    side: { minWidth: 72, justifyContent: 'center' },
     sideRight: { alignItems: 'flex-end' },
     backBtn: {
       width: 38,
