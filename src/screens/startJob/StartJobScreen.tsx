@@ -86,7 +86,7 @@ const StartJobScreen = () => {
   const [jobType, setJobType] = useState<string | null>(null);
   const [crew, setCrew] = useState<string[]>([]);
   const [photos, setPhotos] = useState<PhotoAsset[]>([]);
-  const [busy, setBusy] = useState<'start' | 'schedule' | null>(null);
+  const [busy, setBusy] = useState<'start' | 'schedule' | 'save' | null>(null);
   const [datePicker, setDatePicker] = useState(false);
 
   const [customerId, setCustomerId] = useState<string | null>(null);
@@ -426,22 +426,23 @@ const StartJobScreen = () => {
       ],
     });
 
+  const hasCustomer = () => {
+    if (customerId || newCustomer) return true;
+    Toast.show({ type: 'error', text1: 'Pick a customer first.' });
+    setStep(1);
+    return false;
+  };
+
   const openScheduleDate = () => {
     if (busy) return;
-    if (!customerId && !newCustomer) {
-      Toast.show({ type: 'error', text1: 'Pick a customer first.' });
-      setStep(1);
-      return;
-    }
+    if (!hasCustomer()) return;
     setDatePicker(true);
   };
 
-  // A scheduled job with no date is invisible everywhere that groups by day —
-  // it fell into an "Unscheduled" bucket and never reached the dashboard.
-  const scheduleAndClose = async (scheduledDate: string) => {
+  const scheduleAndClose = async (scheduledDate: string | null) => {
     if (busy) return;
     if (offlineActionBlocked()) return;
-    setBusy('schedule');
+    setBusy(scheduledDate ? 'schedule' : 'save');
     const memberIds = crew.length === 1 && crew[0] === selfId ? [] : crew;
     try {
       const jobId = await scheduleJob({
@@ -457,7 +458,11 @@ const StartJobScreen = () => {
       }
       await attachMaterialsAndPhotos(jobId);
       dispatch(fetchJobs());
-      Toast.show({ type: 'success', text1: 'Job saved & scheduled.' });
+      Toast.show({
+        type: 'success',
+        text1: scheduledDate ? 'Job saved & scheduled.' : 'Job saved.',
+        text2: scheduledDate ? undefined : 'Find it under Unscheduled.',
+      });
       resetToScheduled();
     } catch (e) {
       Toast.show({
@@ -467,6 +472,12 @@ const StartJobScreen = () => {
     } finally {
       setBusy(null);
     }
+  };
+
+  const saveWithoutDate = () => {
+    if (busy) return;
+    if (!hasCustomer()) return;
+    scheduleAndClose(null);
   };
 
   // ----- per-view content -----
@@ -839,9 +850,18 @@ const StartJobScreen = () => {
           />
         ) : null}
         <Button
-          label="Save & schedule"
+          label="Save without a date"
           variant={selfOnCrew ? 'outlined' : 'filled'}
           color={selfOnCrew ? 'secondary' : 'primary'}
+          fullWidth
+          loading={busy === 'save'}
+          disabled={!!busy}
+          onPress={saveWithoutDate}
+        />
+        <Button
+          label="Save & schedule"
+          variant="outlined"
+          color="secondary"
           fullWidth
           loading={busy === 'schedule'}
           disabled={!!busy}

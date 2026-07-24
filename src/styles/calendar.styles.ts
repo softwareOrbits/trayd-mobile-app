@@ -182,6 +182,13 @@ export const makeCalendarStyles = (theme: Theme) =>
       fontFamily: theme.fonts.mono,
       color: theme.colors.textMuted,
     },
+    unscheduledHint: {
+      marginTop: -6,
+      marginBottom: 10,
+      fontSize: theme.typography.size.xs,
+      fontFamily: theme.fonts.regular,
+      color: theme.colors.textMuted,
+    },
     card: {
       backgroundColor: theme.colors.surface,
       borderRadius: 16,

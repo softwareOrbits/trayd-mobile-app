@@ -717,13 +717,35 @@ const JobDetailScreen = () => {
   const menuDelete =
     isOwner && (manageState === 'scheduled' || manageState === 'cancelled');
   const canManage = menuEdit || menuCancel || menuDelete;
+  const cancelOnly = menuCancel && !menuEdit && !menuDelete;
+
+  const askCancel = () => {
+    setMenuOpen(false);
+    haptics.warning();
+    setConfirm('cancel');
+  };
 
   const header = (
     <JobHeader
       title={detail?.customerName ?? 'Job'}
       onBack={() => navigation.goBack()}
       right={
-        canManage ? (
+        cancelOnly ? (
+          <Pressable
+            onPress={askCancel}
+            style={styles.cancelJobBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel job"
+            hitSlop={8}
+          >
+            <Ionicons
+              name="close-circle-outline"
+              size={15}
+              color={colors.error}
+            />
+            <Text style={styles.cancelJobText}>Cancel job</Text>
+          </Pressable>
+        ) : canManage ? (
           <Menu
             visible={menuOpen}
             onDismiss={() => setMenuOpen(false)}
@@ -758,11 +780,7 @@ const JobDetailScreen = () => {
             ) : null}
             {menuCancel ? (
               <Menu.Item
-                onPress={() => {
-                  setMenuOpen(false);
-                  haptics.warning();
-                  setConfirm('cancel');
-                }}
+                onPress={askCancel}
                 leadingIcon={({ size }) => (
                   <Ionicons
                     name="close-circle-outline"

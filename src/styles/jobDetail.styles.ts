@@ -139,6 +139,22 @@ export const makeJobDetailStyles = (theme: Theme) =>
     },
     notesStack: { gap: 10 },
 
+    cancelJobBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      height: 38,
+      paddingHorizontal: 12,
+      borderRadius: theme.radii.md,
+      borderWidth: 1,
+      borderColor: theme.colors.error,
+      backgroundColor: 'transparent',
+    },
+    cancelJobText: {
+      fontSize: theme.typography.size.xs,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.error,
+    },
     menuContent: {
       backgroundColor: theme.colors.surface,
       borderRadius: theme.radii.md,

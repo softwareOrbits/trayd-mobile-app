@@ -131,6 +131,16 @@ const CalendarScreen = () => {
     return map;
   }, [jobs]);
 
+  const unscheduledJobs = useMemo(
+    () =>
+      jobs.filter(job => {
+        if (job.scheduledDate) return false;
+        const group = STATUS_GROUP[job.status];
+        return group === 'upcoming' || group === 'live' || group === 'paused';
+      }),
+    [jobs],
+  );
+
   const leavesByDay = useMemo(() => {
     const map = new Map<string, LeaveRequest[]>();
     for (const leave of leaves) {
@@ -498,10 +508,30 @@ const CalendarScreen = () => {
             </View>
           </>
         ) : null}
+
+        {unscheduledJobs.length > 0 ? (
+          <>
+            <View style={styles.sectionHead}>
+              <View
+                style={[styles.sectionDot, { backgroundColor: colors.warning }]}
+              />
+              <Text style={styles.sectionLabel}>UNSCHEDULED</Text>
+              <Text style={styles.sectionCount}>
+                · {unscheduledJobs.length}
+              </Text>
+            </View>
+            <Text style={styles.unscheduledHint}>
+              Assigned to you with no date yet.
+            </Text>
+            <View style={styles.card}>{unscheduledJobs.map(renderJobRow)}</View>
+          </>
+        ) : null}
           </>
         )}
 
-        {(mode === 'past' ? pastCount > 0 : !isEmpty) ? (
+        {(mode === 'past'
+          ? pastCount > 0
+          : !isEmpty || unscheduledJobs.length > 0) ? (
           <Text style={styles.footer}>TAP ANY ENTRY FOR THE FULL DETAIL</Text>
         ) : null}
       </ScrollView>

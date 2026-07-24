@@ -302,6 +302,21 @@ const EditJobScreen = () => {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.dateRow}
           >
+            <Pressable
+              style={[styles.dateChip, date === null && styles.dateChipOn]}
+              onPress={() => setDate(null)}
+            >
+              <Text
+                style={[styles.dateTop, date === null && styles.dateTextOn]}
+              >
+                No
+              </Text>
+              <Text
+                style={[styles.dateBottom, date === null && styles.dateTextOn]}
+              >
+                date
+              </Text>
+            </Pressable>
             {dateOptions.map(key => {
               const active = key === date;
               const l = dayLabel(key);
