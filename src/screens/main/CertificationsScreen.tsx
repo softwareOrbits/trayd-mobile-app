@@ -21,15 +21,11 @@ import {
 import { fetchMyMember } from '@/services/member';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { fmtDateFull } from '@/utils/datetime';
 import { makeCertificationStyles } from '@/styles/certifications.styles';
 import type { MainStackParamList } from '@/types';
 
-const fmtDate = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+const fmtDate = fmtDateFull;
 
 const relExpiry = (iso: string) => {
   const d = daysToExpiry(iso);

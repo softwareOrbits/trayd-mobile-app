@@ -4,24 +4,9 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { MONTHS_FULL as MONTHS, WEEK_LETTERS as WEEKDAYS } from '@/utils/constants';
 import { makeNewLeaveStyles } from '@/styles/leave.styles';
 import { mondayIndex, parseKey, toKey, todayKey } from './leave.helpers';
-
-const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
 
 type LeaveCalendarProps = {
   from: string | null;

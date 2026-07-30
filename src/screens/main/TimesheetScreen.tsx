@@ -12,12 +12,13 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { fetchTimesheet, type Timesheet } from '@/services/timesheet';
+import { fetchTimesheet } from '@/services/timesheet';
 import { fmtHoursMin } from '@/components/wrapUp/helpers';
+import { MONTHS_SHORT } from '@/utils/constants';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeTimesheetStyles } from '@/styles/timesheet.styles';
-import type { MainStackParamList } from '@/types';
+import type { MainStackParamList, Timesheet } from '@/types';
 
 const monthLabel = (year: number, month: number) =>
   new Date(year, month, 1).toLocaleDateString('en-GB', {
@@ -32,11 +33,6 @@ const dayParts = (date: string) => {
     num: d.getDate(),
   };
 };
-
-const MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
 
 type PickerProps = {
   visible: boolean;
@@ -108,7 +104,7 @@ const MonthYearPicker = ({
               </View>
 
               <View style={styles.grid}>
-                {MONTHS.map((label, i) => {
+                {MONTHS_SHORT.map((label, i) => {
                   const selected = draftYear === year && i === month;
                   const future = draftYear === thisYear && i > thisMonth;
                   return (
@@ -302,6 +298,14 @@ const TimesheetScreen = () => {
             const { weekday, num } = dayParts(d.date);
             const pct = Math.round((d.totalHours / maxHours) * 100);
             const worked = d.jobCount > 0;
+            const meta = [
+              worked ? `${d.jobCount} job${d.jobCount === 1 ? '' : 's'}` : null,
+              d.taskCount > 0
+                ? `${d.taskCount} task${d.taskCount === 1 ? '' : 's'}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' · ');
             return (
               <View key={d.date} style={styles.dayRow}>
                 <View style={styles.dayDateCol}>
@@ -319,17 +323,17 @@ const TimesheetScreen = () => {
                       <Text style={styles.leaveTagText}>{d.leave}</Text>
                     </View>
                   ) : null}
-                  {worked ? (
+                  {meta ? (
                     <>
                       {d.leave ? <View style={styles.leaveSpacer} /> : null}
-                      <Text style={styles.dayMeta}>
-                        {d.jobCount} job{d.jobCount === 1 ? '' : 's'}
-                      </Text>
-                      <View style={styles.dayBarTrack}>
-                        <View
-                          style={[styles.dayBarFill, { width: `${pct}%` }]}
-                        />
-                      </View>
+                      <Text style={styles.dayMeta}>{meta}</Text>
+                      {worked ? (
+                        <View style={styles.dayBarTrack}>
+                          <View
+                            style={[styles.dayBarFill, { width: `${pct}%` }]}
+                          />
+                        </View>
+                      ) : null}
                     </>
                   ) : null}
                 </View>

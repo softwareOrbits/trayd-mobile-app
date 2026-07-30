@@ -7,6 +7,7 @@ import { daysToExpiry } from '@/services/certifications';
 import type { CertBlocker } from '@/services/certCompliance';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { fmtDayShort } from '@/utils/datetime';
 import { makeCertComplianceStyles } from '@/styles/certCompliance.styles';
 import type { MainStackParamList } from '@/types';
 import { useCertCompliance } from './CertComplianceProvider';
@@ -14,9 +15,7 @@ import { useCertCompliance } from './CertComplianceProvider';
 const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const shortDate = (iso: string) =>
-  new Date(`${iso}T00:00:00`)
-    .toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-    .toUpperCase();
+  fmtDayShort(`${iso}T00:00:00`).toUpperCase();
 
 const reasonLabel = (b: CertBlocker) => {
   if (b.reason === 'missing') return 'NOT ADDED';

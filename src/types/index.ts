@@ -4,3 +4,7 @@ export * from './navigation';
 export * from './jobs';
 export * from './chat';
 export * from './leave';
+export * from './tasks';
+export * from './fleet';
+export * from './timesheet';
+export * from './certifications';

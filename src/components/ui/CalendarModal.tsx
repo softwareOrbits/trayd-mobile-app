@@ -5,6 +5,8 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { MONTHS_FULL as MONTHS, MONTHS_SHORT } from '@/utils/constants';
+import { dateKey, pad, parseDateKey } from '@/utils/datetime';
 
 type Props = {
   visible: boolean;
@@ -15,21 +17,6 @@ type Props = {
 };
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-const MONTHS_SHORT = MONTHS.map(m => m.slice(0, 3));
 
 const CELL_HEIGHT = 44;
 const GRID_ROWS = 6;
@@ -40,14 +27,8 @@ const BODY_GAP = 12;
 const BODY_HEIGHT = WEEKDAY_HEIGHT + BODY_GAP + GRID_HEIGHT;
 const MONTH_CELL_HEIGHT = BODY_HEIGHT / 4;
 
-const pad = (n: number) => String(n).padStart(2, '0');
-const toKey = (d: Date) =>
-  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const parseKey = (s?: string | null) => {
-  if (!s) return null;
-  const d = new Date(`${s}T00:00:00`);
-  return isNaN(d.getTime()) ? null : d;
-};
+const toKey = dateKey;
+const parseKey = parseDateKey;
 
 const mondayIndex = (jsDay: number) => (jsDay + 6) % 7;
 

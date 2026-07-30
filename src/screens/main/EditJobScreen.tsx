@@ -41,23 +41,16 @@ import { useTheme } from '@/theme';
 import { makeEditJobStyles } from '@/styles/editJob.styles';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { goBackSafe } from '@/utils/navigation';
+import { ALL_DAY_TIME_OPTIONS } from '@/utils/constants';
+import { dateKey } from '@/utils/datetime';
 import type { JobType, MainStackParamList } from '@/types';
 
-const pad = (n: number) => String(n).padStart(2, '0');
-
-const toKey = (d: Date) =>
-  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const toKey = dateKey;
 
 const msg = (e: unknown, fallback: string) =>
   e instanceof Error ? e.message : fallback;
 
-const TIME_OPTIONS: string[] = (() => {
-  const out: string[] = [];
-  for (let h = 0; h < 24; h += 1) {
-    for (let m = 0; m < 60; m += 30) out.push(`${pad(h)}:${pad(m)}`);
-  }
-  return out;
-})();
+const TIME_OPTIONS = ALL_DAY_TIME_OPTIONS;
 
 const dayLabel = (key: string) => {
   const d = new Date(`${key}T00:00:00`);

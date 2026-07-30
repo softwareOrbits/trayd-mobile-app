@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { fmtDayShort } from '@/utils/datetime';
 
 export type NotificationItem = {
   id: string;
@@ -10,6 +11,7 @@ export type NotificationItem = {
   read: boolean;
   jobId: string | null;
   leaveId: string | null;
+  vehicleId: string | null;
 };
 
 export type NotificationList = {
@@ -19,12 +21,20 @@ export type NotificationList = {
 
 export type NotificationTarget =
   | { screen: 'JobDetail'; jobId: string }
+  | { screen: 'TaskDetail'; taskId: string }
   | { screen: 'LeaveRequestDetail'; leaveId: string }
   | { screen: 'Leave' }
+  | { screen: 'VanLog'; vehicleId: string }
   | null;
 
 export const isLeaveNotification = (type: string | null | undefined) =>
   !!type?.startsWith('leave_');
+
+export const isTaskNotification = (type: string | null | undefined) =>
+  !!type?.startsWith('task_');
+
+export const isFleetNotification = (type: string | null | undefined) =>
+  !!type?.startsWith('vehicle_');
 
 const TYPE_TITLES: Record<string, string> = {
   job_submitted: 'Job submitted for review',
@@ -42,6 +52,11 @@ const TYPE_TITLES: Record<string, string> = {
   leave_declined: 'Leave declined',
   timer_stopping_soon: 'Timer stopping soon',
   timer_auto_paused: 'Timer stopped',
+  task_assigned: 'New task',
+  task_completed: 'Task completed',
+  task_reopened: 'Task reopened',
+  task_nudge: 'Task nudge',
+  vehicle_issue_reported: 'Van issue reported',
 };
 
 const titleForType = (type: string | null | undefined) =>
@@ -51,11 +66,20 @@ export const targetFor = (item: {
   type: string | null;
   jobId: string | null;
   leaveId: string | null;
+  vehicleId?: string | null;
 }): NotificationTarget => {
   if (isLeaveNotification(item.type)) {
     return item.leaveId
       ? { screen: 'LeaveRequestDetail', leaveId: item.leaveId }
       : { screen: 'Leave' };
+  }
+  if (isTaskNotification(item.type)) {
+    return item.jobId ? { screen: 'TaskDetail', taskId: item.jobId } : null;
+  }
+  if (isFleetNotification(item.type)) {
+    return item.vehicleId
+      ? { screen: 'VanLog', vehicleId: item.vehicleId }
+      : null;
   }
   if (item.jobId) return { screen: 'JobDetail', jobId: item.jobId };
   return null;
@@ -92,7 +116,7 @@ const shortDate = (iso: string | null | undefined) => {
   if (!iso) return '';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return fmtDayShort(iso);
 };
 
 const customerNameOf = (job: JobRow): string | null => {
@@ -106,8 +130,15 @@ const metaString = (n: NotifRow | undefined, key: string): string | null => {
 };
 
 const jobIdOf = (n: NotifRow | undefined): string | null => {
-  if (!n || isLeaveNotification(n.type)) return null;
+  if (!n || isLeaveNotification(n.type) || isFleetNotification(n.type)) {
+    return null;
+  }
   return n.related_entity_id ?? metaString(n, 'job_id');
+};
+
+const vehicleIdOf = (n: NotifRow | undefined): string | null => {
+  if (!n || !isFleetNotification(n.type)) return null;
+  return metaString(n, 'vehicle_id');
 };
 
 const leaveIdOf = (n: NotifRow | undefined): string | null => {
@@ -195,6 +226,7 @@ export async function listNotifications(limit = 30): Promise<NotificationList> {
       // "notifications are unclickable" meant.
       jobId,
       leaveId: leaveIdOf(n),
+      vehicleId: vehicleIdOf(n),
     };
   });
 

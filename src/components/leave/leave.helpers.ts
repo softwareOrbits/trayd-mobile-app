@@ -1,31 +1,13 @@
 import { isHolidayKey } from '@/services/leave';
+import { MONTHS_SHORT } from '@/utils/constants';
+import {
+  pad,
+  parseDateKey as parseKey,
+  toDateKey as toKey,
+} from '@/utils/datetime';
 import type { LeaveRequest } from '@/types';
 
-const MONTHS_SHORT = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
-
-export const pad = (n: number) => String(n).padStart(2, '0');
-
-export const toKey = (year: number, month: number, day: number) =>
-  `${year}-${pad(month + 1)}-${pad(day)}`;
-
-export const parseKey = (key: string | null | undefined) => {
-  if (!key) return null;
-  const d = new Date(`${key.slice(0, 10)}T00:00:00`);
-  return isNaN(d.getTime()) ? null : d;
-};
+export { pad, parseKey, toKey };
 
 export const todayKey = () => {
   const d = new Date();

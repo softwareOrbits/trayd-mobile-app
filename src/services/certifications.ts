@@ -6,27 +6,13 @@ import { uuidv4 } from '@/utils/uuid';
 
 const CERT_BUCKET = 'certifications';
 
-export type CertStatus = 'valid' | 'expiring' | 'expired' | 'no_expiry';
+import type {
+  CertStatus,
+  CertificationType,
+  MemberCertification,
+} from '@/types';
 
-export type MemberCertification = {
-  id: string;
-  typeId: string | null;
-  typeName: string;
-  issuingBody: string | null;
-  certNumber: string | null;
-  issuedOn: string | null;
-  expiresOn: string | null;
-  documentPath: string | null;
-  note: string | null;
-  status: CertStatus;
-};
-
-export type CertificationType = {
-  id: string;
-  name: string;
-  issuingBody: string | null;
-  isMandatory: boolean;
-};
+export type { CertStatus, CertificationType, MemberCertification };
 
 export const statusOf = (expiresOn: string | null): CertStatus => {
   if (!expiresOn) return 'no_expiry';

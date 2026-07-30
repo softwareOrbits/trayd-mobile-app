@@ -44,7 +44,7 @@ export const BackButton = ({ onPress, absolute, style }: BackButtonProps) => {
   );
 };
 
-export const makeStyles = (theme: Theme) =>
+export const makeStyles = (_theme: Theme) =>
   StyleSheet.create({
     row: { paddingHorizontal: 16, paddingBottom: 4 },
     absolute: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },

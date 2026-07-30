@@ -4,6 +4,10 @@ import { useAppSelector } from '@/store/hooks';
 import MainTabs from './MainTabs';
 import ChatScreen from '@/screens/main/ChatScreen';
 import JobDetailScreen from '@/screens/main/JobDetailScreen';
+import TaskDetailScreen from '@/screens/main/TaskDetailScreen';
+import AssignTaskScreen from '@/screens/main/AssignTaskScreen';
+import VanLogScreen from '@/screens/main/VanLogScreen';
+import ReportVanIssueScreen from '@/screens/main/ReportVanIssueScreen';
 import AddNoteScreen from '@/screens/main/AddNoteScreen';
 import AddReceiptScreen from '@/screens/main/AddReceiptScreen';
 import AddJobPhotoScreen from '@/screens/main/AddJobPhotoScreen';
@@ -35,13 +39,27 @@ const FieldStack = ({ isOwner }: { isOwner: boolean }) => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="Tabs" component={MainTabs} />
     <Stack.Screen name="JobDetail" component={JobDetailScreen} />
+    <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
+    <Stack.Screen name="VanLog" component={VanLogScreen} />
+    <Stack.Screen
+      name="ReportVanIssue"
+      component={ReportVanIssueScreen}
+      options={{ presentation: 'modal' }}
+    />
     <Stack.Screen name="JobChat" component={ChatScreen} />
     {isOwner ? (
-      <Stack.Screen
-        name="StartJob"
-        component={StartJobScreen}
-        options={{ presentation: 'modal' }}
-      />
+      <>
+        <Stack.Screen
+          name="StartJob"
+          component={StartJobScreen}
+          options={{ presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="AssignTask"
+          component={AssignTaskScreen}
+          options={{ presentation: 'modal' }}
+        />
+      </>
     ) : null}
     <Stack.Screen
       name="AddNote"
@@ -108,6 +126,8 @@ const EmployerStack = () => (
     <Stack.Screen name="Employer" component={EmployerWebViewScreen} />
     <Stack.Screen name="Notifications" component={NotificationsScreen} />
     <Stack.Screen name="JobDetail" component={JobDetailScreen} />
+    <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
+    <Stack.Screen name="VanLog" component={VanLogScreen} />
   </Stack.Navigator>
 );
 

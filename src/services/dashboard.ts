@@ -1,11 +1,9 @@
 import { supabase } from './supabase';
 import { offlineRead, readCached } from './readCache';
+import { num } from './rows';
 import type { JobStatus, JobType } from '@/types';
 
 const CACHE_KEY = 'dashboard';
-
-const num = (v: number | string | null | undefined) =>
-  v == null ? 0 : typeof v === 'string' ? parseFloat(v) || 0 : v;
 
 export type WeeklyTimesheet = {
   hours: number;

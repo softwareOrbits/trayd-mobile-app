@@ -6,13 +6,16 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { fetchMyMember, type MemberProfile } from '@/services/member';
+import { fetchMyVan } from '@/services/fleet';
+import { fetchTasks } from '@/services/tasks';
 import { useCertCompliance } from '@/compliance';
 import { useAppSelector } from '@/store/hooks';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
-import { formatStamp } from '@/utils/datetime';
+import { fmtHM, formatStamp, greetingFor } from '@/utils/datetime';
+import { firstNameOf, initialsOf } from '@/utils/name';
 import { makeDashboardHeaderStyles } from '@/styles/dashboard.styles';
-import type { MainTabParamList } from '@/types';
+import type { MainTabParamList, Vehicle } from '@/types';
 import { useDashboard } from './DashboardProvider';
 
 export type DashboardVariant = 'welcome' | 'active';
@@ -30,33 +33,6 @@ const STATS: Record<DashboardVariant, [StatCard, StatCard]> = {
   ],
 };
 
-const greetingFor = (d: Date) => {
-  const h = d.getHours();
-  if (h < 12) return 'Morning';
-  if (h < 17) return 'Afternoon';
-  return 'Evening';
-};
-
-const firstNameOf = (fullName?: string | null) => {
-  const name = (fullName ?? '').trim();
-  return name ? name.split(/\s+/)[0] : '';
-};
-
-const fmtHM = (hours: number) => {
-  const totalMin = Math.max(0, Math.round(hours * 60));
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  return `${h}h ${`${m}`.padStart(2, '0')}m`;
-};
-
-const initialsOf = (fullName?: string | null) => {
-  const parts = (fullName ?? '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '?';
-  const first = parts[0].charAt(0);
-  const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
-  return (first + last).toUpperCase();
-};
-
 export const DashboardHeader = ({
   variant = 'active',
 }: {
@@ -69,6 +45,8 @@ export const DashboardHeader = ({
   const unread = useAppSelector(s => s.notifications.unread);
 
   const [member, setMember] = useState<MemberProfile | null>(null);
+  const [van, setVan] = useState<Vehicle | null>(null);
+  const [tasksDue, setTasksDue] = useState(0);
   const { compliance } = useCertCompliance();
   const { data } = useDashboard();
   const certAlert = compliance.blockers.length > 0;
@@ -78,6 +56,23 @@ export const DashboardHeader = ({
       let active = true;
       fetchMyMember()
         .then(m => active && setMember(m))
+        .catch(() => {});
+      fetchMyVan()
+        .then(v => active && setVan(v))
+        .catch(() => {});
+      fetchTasks()
+        .then(tasks => {
+          if (!active) return;
+          const today = new Date().toISOString().slice(0, 10);
+          setTasksDue(
+            tasks.filter(
+              t =>
+                t.status !== 'complete' &&
+                !!t.deadlineDate &&
+                t.deadlineDate <= today,
+            ).length,
+          );
+        })
         .catch(() => {});
       return () => {
         active = false;
@@ -156,6 +151,26 @@ export const DashboardHeader = ({
       </View>
 
       <Text style={styles.greeting}>{greeting}</Text>
+
+      {isActive && (tasksDue > 0 || van) ? (
+        <Text style={styles.subtitle}>
+          {tasksDue > 0 ? (
+            <Text style={styles.subtitleStrong}>
+              {`${tasksDue} task${tasksDue === 1 ? '' : 's'} due`}
+            </Text>
+          ) : null}
+          {tasksDue > 0 && van ? (
+            <Text style={styles.subtitleMuted}> · </Text>
+          ) : null}
+          {van ? (
+            <>
+              <Text style={styles.subtitleMuted}>driving </Text>
+              <Text style={styles.subtitleReg}>{van.registration}</Text>
+              <Text style={styles.subtitleMuted}> today</Text>
+            </>
+          ) : null}
+        </Text>
+      ) : null}
 
       {isActive ? null : (
         <Text style={styles.subtitle}>
