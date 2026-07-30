@@ -4,6 +4,8 @@ import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import type { TimerPillProps } from '@/types';
 
+const withoutSeconds = (time: string) => time.replace(/:\d{2}$/, '');
+
 export const TimerPill = ({ time, onPress, paused }: TimerPillProps) => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -20,8 +22,11 @@ export const TimerPill = ({ time, onPress, paused }: TimerPillProps) => {
         size={16}
         color={fg}
       />
-      <Text style={[styles.time, paused && styles.timePaused]}>
-        {paused ? `Paused · ${time}` : time}
+      <Text
+        style={[styles.time, paused && styles.timePaused]}
+        numberOfLines={1}
+      >
+        {paused ? `Paused · ${withoutSeconds(time)}` : time}
       </Text>
     </Pressable>
   );
@@ -32,6 +37,7 @@ export const makeStyles = (theme: Theme) =>
     pill: {
       flexDirection: 'row',
       alignItems: 'center',
+      flexShrink: 1,
       gap: 6,
       paddingVertical: 9,
       paddingHorizontal: 14,
@@ -39,6 +45,8 @@ export const makeStyles = (theme: Theme) =>
       backgroundColor: theme.colors.primary,
     },
     pillPaused: {
+      gap: 4,
+      paddingHorizontal: 10,
       backgroundColor: theme.colors.surfaceMuted,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
