@@ -26,10 +26,14 @@ export function openNotificationTarget(target: NotificationTarget): void {
   try {
     if (target?.screen === 'JobDetail') {
       navigationRef.navigate('JobDetail', { jobId: target.jobId });
+    } else if (target?.screen === 'TaskDetail') {
+      navigationRef.navigate('TaskDetail', { taskId: target.taskId });
     } else if (target?.screen === 'LeaveRequestDetail') {
       openLeaveRequest(target.leaveId);
     } else if (target?.screen === 'Leave') {
       openLeaveTab();
+    } else if (target?.screen === 'VanLog') {
+      navigationRef.navigate('VanLog', { vehicleId: target.vehicleId });
     } else {
       navigationRef.navigate('Tabs', { screen: 'Notifications' });
     }

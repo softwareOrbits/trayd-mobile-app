@@ -1,3 +1,6 @@
+import { pad } from '@/utils/datetime';
+import { fmtMoney } from '@/utils/format';
+
 export const WRAP_UP_TOTAL = 5;
 
 export const SUMMARY_CHIPS = [
@@ -7,11 +10,11 @@ export const SUMMARY_CHIPS = [
   'Follow-up needed',
 ];
 
-export const two = (n: number) => String(n).padStart(2, '0');
+export const two = pad;
 
 export const fmtClock = (d: Date) => `${two(d.getHours())}:${two(d.getMinutes())}`;
 
-export const fmtMoney = (n: number) => `€${n.toFixed(2)}`;
+export { fmtMoney };
 
 export const fmtDateLong = (d: Date) =>
   d.toLocaleDateString('en-GB', {

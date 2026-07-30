@@ -14,6 +14,8 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { MONTHS_FULL, MONTHS_SHORT, WEEK_LETTERS } from '@/utils/constants';
+import { parseDateKey, toDateKey } from '@/utils/datetime';
 
 type Noun = { one: string; many: string };
 
@@ -32,44 +34,11 @@ export type DateRangeFilterProps = {
 type Mode = 'day' | 'month' | 'year';
 type Anchor = { x: number; y: number; width: number; height: number };
 
-const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-const MONTHS_SHORT = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
-const MONTHS_LONG = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
+const WEEKDAYS = WEEK_LETTERS;
+const MONTHS_LONG = MONTHS_FULL;
 
-const pad = (n: number) => String(n).padStart(2, '0');
-const toKey = (y: number, m: number, d: number) =>
-  `${y}-${pad(m + 1)}-${pad(d)}`;
-const parseKey = (s?: string | null) => {
-  if (!s) return null;
-  const d = new Date(`${s}T00:00:00`);
-  return isNaN(d.getTime()) ? null : d;
-};
+const toKey = toDateKey;
+const parseKey = parseDateKey;
 const mondayIndex = (jsDay: number) => (jsDay + 6) % 7;
 
 const fmtDay = (key: string) => {

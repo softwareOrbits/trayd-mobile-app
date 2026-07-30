@@ -27,17 +27,8 @@ import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeWorkingHoursStyles } from '@/styles/workingHours.styles';
 import { toastError } from '@/utils/toast';
 import { isNetworkError } from '@/utils/errors';
+import { ALL_DAY_TIME_OPTIONS as TIME_OPTIONS } from '@/utils/constants';
 import type { MainStackParamList } from '@/types';
-
-const pad = (n: number) => n.toString().padStart(2, '0');
-
-const TIME_OPTIONS: string[] = (() => {
-  const out: string[] = [];
-  for (let h = 0; h < 24; h += 1) {
-    for (let m = 0; m < 60; m += 30) out.push(`${pad(h)}:${pad(m)}`);
-  }
-  return out;
-})();
 
 const sameHours = (a: WorkingHours, b: WorkingHours) =>
   WEEK_DAYS.every(({ key }) => {

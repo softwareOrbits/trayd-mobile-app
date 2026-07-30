@@ -14,9 +14,13 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
 import { fetchLeaveRequests } from '@/services/leave';
+import { fetchTasks } from '@/services/tasks';
+import { isOverdue, vehicleLabel } from '@/components/tasks/tasks.helpers';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { useCollapsibleOnScroll } from '@/utils/useCollapsibleOnScroll';
+import { WEEK_LETTERS } from '@/utils/constants';
+import { timeOf } from '@/utils/datetime';
 import { dateKey } from '@/components/jobs/jobsScreen.helpers';
 import { makeCalendarStyles } from '@/styles/calendar.styles';
 import {
@@ -27,9 +31,8 @@ import {
   type JobStatus,
   type LeaveRequest,
   type MainStackParamList,
+  type Task,
 } from '@/types';
-
-const WEEK_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 const mondayOf = (base: Date) => {
   const d = new Date(base);
@@ -37,8 +40,6 @@ const mondayOf = (base: Date) => {
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   return d;
 };
-
-const timeOf = (t: string | null) => (t ? t.slice(0, 5) : null);
 
 const STATUS_WORD: Record<JobStatus, string> = {
   scheduled: 'scheduled',
@@ -95,6 +96,7 @@ const CalendarScreen = () => {
   const [selected, setSelected] = useState(todayKey);
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [fromDate, setFromDate] = useState<string | null>(null);
   const [toDate, setToDate] = useState<string | null>(null);
   const [picker, setPicker] = useState<'from' | 'to' | null>(null);
@@ -120,6 +122,29 @@ const CalendarScreen = () => {
     };
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      fetchTasks()
+        .then(rows => active && setTasks(rows))
+        .catch(() => {});
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
+  const tasksByDay = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    for (const task of tasks) {
+      if (!task.deadlineDate) continue;
+      const bucket = map.get(task.deadlineDate) ?? [];
+      bucket.push(task);
+      map.set(task.deadlineDate, bucket);
+    }
+    return map;
+  }, [tasks]);
+
   const jobsByDay = useMemo(() => {
     const map = new Map<string, Job[]>();
     for (const job of jobs) {
@@ -140,6 +165,13 @@ const CalendarScreen = () => {
       }),
     [jobs],
   );
+
+  const unscheduledTasks = useMemo(
+    () => tasks.filter(t => !t.deadlineDate && t.status !== 'complete'),
+    [tasks],
+  );
+
+  const unscheduledCount = unscheduledJobs.length + unscheduledTasks.length;
 
   const leavesByDay = useMemo(() => {
     const map = new Map<string, LeaveRequest[]>();
@@ -189,43 +221,61 @@ const CalendarScreen = () => {
     [jobsByDay, selected],
   );
   const dayLeaves = leavesByDay.get(selected) ?? [];
-  const isEmpty = dayJobs.length === 0 && dayLeaves.length === 0;
+  const dayTasks = useMemo(
+    () =>
+      (tasksByDay.get(selected) ?? [])
+        .slice()
+        .sort((a, b) =>
+          (a.deadlineTime ?? '').localeCompare(b.deadlineTime ?? ''),
+        ),
+    [tasksByDay, selected],
+  );
+  const isEmpty =
+    dayJobs.length === 0 && dayLeaves.length === 0 && dayTasks.length === 0;
 
   /**
-   * Every job dated before today — scheduled, suspended, cancelled, done alike —
+   * Everything dated before today — jobs and tasks, all statuses alike —
    * newest first, grouped by date. No status filter: this is the full history,
    * narrowed only by the From/To dates when the user sets them.
    */
   const pastSections = useMemo(() => {
-    const past = jobs
-      .filter(
-        j =>
-          j.scheduledDate != null &&
-          j.scheduledDate < todayKey &&
-          (fromDate == null || j.scheduledDate >= fromDate) &&
-          (toDate == null || j.scheduledDate <= toDate),
+    const inRange = (date: string | null): date is string =>
+      date != null &&
+      date < todayKey &&
+      (fromDate == null || date >= fromDate) &&
+      (toDate == null || date <= toDate);
+
+    const map = new Map<string, { jobs: Job[]; tasks: Task[] }>();
+    const bucket = (key: string) => {
+      let entry = map.get(key);
+      if (!entry) {
+        entry = { jobs: [], tasks: [] };
+        map.set(key, entry);
+      }
+      return entry;
+    };
+
+    jobs
+      .filter(j => inRange(j.scheduledDate))
+      .sort((a, b) =>
+        (b.scheduledStartTime ?? '').localeCompare(a.scheduledStartTime ?? ''),
       )
-      .sort((a, b) => {
-        const byDate = (b.scheduledDate ?? '').localeCompare(
-          a.scheduledDate ?? '',
-        );
-        if (byDate !== 0) return byDate;
-        return (b.scheduledStartTime ?? '').localeCompare(
-          a.scheduledStartTime ?? '',
-        );
-      });
+      .forEach(j => bucket(j.scheduledDate as string).jobs.push(j));
 
-    const map = new Map<string, Job[]>();
-    for (const job of past) {
-      const key = job.scheduledDate as string;
-      const bucket = map.get(key) ?? [];
-      bucket.push(job);
-      map.set(key, bucket);
-    }
-    return [...map.entries()];
-  }, [jobs, todayKey, fromDate, toDate]);
+    tasks
+      .filter(t => inRange(t.deadlineDate))
+      .sort((a, b) =>
+        (b.deadlineTime ?? '').localeCompare(a.deadlineTime ?? ''),
+      )
+      .forEach(t => bucket(t.deadlineDate as string).tasks.push(t));
 
-  const pastCount = pastSections.reduce((s, [, list]) => s + list.length, 0);
+    return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  }, [jobs, tasks, todayKey, fromDate, toDate]);
+
+  const pastCount = pastSections.reduce(
+    (s, [, entry]) => s + entry.jobs.length + entry.tasks.length,
+    0,
+  );
   const filtered = fromDate != null || toDate != null;
 
   const pickDate = (key: string) => {
@@ -257,7 +307,15 @@ const CalendarScreen = () => {
   };
 
   const renderJobRow = (job: Job, index: number) => {
-    const badge = jobBadge(job.status);
+    const badge =
+      !job.scheduledDate && STATUS_GROUP[job.status] === 'upcoming'
+        ? {
+            label: 'UNSCHEDULED',
+            bg: colors.warningBg,
+            fg: colors.warning,
+            accent: colors.warning,
+          }
+        : jobBadge(job.status);
     const name = job.customerName ?? JOB_TYPE_LABEL[job.jobType];
     const eircode = job.customerEircode?.trim() || null;
     const time = timeOf(job.scheduledStartTime);
@@ -298,12 +356,73 @@ const CalendarScreen = () => {
     );
   };
 
+  const taskBadge = (task: Task) => {
+    if (task.status === 'complete')
+      return { label: 'DONE', bg: colors.surfaceMuted, fg: colors.green, accent: colors.green };
+    if (isOverdue(task))
+      return { label: 'OVERDUE', bg: colors.errorBg, fg: colors.error, accent: colors.error };
+    if (task.status === 'in_progress')
+      return { label: 'LIVE', bg: colors.primary, fg: colors.onPrimary, accent: colors.primary };
+    if (!task.deadlineDate)
+      return { label: 'UNSCHEDULED', bg: colors.warningBg, fg: colors.warning, accent: colors.warning };
+    return { label: 'TASK', bg: colors.secondary, fg: colors.white, accent: colors.secondary };
+  };
+
+  const renderTaskRow = (task: Task, index: number) => {
+    const badge = taskBadge(task);
+    const fleet = vehicleLabel(task);
+    const eircode = task.eircode?.trim() || null;
+    const sub = task.description?.trim() || `Assigned by ${task.creator?.name ?? 'your team'}`;
+    return (
+      <Fragment key={task.id}>
+        {index > 0 ? <View style={styles.jobDivider} /> : null}
+        <Pressable
+          style={styles.jobRow}
+          onPress={() => navigation.navigate('TaskDetail', { taskId: task.id })}
+        >
+          <View style={[styles.jobAccentBar, { backgroundColor: badge.accent }]} />
+          <View style={styles.jobRowContent}>
+            <View style={styles.jobTimeCol}>
+              {eircode ? (
+                <Text style={styles.jobEircode} numberOfLines={1}>
+                  {eircode}
+                </Text>
+              ) : null}
+              <StatusPill label={badge.label} bg={badge.bg} fg={badge.fg} />
+            </View>
+            <View style={styles.rowBody}>
+              <View style={styles.taskTitleRow}>
+                <Text style={styles.jobTitle} numberOfLines={1}>
+                  {task.title}
+                </Text>
+                {fleet ? (
+                  <View style={styles.taskFleetChip}>
+                    <Ionicons name="car-outline" size={11} color={colors.textMuted} />
+                    <Text style={styles.taskFleetText}>FLEET</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={styles.rowSub} numberOfLines={1}>
+                {sub}
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={colors.placeholder}
+            />
+          </View>
+        </Pressable>
+      </Fragment>
+    );
+  };
+
   return (
     <View style={styles.flex}>
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.eyebrow}>CALENDAR</Text>
         <Text style={styles.title}>
-          {mode === 'day' ? dayTitle(selected, todayKey) : 'Previous jobs'}
+          {mode === 'day' ? dayTitle(selected, todayKey) : 'Previous work'}
         </Text>
 
         <View style={styles.segment}>
@@ -384,7 +503,8 @@ const CalendarScreen = () => {
             const on = key === selected;
             const hasItems =
               (jobsByDay.get(key)?.length ?? 0) > 0 ||
-              (leavesByDay.get(key)?.length ?? 0) > 0;
+              (leavesByDay.get(key)?.length ?? 0) > 0 ||
+              (tasksByDay.get(key)?.length ?? 0) > 0;
             return (
               <Pressable
                 key={key}
@@ -416,7 +536,7 @@ const CalendarScreen = () => {
           pastCount === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>
-                {filtered ? 'Nothing in those dates' : 'No previous jobs'}
+                {filtered ? 'Nothing in those dates' : 'No previous work'}
               </Text>
               <Text style={styles.emptyText}>
                 {filtered
@@ -425,14 +545,21 @@ const CalendarScreen = () => {
               </Text>
             </View>
           ) : (
-            pastSections.map(([key, list]) => (
+            pastSections.map(([key, entry]) => (
               <Fragment key={key}>
                 <View style={styles.sectionHead}>
                   <View style={styles.sectionDot} />
                   <Text style={styles.sectionLabel}>{groupLabel(key)}</Text>
-                  <Text style={styles.sectionCount}>· {list.length}</Text>
+                  <Text style={styles.sectionCount}>
+                    · {entry.jobs.length + entry.tasks.length}
+                  </Text>
                 </View>
-                <View style={styles.card}>{list.map(renderJobRow)}</View>
+                <View style={styles.card}>
+                  {entry.jobs.map(renderJobRow)}
+                  {entry.tasks.map((task, i) =>
+                    renderTaskRow(task, entry.jobs.length + i),
+                  )}
+                </View>
               </Fragment>
             ))
           )
@@ -453,6 +580,19 @@ const CalendarScreen = () => {
               <Text style={styles.sectionCount}>· {dayJobs.length}</Text>
             </View>
             <View style={styles.card}>{dayJobs.map(renderJobRow)}</View>
+          </>
+        ) : null}
+
+        {dayTasks.length > 0 ? (
+          <>
+            <View style={styles.sectionHead}>
+              <View
+                style={[styles.sectionDot, { backgroundColor: colors.primary }]}
+              />
+              <Text style={styles.sectionLabel}>TASKS</Text>
+              <Text style={styles.sectionCount}>· {dayTasks.length}</Text>
+            </View>
+            <View style={styles.card}>{dayTasks.map(renderTaskRow)}</View>
           </>
         ) : null}
 
@@ -509,21 +649,24 @@ const CalendarScreen = () => {
           </>
         ) : null}
 
-        {unscheduledJobs.length > 0 ? (
+        {unscheduledCount > 0 ? (
           <>
             <View style={styles.sectionHead}>
               <View
                 style={[styles.sectionDot, { backgroundColor: colors.warning }]}
               />
               <Text style={styles.sectionLabel}>UNSCHEDULED</Text>
-              <Text style={styles.sectionCount}>
-                · {unscheduledJobs.length}
-              </Text>
+              <Text style={styles.sectionCount}>· {unscheduledCount}</Text>
             </View>
             <Text style={styles.unscheduledHint}>
               Assigned to you with no date yet.
             </Text>
-            <View style={styles.card}>{unscheduledJobs.map(renderJobRow)}</View>
+            <View style={styles.card}>
+              {unscheduledJobs.map(renderJobRow)}
+              {unscheduledTasks.map((task, i) =>
+                renderTaskRow(task, unscheduledJobs.length + i),
+              )}
+            </View>
           </>
         ) : null}
           </>
@@ -531,7 +674,7 @@ const CalendarScreen = () => {
 
         {(mode === 'past'
           ? pastCount > 0
-          : !isEmpty || unscheduledJobs.length > 0) ? (
+          : !isEmpty || unscheduledCount > 0) ? (
           <Text style={styles.footer}>TAP ANY ENTRY FOR THE FULL DETAIL</Text>
         ) : null}
       </ScrollView>

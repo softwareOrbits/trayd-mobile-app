@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { supabase } from './supabase';
+import { num, pickOne } from './rows';
 import { isOnline } from '@/offline/connectivity';
 import { base64ToUint8Array } from '@/utils/base64';
 import { imageExtFromType, imageMimeFromType } from '@/utils/image';
@@ -23,10 +24,6 @@ export type MemberProfile = {
   serviceArea: unknown;
 };
 
-const pickOne = <T>(value: T | T[] | null | undefined): T | null => {
-  if (Array.isArray(value)) return value[0] ?? null;
-  return value ?? null;
-};
 
 /**
  * Loads the signed-in user's `business_members` row with the embedded
@@ -129,9 +126,6 @@ export type MemberStats = { jobs: number; hours: number };
 export async function fetchMemberStats(
   memberId: string,
 ): Promise<MemberStats> {
-  const num = (v: number | string | null) =>
-    v == null ? 0 : typeof v === 'string' ? parseFloat(v) || 0 : v;
-
   const [assign, segs] = await Promise.all([
     supabase
       .from('job_assignments')

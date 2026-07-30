@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { supabase } from './supabase';
 import { getMyMemberRef } from './member';
+import { num } from './rows';
+import { todayKey } from '@/utils/datetime';
 import { base64ToUint8Array } from '@/utils/base64';
 import { imageExtFromType, imageMimeFromType } from '@/utils/image';
 import {
@@ -48,9 +50,6 @@ let holidayRanges: HolidayRange[] = [];
 
 const uiTypeFor = (row: LeaveTypeRow): LeaveType =>
   SYSTEM_CODES.includes(row.code) ? (row.code as LeaveType) : 'other';
-
-const num = (v: number | string | null | undefined) =>
-  v == null ? 0 : typeof v === 'string' ? parseFloat(v) || 0 : v;
 
 const friendlyRpcError = (message: string) => {
   const code = Object.keys(RPC_ERROR_MESSAGE).find(c => message.includes(c));
@@ -343,9 +342,7 @@ export async function cancelLeaveRequest(requestId: string): Promise<void> {
 export function canCancelRequest(request: LeaveRequest): boolean {
   if (request.status === 'pending') return true;
   if (request.status !== 'approved') return false;
-  const today = new Date();
-  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  return request.startDate > todayKey;
+  return request.startDate > todayKey();
 }
 
 export async function uploadLeaveDocument(asset: {

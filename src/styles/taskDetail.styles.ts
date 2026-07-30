@@ -1,0 +1,160 @@
+import { StyleSheet } from 'react-native';
+
+import type { Theme } from '@/theme';
+
+export const makeTaskDetailStyles = (theme: Theme) =>
+  StyleSheet.create({
+    flex: { flex: 1, backgroundColor: theme.colors.background },
+    loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    content: { padding: 20, gap: 16, paddingBottom: 40 },
+    statusRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    statusChip: {
+      paddingHorizontal: 9,
+      paddingVertical: 4,
+      borderRadius: theme.radii.sm,
+    },
+    statusText: {
+      fontSize: 10,
+      fontFamily: theme.fonts.bold,
+      letterSpacing: 0.8,
+    },
+    dueText: {
+      flex: 1,
+      fontSize: 11,
+      fontFamily: theme.fonts.monoBold,
+      letterSpacing: 0.4,
+      color: theme.colors.textMuted,
+    },
+    fleetChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: theme.radii.sm,
+      backgroundColor: theme.colors.surfaceMuted,
+    },
+    fleetText: {
+      fontSize: 11,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.textMuted,
+    },
+    card: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radii.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      padding: 16,
+      gap: 12,
+    },
+    cardDesc: {
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.regular,
+      color: theme.colors.text,
+      lineHeight: 23,
+    },
+    cardDivider: {
+      height: 1,
+      backgroundColor: theme.colors.borderMuted,
+    },
+    assignedByRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    assignedByText: {
+      flexShrink: 1,
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.regular,
+      color: theme.colors.textMuted,
+    },
+    tagline: {
+      marginTop: 4,
+      textAlign: 'center',
+      fontSize: theme.typography.size.xs,
+      fontFamily: theme.fonts.regular,
+      color: theme.colors.placeholder,
+    },
+    staffChip: {
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      borderRadius: theme.radii.sm,
+      backgroundColor: theme.colors.surfaceMuted,
+    },
+    staffText: {
+      fontSize: 10,
+      fontFamily: theme.fonts.bold,
+      letterSpacing: 0.6,
+      color: theme.colors.textMuted,
+    },
+    block: { gap: 10 },
+    blockLabel: {
+      fontSize: 11,
+      fontFamily: theme.fonts.monoBold,
+      letterSpacing: 1.2,
+      color: theme.colors.textMuted,
+    },
+    deadlineRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    deadlineText: {
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.text,
+    },
+    timeline: { gap: 0 },
+    step: { flexDirection: 'row', gap: 12 },
+    stepGutter: { alignItems: 'center', width: 22 },
+    stepDot: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      borderWidth: 2,
+      borderColor: theme.colors.borderMuted,
+      backgroundColor: theme.colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepDotDone: {
+      backgroundColor: theme.colors.green,
+      borderColor: theme.colors.green,
+    },
+    stepDotDanger: { borderColor: theme.colors.error },
+    stepLine: {
+      flex: 1,
+      width: 2,
+      minHeight: 22,
+      backgroundColor: theme.colors.borderMuted,
+    },
+    stepLineDone: { backgroundColor: theme.colors.green },
+    stepBody: { flex: 1, paddingBottom: 20, gap: 2 },
+    stepLabel: {
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.text,
+    },
+    stepSub: {
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.regular,
+      color: theme.colors.textMuted,
+    },
+    noteInput: {
+      minHeight: 80,
+      borderRadius: theme.radii.md,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      backgroundColor: theme.colors.surface,
+      padding: 14,
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.regular,
+      color: theme.colors.text,
+      textAlignVertical: 'top',
+    },
+    noteActions: {
+      marginTop: 10,
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+    },
+    noteEntry: { gap: 4 },
+    noteMeta: {
+      fontSize: theme.typography.size.xs,
+      fontFamily: theme.fonts.regular,
+      color: theme.colors.textMuted,
+    },
+  });
+
+export default makeTaskDetailStyles;

@@ -4,6 +4,9 @@ import {
   type JobStatusGroup,
   type JobTabKey,
 } from '@/types';
+import { dateKey } from '@/utils/datetime';
+
+export { dateKey };
 
 export const EMPTY_LABEL: Record<JobTabKey, string> = {
   scheduled: 'scheduled jobs',
@@ -14,12 +17,6 @@ export const EMPTY_LABEL: Record<JobTabKey, string> = {
 
 export const groupOf = (job: Job): JobStatusGroup | null =>
   STATUS_GROUP[job.status];
-
-export const dateKey = (d: Date) => {
-  const m = `${d.getMonth() + 1}`.padStart(2, '0');
-  const day = `${d.getDate()}`.padStart(2, '0');
-  return `${d.getFullYear()}-${m}-${day}`;
-};
 
 export const weekBounds = (base: Date) => {
   const start = new Date(base);

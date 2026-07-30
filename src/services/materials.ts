@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { supabase } from './supabase';
+import { num } from './rows';
 import { isNetworkError } from '@/offline/errors';
 import { isOnline } from '@/offline/connectivity';
 
@@ -48,9 +49,6 @@ type MaterialRow = {
   cost_price: number | string | null;
   sell_price: number | string | null;
 };
-
-const num = (v: number | string | null) =>
-  v == null ? 0 : typeof v === 'string' ? parseFloat(v) || 0 : v;
 
 // Cache catalog searches per normalised term so re-typing the same query (or
 // reopening the picker) doesn't re-hit the DB. Cleared on app restart.

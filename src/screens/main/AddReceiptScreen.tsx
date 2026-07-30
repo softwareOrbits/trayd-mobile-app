@@ -49,23 +49,15 @@ import { makeAddReceiptStyles } from '@/styles/addReceipt.styles';
 import { acquirePhotos } from '@/utils/capturePhoto';
 import { uuidv4 } from '@/utils/uuid';
 import { toastError, toastSuccess } from '@/utils/toast';
+import { fmtDateFull } from '@/utils/datetime';
+import { fmtMoney } from '@/utils/format';
 import type { MainStackParamList } from '@/types';
 
 type ReviewLine = ReceiptLine & { confidence?: ReceiptConfidence };
 
 const parseMoney = (v: string) => parseFloat(v.replace(',', '.')) || 0;
-const fmtMoney = (n: number) => `€${n.toFixed(2)}`;
 
-const fmtDate = (iso?: string | null) => {
-  if (!iso) return null;
-  const d = new Date(`${iso}T00:00:00`);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-};
+const fmtDate = fmtDateFull;
 
 const CONFIDENCE_LABEL: Record<ReceiptConfidence, string> = {
   high: 'HIGH CONFIDENCE',

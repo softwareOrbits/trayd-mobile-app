@@ -28,6 +28,8 @@ import {
   LiveJobItem,
   LiveNowBanner,
 } from '@/components/jobs';
+import { TasksPanel, TaskTabs } from '@/components/tasks';
+import type { TaskCounts } from '@/components/tasks/TasksPanel';
 import { useOnline, useSync } from '@/offline';
 import { getMappedId } from '@/offline/idRemap';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -50,6 +52,7 @@ import {
   type MainStackParamList,
   type MainTabParamList,
   type MyJobState,
+  type TaskTabKey,
 } from '@/types';
 import { makeJobsStyles } from '@/styles/jobs.styles';
 import {
@@ -89,6 +92,12 @@ const JobsScreen = () => {
   const [activeTab, setActiveTab] = useState<JobTabKey>(
     route.params?.initialTab ?? 'scheduled',
   );
+  const [taskTab, setTaskTab] = useState<TaskTabKey>('upcoming');
+  const [taskCounts, setTaskCounts] = useState<TaskCounts>({
+    upcoming: 0,
+    live: 0,
+    completed: 0,
+  });
   const [refreshing, setRefreshing] = useState(false);
   const [doneFrom, setDoneFrom] = useState<string | null>(null);
   const [doneTo, setDoneTo] = useState<string | null>(null);
@@ -140,7 +149,7 @@ const JobsScreen = () => {
   };
 
   const scheduled = useMemo(
-    () => items.filter(j => groupOf(j) === 'upcoming'),
+    () => items.filter(j => groupOf(j) === 'upcoming' && j.scheduledDate != null),
     [items],
   );
   const liveActive = useMemo(
@@ -328,7 +337,7 @@ const JobsScreen = () => {
         <Text style={styles.eyebrow}>
           {(user?.name ?? user?.email ?? 'Jobs').toUpperCase()}
         </Text>
-        <Text style={styles.title}>Jobs</Text>
+        <Text style={styles.title}>{topTab === 'jobs' ? 'Jobs' : 'Tasks'}</Text>
         <View style={styles.segment}>
           {(['jobs', 'tasks'] as const).map(key => {
             const isActive = topTab === key;
@@ -347,11 +356,21 @@ const JobsScreen = () => {
             );
           })}
         </View>
-        {topTab === 'jobs' ? (
-          <View style={styles.tabs}>
+        <View style={styles.tabs}>
+          {topTab === 'jobs' ? (
             <JobTabs tabs={tabs} activeKey={activeTab} onChange={setActiveTab} />
-          </View>
-        ) : null}
+          ) : (
+            <TaskTabs
+              tabs={[
+                { key: 'upcoming', label: 'Upcoming', count: taskCounts.upcoming },
+                { key: 'live', label: 'Live', count: taskCounts.live },
+                { key: 'completed', label: 'Completed', count: taskCounts.completed },
+              ]}
+              activeKey={taskTab}
+              onChange={setTaskTab}
+            />
+          )}
+        </View>
       </View>
 
       {topTab === 'jobs' && pending > 0 ? (
@@ -469,16 +488,12 @@ const JobsScreen = () => {
         />
         </GestureDetector>
       ) : (
-        <View style={styles.tasksBody}>
-          <View style={styles.tasksIcon}>
-            <Ionicons name="checkbox-outline" size={30} color={colors.textMuted} />
-          </View>
-          <Text style={styles.tasksTitle}>Tasks are on the way.</Text>
-          <Text style={styles.tasksText}>
-            We're building this out. You'll be able to track and tick off your
-            tasks here soon.
-          </Text>
-        </View>
+        <TasksPanel
+          activeTab={taskTab}
+          bottomInset={navHeight}
+          onOpenTask={taskId => navigation.navigate('TaskDetail', { taskId })}
+          onCounts={setTaskCounts}
+        />
       )}
 
       {topTab === 'jobs' && isOwner ? (
@@ -486,6 +501,16 @@ const JobsScreen = () => {
           label="Start a new job"
           icon="add"
           onPress={onCreate}
+          collapsed={collapsed}
+          style={{ bottom: navHeight + 16 }}
+        />
+      ) : null}
+
+      {topTab === 'tasks' && isOwner ? (
+        <FloatingActionButton
+          label="Start a task"
+          icon="add"
+          onPress={() => navigation.navigate('AssignTask')}
           collapsed={collapsed}
           style={{ bottom: navHeight + 16 }}
         />

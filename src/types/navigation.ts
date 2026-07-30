@@ -14,7 +14,7 @@ export type AuthStackParamList = {
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { JobTabKey } from './jobs';
 import type { LeaveRequest, LeaveType } from './leave';
-import type { MemberCertification } from '@/services/certifications';
+import type { MemberCertification } from './certifications';
 
 export type MainTabParamList = {
   Home: undefined;
@@ -32,6 +32,10 @@ export type MainStackParamList = {
   Notifications: undefined;
   JobDetail: { jobId: string };
   JobChat: { jobId: string };
+  TaskDetail: { taskId: string };
+  AssignTask: undefined;
+  VanLog: { vehicleId: string };
+  ReportVanIssue: { vehicleId?: string } | undefined;
   StartJob: undefined;
   AddNote: { jobId: string };
   AddReceipt: { jobId: string };

@@ -1,5 +1,6 @@
 ﻿import { supabase } from './supabase';
 import { getMyMemberRef } from './member';
+import { num } from './rows';
 import { base64ToUint8Array } from '@/utils/base64';
 import { imageExtFromType, imageMimeFromType } from '@/utils/image';
 import { uuidv4 } from '@/utils/uuid';
@@ -43,9 +44,6 @@ type DetailRow = ListRow & {
   customer_eircode: string | null;
   primary_member_role: string | null;
 };
-
-const num = (v: number | string | null | undefined) =>
-  v == null ? 0 : typeof v === 'string' ? parseFloat(v) || 0 : v;
 
 const mapList = (r: ListRow): Job => ({
   id: r.id,

@@ -1,3 +1,4 @@
+import { fmtDateWeekday, timeOf } from '@/utils/datetime';
 import type { Job, JobDetail } from '@/types';
 import type { JobMaterial } from '@/services/jobs';
 
@@ -40,16 +41,9 @@ export const toLineItem = (m: JobMaterial): LineItem => ({
   amount: `€${(m.quantity * m.unitCost).toFixed(2)}`,
 });
 
-export const fmtDate = (d: string | null) =>
-  d
-    ? new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-      })
-    : null;
+export const fmtDate = (d: string | null) => (d ? fmtDateWeekday(d) : null);
 
-export const fmtTime = (t: string | null) => (t ? t.slice(0, 5) : null);
+export const fmtTime = timeOf;
 
 export const joinDot = (...parts: (string | null | undefined)[]) =>
   parts.filter(Boolean).join(' · ');

@@ -23,24 +23,16 @@ import {
 import { offlineActionBlocked } from '@/offline';
 import { useCertCompliance } from '@/compliance';
 import { acquirePhotos } from '@/utils/capturePhoto';
+import { fmtDateFull, todayKey } from '@/utils/datetime';
 import { toastError } from '@/utils/toast';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeCertificationStyles } from '@/styles/certifications.styles';
 import type { MainStackParamList } from '@/types';
 
-const fmtDisplay = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+const fmtDisplay = (iso: string) => fmtDateFull(iso) ?? iso;
 
-const todayIso = () => {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-};
+const todayIso = todayKey;
 
 const AddCertificationScreen = () => {
   const { colors } = useTheme();

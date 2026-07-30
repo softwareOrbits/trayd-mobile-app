@@ -29,18 +29,14 @@ import {
 import { offlineActionBlocked } from '@/offline';
 import { useCertCompliance } from '@/compliance';
 import { acquirePhotos } from '@/utils/capturePhoto';
+import { fmtDateFull } from '@/utils/datetime';
 import { toastError } from '@/utils/toast';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeCertificationStyles } from '@/styles/certifications.styles';
 import type { MainStackParamList } from '@/types';
 
-const fmtDisplay = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+const fmtDisplay = (iso: string) => fmtDateFull(iso) ?? iso;
 
 const EditCertificationScreen = () => {
   const { colors } = useTheme();

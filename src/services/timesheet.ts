@@ -1,19 +1,14 @@
 import { supabase } from './supabase';
 import { getMyMemberRef } from './member';
-import { LEAVE_TYPE_LABEL_LONG, type LeaveType } from '@/types';
+import { dateKey } from '@/utils/datetime';
+import {
+  LEAVE_TYPE_LABEL_LONG,
+  type LeaveType,
+  type Timesheet,
+  type TimesheetDay,
+} from '@/types';
 
-export type TimesheetDay = {
-  date: string;
-  jobCount: number;
-  totalHours: number;
-  leave?: string;
-};
-
-export type Timesheet = {
-  totalHours: number;
-  running: boolean;
-  days: TimesheetDay[];
-};
+export type { Timesheet, TimesheetDay };
 
 type SegmentRow = {
   hours: number | string | null;
@@ -44,11 +39,6 @@ type HolidayRow = {
   end_date: string;
   recurs_annually: boolean;
 };
-
-const dayKey = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate(),
-  ).padStart(2, '0')}`;
 
 const isHolidayKey = (key: string, holidays: HolidayRow[]) => {
   const md = key.slice(5);
@@ -93,7 +83,7 @@ async function fetchLeaveByDay(
     const cursor = new Date(`${r.start_date}T00:00:00`);
     const end = new Date(`${r.end_date}T00:00:00`);
     for (; cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
-      const key = dayKey(cursor);
+      const key = dateKey(cursor);
       if (key < fromKey || key >= toKey) continue;
       const dow = cursor.getDay();
       if (dow === 0 || dow === 6) continue;
@@ -110,10 +100,10 @@ export async function fetchTimesheet(
 ): Promise<Timesheet> {
   const me = await getMyMemberRef();
   const monthStart = new Date(fromIso);
-  const fromKey = dayKey(new Date(monthStart.getFullYear(), monthStart.getMonth(), 1));
-  const toKey = dayKey(new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1));
+  const fromKey = dateKey(new Date(monthStart.getFullYear(), monthStart.getMonth(), 1));
+  const toKey = dateKey(new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1));
 
-  const [entriesRes, leaveByDay] = await Promise.all([
+  const [entriesRes, leaveByDay, taskEventsRes] = await Promise.all([
     supabase
       .from('job_time_entries')
       .select('hours, start_time, finish_time, job_id, job_days(work_date)')
@@ -124,6 +114,13 @@ export async function fetchTimesheet(
     fetchLeaveByDay(me.id, fromKey, toKey).catch(
       () => new Map<string, LeaveType>(),
     ),
+    supabase
+      .from('task_events')
+      .select('task_id, created_at')
+      .eq('event', 'completed')
+      .eq('actor_member_id', me.id)
+      .gte('created_at', fromIso)
+      .lt('created_at', toIso),
   ]);
   const { data, error } = entriesRes;
   if (error) throw new Error(error.message);
@@ -148,7 +145,22 @@ export async function fetchTimesheet(
     byDate.set(date, day);
   }
 
-  const dates = new Set<string>([...byDate.keys(), ...leaveByDay.keys()]);
+  const tasksByDate = new Map<string, Set<string>>();
+  for (const r of (taskEventsRes.data ?? []) as {
+    task_id: string;
+    created_at: string;
+  }[]) {
+    const date = dateKey(new Date(r.created_at));
+    const bucket = tasksByDate.get(date) ?? new Set<string>();
+    bucket.add(r.task_id);
+    tasksByDate.set(date, bucket);
+  }
+
+  const dates = new Set<string>([
+    ...byDate.keys(),
+    ...leaveByDay.keys(),
+    ...tasksByDate.keys(),
+  ]);
   const days: TimesheetDay[] = [...dates]
     .sort((a, b) => a.localeCompare(b))
     .map(date => {
@@ -157,6 +169,7 @@ export async function fetchTimesheet(
       return {
         date,
         jobCount: worked?.jobs.size ?? 0,
+        taskCount: tasksByDate.get(date)?.size ?? 0,
         totalHours: worked?.hours ?? 0,
         leave: leave ? LEAVE_TYPE_LABEL_LONG[leave] : undefined,
       };

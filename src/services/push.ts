@@ -9,7 +9,12 @@ import { store } from '@/store';
 import { fetchUnread } from '@/store/notificationsSlice';
 import { openNotificationTarget } from '@/navigation/navigationRef';
 import { emitTimerPush, timerPushFrom } from './timerBus';
-import { isLeaveNotification, type NotificationTarget } from './notifications';
+import {
+  isFleetNotification,
+  isLeaveNotification,
+  isTaskNotification,
+  type NotificationTarget,
+} from './notifications';
 import { getJwtClaims } from '@/utils/jwt';
 import { haptics } from '@/utils/haptics';
 
@@ -30,8 +35,17 @@ function targetFrom(
   if (typeof type === 'string' && isLeaveNotification(type)) {
     return { screen: 'Leave' };
   }
-  const jobId = jobIdFrom(msg);
-  return jobId ? { screen: 'JobDetail', jobId } : null;
+  const entityId = jobIdFrom(msg);
+  if (typeof type === 'string' && isTaskNotification(type)) {
+    return entityId ? { screen: 'TaskDetail', taskId: entityId } : null;
+  }
+  if (typeof type === 'string' && isFleetNotification(type)) {
+    const vehicleId = data.vehicle_id;
+    return typeof vehicleId === 'string' && vehicleId
+      ? { screen: 'VanLog', vehicleId }
+      : null;
+  }
+  return entityId ? { screen: 'JobDetail', jobId: entityId } : null;
 }
 
 async function currentSessionId(): Promise<string | null> {

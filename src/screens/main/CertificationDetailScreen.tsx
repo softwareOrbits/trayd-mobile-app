@@ -13,17 +13,11 @@ import { Button } from '@/components/ui';
 import { daysToExpiry } from '@/services/certifications';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { fmtDateFull } from '@/utils/datetime';
 import { makeCertificationStyles } from '@/styles/certifications.styles';
 import type { MainStackParamList } from '@/types';
 
-const fmtDate = (iso: string | null) =>
-  iso
-    ? new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      })
-    : '—';
+const fmtDate = (iso: string | null) => fmtDateFull(iso) ?? '—';
 
 const CertificationDetailScreen = () => {
   const { colors } = useTheme();

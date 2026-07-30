@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { numOrNull } from './rows';
 import { distanceMeters, type GpsPoint } from '@/utils/location';
 import { isNetworkError } from '@/offline/errors';
 import { isOnline } from '@/offline/connectivity';
@@ -45,8 +46,6 @@ type CustomerRow = {
   created_at: string;
 };
 
-const num = (v: number | string | null) =>
-  v == null ? null : typeof v === 'string' ? parseFloat(v) : v;
 
 const mapCustomer = (r: CustomerRow): Customer => ({
   id: r.id,
@@ -55,8 +54,8 @@ const mapCustomer = (r: CustomerRow): Customer => ({
   email: r.email,
   address: r.address,
   eircode: r.eircode,
-  gpsLat: num(r.gps_lat),
-  gpsLng: num(r.gps_lng),
+  gpsLat: numOrNull(r.gps_lat),
+  gpsLng: numOrNull(r.gps_lng),
   createdAt: r.created_at,
 });
 

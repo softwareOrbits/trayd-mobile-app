@@ -229,7 +229,28 @@ export const makeCalendarStyles = (theme: Theme) =>
       color: theme.colors.textMuted,
     },
     rowBody: { flex: 1 },
+    taskTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    taskFleetChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: theme.radii.sm,
+      backgroundColor: theme.colors.warningBg,
+    },
+    taskFleetText: {
+      fontSize: 9,
+      fontFamily: theme.fonts.bold,
+      letterSpacing: 0.5,
+      color: theme.colors.warning,
+    },
     jobTitle: {
+      flexShrink: 1,
       fontSize: theme.typography.size.md,
       fontFamily: theme.fonts.semibold,
       color: theme.colors.text,
