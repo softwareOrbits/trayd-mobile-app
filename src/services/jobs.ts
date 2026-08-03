@@ -1,6 +1,7 @@
 ﻿import { supabase } from './supabase';
 import { getMyMemberRef } from './member';
 import { num } from './rows';
+import { todayKey } from '@/utils/datetime';
 import { base64ToUint8Array } from '@/utils/base64';
 import { imageExtFromType, imageMimeFromType } from '@/utils/image';
 import { uuidv4 } from '@/utils/uuid';
@@ -103,6 +104,18 @@ export async function fetchMyJobs(): Promise<Job[]> {
   });
   if (error) throw new Error(error.message);
   return ((data ?? []) as ListRow[]).map(mapList);
+}
+
+/** Earliest non-cancelled job scheduled for today — the day-start nudge target. */
+export async function fetchFirstJobIdToday(): Promise<string | null> {
+  const today = todayKey();
+  const jobs = await fetchMyJobs();
+  const first = jobs
+    .filter(j => j.scheduledDate === today && j.status !== 'cancelled')
+    .sort((a, b) =>
+      (a.scheduledStartTime ?? '99').localeCompare(b.scheduledStartTime ?? '99'),
+    )[0];
+  return first?.id ?? null;
 }
 
 /** Full detail for a single job. */

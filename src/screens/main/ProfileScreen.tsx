@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -43,6 +44,7 @@ import {
   type CapturedPhoto,
 } from '@/utils/capturePhoto';
 import { deactivateMyAccount, reauthenticate } from '@/services/account';
+import { sendFeedback, type FeedbackKind } from '@/services/feedback';
 import { staticMapUrl } from '@/services/places';
 import { APP_VERSION } from '@/utils/appInfo';
 import { hasQueuedActions } from '@/services/outbox';
@@ -121,6 +123,10 @@ const ProfileScreen = () => {
   const [deactivateModal, setDeactivateModal] = useState(false);
   const [deactivatePassword, setDeactivatePassword] = useState('');
   const [deactivating, setDeactivating] = useState(false);
+  const [feedbackModal, setFeedbackModal] = useState(false);
+  const [feedbackKind, setFeedbackKind] = useState<FeedbackKind>('bug');
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackSending, setFeedbackSending] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -196,6 +202,26 @@ const ProfileScreen = () => {
       toastError(e, 'Could not deactivate your account.');
     } finally {
       setDeactivating(false);
+    }
+  };
+
+  const openFeedback = () => {
+    setFeedbackKind('bug');
+    setFeedbackText('');
+    setFeedbackModal(true);
+  };
+
+  const submitFeedback = async () => {
+    if (!feedbackText.trim() || feedbackSending) return;
+    setFeedbackSending(true);
+    try {
+      await sendFeedback(feedbackKind, feedbackText);
+      setFeedbackModal(false);
+      Toast.show({ type: 'success', text1: 'Sent to Trayd — thank you.' });
+    } catch (e) {
+      toastError(e, 'Could not send your feedback.');
+    } finally {
+      setFeedbackSending(false);
     }
   };
 
@@ -489,6 +515,13 @@ const ProfileScreen = () => {
             You’ll need to sign in again. Queued submissions stay safe on your
             phone.
           </Text>
+          <Pressable
+            style={styles.giveFeedback}
+            onPress={openFeedback}
+            hitSlop={8}
+          >
+            <Text style={styles.giveFeedbackText}>Give feedback</Text>
+          </Pressable>
         </View>
 
         <Text style={styles.buildInfo}>
@@ -658,6 +691,85 @@ const ProfileScreen = () => {
             >
               <Text style={styles.modalCancelText}>Cancel</Text>
             </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={feedbackModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFeedbackModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setFeedbackModal(false)}
+          />
+          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 20 }]}>
+            <View style={styles.fbTopRow}>
+              <Text style={styles.fbEyebrow}>NEW FEEDBACK</Text>
+              <Pressable
+                style={styles.fbClose}
+                onPress={() => setFeedbackModal(false)}
+                hitSlop={8}
+              >
+                <Ionicons name="close" size={16} color={colors.textMuted} />
+              </Pressable>
+            </View>
+            <Text style={styles.fbTitle}>Report a bug or request a feature</Text>
+
+            <Text style={styles.fbLabel}>WHAT KIND OF FEEDBACK?</Text>
+            <View style={styles.fbKindRow}>
+              <Pressable
+                style={[
+                  styles.fbKindCard,
+                  feedbackKind === 'bug' && styles.fbKindCardOnBug,
+                ]}
+                onPress={() => setFeedbackKind('bug')}
+              >
+                <Text style={styles.fbKindTitle}>Bug Report</Text>
+                <Text style={styles.fbKindSub}>Something isn’t working</Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.fbKindCard,
+                  feedbackKind === 'feature' && styles.fbKindCardOnFeature,
+                ]}
+                onPress={() => setFeedbackKind('feature')}
+              >
+                <Text style={styles.fbKindTitle}>Feature Request</Text>
+                <Text style={styles.fbKindSub}>An idea for Trayd</Text>
+              </Pressable>
+            </View>
+
+            <Text style={styles.fbLabel}>
+              {feedbackKind === 'bug' ? 'WHAT WENT WRONG?' : 'WHAT WOULD YOU LIKE?'}
+            </Text>
+            <TextInput
+              style={styles.fbInput}
+              placeholder={
+                feedbackKind === 'bug'
+                  ? 'e.g. My timesheet didn’t show today’s running job until I refreshed…'
+                  : 'e.g. Let me reorder my jobs for the day…'
+              }
+              placeholderTextColor={colors.placeholder}
+              value={feedbackText}
+              onChangeText={setFeedbackText}
+              multiline
+            />
+
+            <Text style={styles.fbNote}>
+              Goes straight to the Trayd team. Only Trayd can see your
+              submissions — never your employer.
+            </Text>
+            <Button
+              label="Send to Trayd"
+              fullWidth
+              loading={feedbackSending}
+              disabled={!feedbackText.trim()}
+              onPress={submitFeedback}
+            />
           </View>
         </View>
       </Modal>

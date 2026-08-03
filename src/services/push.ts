@@ -10,6 +10,8 @@ import { fetchUnread } from '@/store/notificationsSlice';
 import { openNotificationTarget } from '@/navigation/navigationRef';
 import { emitTimerPush, timerPushFrom } from './timerBus';
 import {
+  isBillingNotification,
+  isCertNotification,
   isFleetNotification,
   isLeaveNotification,
   isTaskNotification,
@@ -37,13 +39,25 @@ function targetFrom(
   }
   const entityId = jobIdFrom(msg);
   if (typeof type === 'string' && isTaskNotification(type)) {
-    return entityId ? { screen: 'TaskDetail', taskId: entityId } : null;
+    return entityId
+      ? { screen: 'TaskDetail', taskId: entityId }
+      : { screen: 'Jobs' };
   }
   if (typeof type === 'string' && isFleetNotification(type)) {
     const vehicleId = data.vehicle_id;
     return typeof vehicleId === 'string' && vehicleId
       ? { screen: 'VanLog', vehicleId }
-      : null;
+      : { screen: 'Fleet' };
+  }
+  if (typeof type === 'string' && isCertNotification(type)) {
+    return { screen: 'Certifications' };
+  }
+  if (type === 'day_start_reminder') return { screen: 'DayStart' };
+  if (typeof type === 'string' && isBillingNotification(type)) {
+    const jobId = data.job_id;
+    return typeof jobId === 'string' && jobId
+      ? { screen: 'JobDetail', jobId }
+      : { screen: 'Jobs' };
   }
   return entityId ? { screen: 'JobDetail', jobId: entityId } : null;
 }
