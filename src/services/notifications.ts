@@ -25,6 +25,11 @@ export type NotificationTarget =
   | { screen: 'LeaveRequestDetail'; leaveId: string }
   | { screen: 'Leave' }
   | { screen: 'VanLog'; vehicleId: string }
+  | { screen: 'DayStart' }
+  | { screen: 'Certifications' }
+  | { screen: 'Jobs' }
+  | { screen: 'Fleet' }
+  | { screen: 'Home' }
   | null;
 
 export const isLeaveNotification = (type: string | null | undefined) =>
@@ -35,6 +40,13 @@ export const isTaskNotification = (type: string | null | undefined) =>
 
 export const isFleetNotification = (type: string | null | undefined) =>
   !!type?.startsWith('vehicle_');
+
+export const isCertNotification = (type: string | null | undefined) =>
+  !!type &&
+  (type.startsWith('certification_') || type === 'mandatory_certification');
+
+export const isBillingNotification = (type: string | null | undefined) =>
+  !!type && (type.startsWith('invoice_') || type.startsWith('quote_'));
 
 const TYPE_TITLES: Record<string, string> = {
   job_submitted: 'Job submitted for review',
@@ -57,6 +69,11 @@ const TYPE_TITLES: Record<string, string> = {
   task_reopened: 'Task reopened',
   task_nudge: 'Task nudge',
   vehicle_issue_reported: 'Van issue reported',
+  day_start_reminder: 'Start your day',
+  feedback_resolved: 'Feedback resolved',
+  certification_expiring: 'Certificate expiring',
+  mandatory_certification: 'Certification required',
+  trial_ending: 'Trial ending',
 };
 
 const titleForType = (type: string | null | undefined) =>
@@ -74,15 +91,20 @@ export const targetFor = (item: {
       : { screen: 'Leave' };
   }
   if (isTaskNotification(item.type)) {
-    return item.jobId ? { screen: 'TaskDetail', taskId: item.jobId } : null;
+    return item.jobId
+      ? { screen: 'TaskDetail', taskId: item.jobId }
+      : { screen: 'Jobs' };
   }
   if (isFleetNotification(item.type)) {
     return item.vehicleId
       ? { screen: 'VanLog', vehicleId: item.vehicleId }
-      : null;
+      : { screen: 'Fleet' };
   }
+  if (isCertNotification(item.type)) return { screen: 'Certifications' };
+  if (item.type === 'day_start_reminder') return { screen: 'DayStart' };
   if (item.jobId) return { screen: 'JobDetail', jobId: item.jobId };
-  return null;
+  if (isBillingNotification(item.type)) return { screen: 'Jobs' };
+  return { screen: 'Home' };
 };
 
 type UserNotifRow = {
@@ -130,9 +152,15 @@ const metaString = (n: NotifRow | undefined, key: string): string | null => {
 };
 
 const jobIdOf = (n: NotifRow | undefined): string | null => {
-  if (!n || isLeaveNotification(n.type) || isFleetNotification(n.type)) {
+  if (
+    !n ||
+    isLeaveNotification(n.type) ||
+    isFleetNotification(n.type) ||
+    isCertNotification(n.type)
+  ) {
     return null;
   }
+  if (isBillingNotification(n.type)) return metaString(n, 'job_id');
   return n.related_entity_id ?? metaString(n, 'job_id');
 };
 
