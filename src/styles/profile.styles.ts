@@ -163,12 +163,12 @@ export const makeProfileStyles = (theme: Theme) =>
 
     phoneField: { alignSelf: 'stretch', marginTop: 4 },
     logoutWrap: { marginTop: 28, gap: 10 },
-    giveFeedback: { alignSelf: 'center', paddingVertical: 6 },
-    giveFeedbackText: {
-      fontSize: theme.typography.size.sm,
-      fontFamily: theme.fonts.semibold,
-      color: theme.colors.secondary,
-      textDecorationLine: 'underline',
+    supportWrap: { gap: 10 },
+    supportHint: {
+      fontSize: theme.typography.size.xs,
+      fontFamily: theme.fonts.regular,
+      color: theme.colors.textMuted,
+      lineHeight: 17,
     },
     fbTopRow: {
       alignSelf: 'stretch',
@@ -245,6 +245,24 @@ export const makeProfileStyles = (theme: Theme) =>
       fontFamily: theme.fonts.regular,
       color: theme.colors.text,
       textAlignVertical: 'top',
+    },
+    kbAccessory: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.borderMuted,
+    },
+    kbAccessoryDone: {
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.bold,
+      color: theme.colors.secondary,
+    },
+    deleteBizName: {
+      fontFamily: theme.fonts.bold,
+      color: theme.colors.error,
     },
     fbNote: {
       alignSelf: 'stretch',
