@@ -22,6 +22,7 @@ export type MemberProfile = {
   hourlyRate: number | null;
   workingHours: unknown;
   serviceArea: unknown;
+  isPrimaryOwner: boolean;
 };
 
 
@@ -39,7 +40,7 @@ export async function fetchMyMember(): Promise<MemberProfile> {
   const { data, error } = await supabase
     .from('business_members')
     .select(
-      'id, full_name, email, phone, profile_photo_path, business_id, hourly_rate, working_hours, service_area, businesses(trading_name), job_roles(name)',
+      'id, full_name, email, phone, profile_photo_path, business_id, hourly_rate, working_hours, service_area, is_primary_owner, businesses(trading_name), job_roles(name)',
     )
     .eq('user_id', userData.user.id)
     .maybeSingle();
@@ -71,6 +72,7 @@ export async function fetchMyMember(): Promise<MemberProfile> {
     hourlyRate: rate,
     workingHours: data.working_hours ?? null,
     serviceArea: data.service_area ?? null,
+    isPrimaryOwner: data.is_primary_owner === true,
   };
 }
 

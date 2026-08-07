@@ -1,8 +1,12 @@
-import { Fragment, useCallback, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  InputAccessoryView,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -43,7 +47,11 @@ import {
   pickPhotos,
   type CapturedPhoto,
 } from '@/utils/capturePhoto';
-import { deactivateMyAccount, reauthenticate } from '@/services/account';
+import {
+  deactivateMyAccount,
+  deleteMyBusiness,
+  reauthenticate,
+} from '@/services/account';
 import { sendFeedback, type FeedbackKind } from '@/services/feedback';
 import { staticMapUrl } from '@/services/places';
 import { APP_VERSION } from '@/utils/appInfo';
@@ -97,6 +105,8 @@ const summariseArea = (raw: unknown): string => {
 
 const fmtHours = (h: number) => `${Math.round(h)}h`;
 
+const FEEDBACK_ACCESSORY_ID = 'feedbackInputAccessory';
+
 const ProfileScreen = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeProfileStyles);
@@ -127,6 +137,26 @@ const ProfileScreen = () => {
   const [feedbackKind, setFeedbackKind] = useState<FeedbackKind>('bug');
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSending, setFeedbackSending] = useState(false);
+  const [deleteBizModal, setDeleteBizModal] = useState(false);
+  const [deleteBizTyped, setDeleteBizTyped] = useState('');
+  const [deletingBiz, setDeletingBiz] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const ios = Platform.OS === 'ios';
+    const show = Keyboard.addListener(
+      ios ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardOpen(true),
+    );
+    const hide = Keyboard.addListener(
+      ios ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardOpen(false),
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -211,6 +241,16 @@ const ProfileScreen = () => {
     setFeedbackModal(true);
   };
 
+  const closeFeedback = () => {
+    Keyboard.dismiss();
+    setFeedbackModal(false);
+  };
+
+  const dismissOrCloseFeedback = () => {
+    if (keyboardOpen) Keyboard.dismiss();
+    else closeFeedback();
+  };
+
   const submitFeedback = async () => {
     if (!feedbackText.trim() || feedbackSending) return;
     setFeedbackSending(true);
@@ -222,6 +262,29 @@ const ProfileScreen = () => {
       toastError(e, 'Could not send your feedback.');
     } finally {
       setFeedbackSending(false);
+    }
+  };
+
+  const tradingName = member?.companyName ?? '';
+  const deleteBizMatches =
+    !!tradingName &&
+    deleteBizTyped.trim().toLowerCase() === tradingName.trim().toLowerCase();
+
+  const openDeleteBusiness = () => {
+    setDeleteBizTyped('');
+    setDeleteBizModal(true);
+  };
+
+  const runDeleteBusiness = async () => {
+    if (!deleteBizMatches || deletingBiz) return;
+    setDeletingBiz(true);
+    try {
+      await deleteMyBusiness(deleteBizTyped);
+      setDeleteBizModal(false);
+      dispatch(signOut());
+    } catch (e) {
+      toastError(e, 'Could not delete the business.');
+      setDeletingBiz(false);
     }
   };
 
@@ -502,6 +565,33 @@ const ProfileScreen = () => {
           </View>
         </View>
 
+        <Text style={styles.section}>SUPPORT</Text>
+        <View style={styles.supportWrap}>
+          <Button
+            label="Report Issue"
+            leftIcon="bug-outline"
+            fullWidth
+            onPress={openFeedback}
+          />
+          <Text style={styles.supportHint}>
+            Report a bug or request a feature. Goes straight to the Trayd team —
+            never your employer.
+          </Text>
+        </View>
+
+        {member?.isPrimaryOwner ? (
+          <>
+            <Text style={styles.section}>DANGER ZONE</Text>
+            <View style={styles.card}>
+              {row(
+                'Delete my business',
+                'Erases the business, all data & every login',
+                { onPress: openDeleteBusiness, danger: true },
+              )}
+            </View>
+          </>
+        ) : null}
+
         <View style={styles.logoutWrap}>
           <Button
             label="Log out"
@@ -515,13 +605,6 @@ const ProfileScreen = () => {
             You’ll need to sign in again. Queued submissions stay safe on your
             phone.
           </Text>
-          <Pressable
-            style={styles.giveFeedback}
-            onPress={openFeedback}
-            hitSlop={8}
-          >
-            <Text style={styles.giveFeedbackText}>Give feedback</Text>
-          </Pressable>
         </View>
 
         <Text style={styles.buildInfo}>
@@ -656,12 +739,22 @@ const ProfileScreen = () => {
         animationType="fade"
         onRequestClose={() => setPhoneModal(false)}
       >
-        <View style={styles.modalBackdrop}>
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <Pressable
             style={StyleSheet.absoluteFill}
-            onPress={() => setPhoneModal(false)}
+            onPress={() => {
+              Keyboard.dismiss();
+              setPhoneModal(false);
+            }}
           />
-          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 20 }]}>
+          <Pressable
+            style={[styles.modalCard, { paddingBottom: insets.bottom + 20 }]}
+            onPress={Keyboard.dismiss}
+            accessible={false}
+          >
             <View style={styles.handle} />
             <View style={styles.modalIcon}>
               <Ionicons name="call-outline" size={24} color={colors.secondary} />
@@ -691,27 +784,106 @@ const ProfileScreen = () => {
             >
               <Text style={styles.modalCancelText}>Cancel</Text>
             </Pressable>
-          </View>
-        </View>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal
+        visible={deleteBizModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteBizModal(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => {
+              if (deletingBiz) return;
+              Keyboard.dismiss();
+              setDeleteBizModal(false);
+            }}
+          />
+          <Pressable
+            style={[styles.modalCard, { paddingBottom: insets.bottom + 20 }]}
+            onPress={Keyboard.dismiss}
+            accessible={false}
+          >
+            <View style={styles.handle} />
+            <View style={styles.modalIconDanger}>
+              <Ionicons name="trash-outline" size={24} color={colors.error} />
+            </View>
+            <Text style={styles.modalTitle}>Delete {tradingName}?</Text>
+            <Text style={styles.modalText}>
+              This permanently deletes {tradingName}, all its data — jobs,
+              invoices, customers, photos — and every owner and employee login,
+              including yours. This cannot be undone.
+            </Text>
+            <Text style={styles.modalText}>
+              Type <Text style={styles.deleteBizName}>{tradingName}</Text> to
+              confirm.
+            </Text>
+            <View style={styles.phoneField}>
+              <Input
+                value={deleteBizTyped}
+                onChangeText={setDeleteBizTyped}
+                placeholder={tradingName}
+                autoCapitalize="none"
+              />
+            </View>
+            <Pressable
+              style={[
+                styles.logoutConfirm,
+                (!deleteBizMatches || deletingBiz) && styles.dangerDisabled,
+              ]}
+              disabled={!deleteBizMatches || deletingBiz}
+              onPress={runDeleteBusiness}
+            >
+              {deletingBiz ? (
+                <ActivityIndicator color={colors.error} />
+              ) : (
+                <Text style={styles.logoutConfirmText}>
+                  Permanently delete my business
+                </Text>
+              )}
+            </Pressable>
+            <Pressable
+              onPress={() => setDeleteBizModal(false)}
+              style={styles.cancelBtn}
+              disabled={deletingBiz}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal
         visible={feedbackModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setFeedbackModal(false)}
+        onRequestClose={closeFeedback}
       >
-        <View style={styles.modalBackdrop}>
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <Pressable
             style={StyleSheet.absoluteFill}
-            onPress={() => setFeedbackModal(false)}
+            onPress={dismissOrCloseFeedback}
           />
-          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 20 }]}>
+          <Pressable
+            style={[styles.modalCard, { paddingBottom: insets.bottom + 20 }]}
+            onPress={Keyboard.dismiss}
+            accessible={false}
+          >
             <View style={styles.fbTopRow}>
               <Text style={styles.fbEyebrow}>NEW FEEDBACK</Text>
               <Pressable
                 style={styles.fbClose}
-                onPress={() => setFeedbackModal(false)}
+                onPress={closeFeedback}
                 hitSlop={8}
               >
                 <Ionicons name="close" size={16} color={colors.textMuted} />
@@ -757,7 +929,19 @@ const ProfileScreen = () => {
               value={feedbackText}
               onChangeText={setFeedbackText}
               multiline
+              inputAccessoryViewID={
+                Platform.OS === 'ios' ? FEEDBACK_ACCESSORY_ID : undefined
+              }
             />
+            {Platform.OS === 'ios' ? (
+              <InputAccessoryView nativeID={FEEDBACK_ACCESSORY_ID}>
+                <View style={styles.kbAccessory}>
+                  <Pressable onPress={Keyboard.dismiss} hitSlop={12}>
+                    <Text style={styles.kbAccessoryDone}>Done</Text>
+                  </Pressable>
+                </View>
+              </InputAccessoryView>
+            ) : null}
 
             <Text style={styles.fbNote}>
               Goes straight to the Trayd team. Only Trayd can see your
@@ -770,8 +954,8 @@ const ProfileScreen = () => {
               disabled={!feedbackText.trim()}
               onPress={submitFeedback}
             />
-          </View>
-        </View>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal
