@@ -8,6 +8,7 @@ import TaskDetailScreen from '@/screens/main/TaskDetailScreen';
 import AssignTaskScreen from '@/screens/main/AssignTaskScreen';
 import VanLogScreen from '@/screens/main/VanLogScreen';
 import ReportVanIssueScreen from '@/screens/main/ReportVanIssueScreen';
+import AddServiceScheduleScreen from '@/screens/main/AddServiceScheduleScreen';
 import AddNoteScreen from '@/screens/main/AddNoteScreen';
 import AddReceiptScreen from '@/screens/main/AddReceiptScreen';
 import AddJobPhotoScreen from '@/screens/main/AddJobPhotoScreen';
@@ -57,6 +58,11 @@ const FieldStack = ({ isOwner }: { isOwner: boolean }) => (
         <Stack.Screen
           name="AssignTask"
           component={AssignTaskScreen}
+          options={{ presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="AddServiceSchedule"
+          component={AddServiceScheduleScreen}
           options={{ presentation: 'modal' }}
         />
       </>
@@ -128,6 +134,11 @@ const EmployerStack = () => (
     <Stack.Screen name="JobDetail" component={JobDetailScreen} />
     <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
     <Stack.Screen name="VanLog" component={VanLogScreen} />
+    <Stack.Screen
+      name="AddServiceSchedule"
+      component={AddServiceScheduleScreen}
+      options={{ presentation: 'modal' }}
+    />
   </Stack.Navigator>
 );
 

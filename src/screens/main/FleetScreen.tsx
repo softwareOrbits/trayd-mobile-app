@@ -9,6 +9,7 @@ import { AskTraydFab, InfoCard, useBottomNavHeight } from '@/components/ui';
 import { VanLogPanel } from '@/components/fleet/VanLogPanel';
 import { fetchMyVan, fetchOwnerFirstName, fetchVanLog } from '@/services/fleet';
 import { getMyMemberRef } from '@/services/member';
+import { useAppSelector } from '@/store/hooks';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { useCollapsibleOnScroll } from '@/utils/useCollapsibleOnScroll';
@@ -24,6 +25,7 @@ const FleetScreen = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const { collapsed, onScroll } = useCollapsibleOnScroll();
+  const isOwner = useAppSelector(s => s.auth.isOwner);
 
   const [loading, setLoading] = useState(true);
   const [van, setVan] = useState<Vehicle | null>(null);
@@ -134,11 +136,18 @@ const FleetScreen = () => {
         log={log}
         ownerName={ownerName}
         myMemberId={myMemberId}
+        canManageSchedule={isOwner}
         bottomPadding={navHeight + 24}
         onReport={() =>
           navigation.navigate('ReportVanIssue', { vehicleId: van.id })
         }
         onOpenTask={taskId => navigation.navigate('TaskDetail', { taskId })}
+        onAddScheduleItem={() =>
+          navigation.navigate('AddServiceSchedule', {
+            vehicleId: van.id,
+            registration: van.registration,
+          })
+        }
         onScroll={onScroll}
       />
       <AskTraydFab collapsed={collapsed} />
