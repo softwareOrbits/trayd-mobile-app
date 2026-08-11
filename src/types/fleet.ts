@@ -53,11 +53,53 @@ export type VanTask = {
   creatorName: string | null;
 };
 
+export type MaintenanceItem = {
+  id: string;
+  name: string;
+  defaultCost: number | null;
+  sortOrder: number;
+};
+
+export type ServiceType =
+  | 'minor_service'
+  | 'major_service'
+  | 'repair'
+  | 'inspection'
+  | 'other';
+
+export type RecursBy = 'time' | 'mileage' | 'both';
+
+export type ServiceScheduleItem = {
+  id: string;
+  serviceType: ServiceType;
+  itemName: string;
+  recursBy: RecursBy;
+  intervalMonths: number | null;
+  intervalKm: number | null;
+  lastDoneOn: string | null;
+  nextDueOn: string | null;
+  notes: string | null;
+};
+
+export type NewServiceScheduleInput = {
+  vehicleId: string;
+  serviceType: ServiceType;
+  itemName: string;
+  recursBy: RecursBy;
+  intervalMonths: number | null;
+  intervalKm: number | null;
+  lastDoneOn: string | null;
+  notes: string | null;
+};
+
+export type ServiceScheduleStatus = 'overdue' | 'due_soon' | 'ok' | 'unknown';
+
 export type VanLog = {
   vehicle: Vehicle;
   issues: VanIssue[];
   maintenance: VanMaintenanceEntry[];
   tasks: VanTask[];
+  schedule: ServiceScheduleItem[];
 };
 
 export type NewVanIssuePhoto = {

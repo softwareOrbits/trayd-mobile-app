@@ -4,8 +4,14 @@ import { getMyMemberRef } from './member';
 import { numOrNull, pickOne } from './rows';
 import { base64ToUint8Array } from '@/utils/base64';
 import { imageExtFromType, imageMimeFromType } from '@/utils/image';
+import { computeNextDueOn, validateScheduleInput } from '@/utils/serviceSchedule';
 import type {
+  MaintenanceItem,
+  NewServiceScheduleInput,
   NewVanIssueInput,
+  RecursBy,
+  ServiceScheduleItem,
+  ServiceType,
   VanIssue,
   VanLog,
   VanMaintenanceEntry,
@@ -142,9 +148,36 @@ type VanTaskRow = {
   creator: PersonRow;
 };
 
+type ScheduleRow = {
+  id: string;
+  service_type: ServiceType;
+  item_name: string;
+  recurs_by: RecursBy;
+  interval_months: number | null;
+  interval_km: number | null;
+  last_done_on: string | null;
+  next_due_on: string | null;
+  notes: string | null;
+};
+
+const SCHEDULE_SELECT =
+  'id, service_type, item_name, recurs_by, interval_months, interval_km, last_done_on, next_due_on, notes';
+
+const mapSchedule = (r: ScheduleRow): ServiceScheduleItem => ({
+  id: r.id,
+  serviceType: r.service_type,
+  itemName: r.item_name,
+  recursBy: r.recurs_by,
+  intervalMonths: r.interval_months,
+  intervalKm: r.interval_km,
+  lastDoneOn: r.last_done_on,
+  nextDueOn: r.next_due_on,
+  notes: r.notes,
+});
+
 export async function fetchVanLog(vehicleId: string): Promise<VanLog> {
   return offlineRead(`vanlog:${vehicleId}`, async () => {
-    const [vehicleRes, issuesRes, maintenanceRes, tasksRes] = await Promise.all([
+    const [vehicleRes, issuesRes, maintenanceRes, tasksRes, scheduleRes] = await Promise.all([
       supabase
         .from('vehicles')
         .select(VEHICLE_SELECT)
@@ -172,6 +205,11 @@ export async function fetchVanLog(vehicleId: string): Promise<VanLog> {
         .eq('vehicle_id', vehicleId)
         .neq('status', 'complete')
         .order('deadline_date', { nullsFirst: false }),
+      supabase
+        .from('vehicle_service_schedule')
+        .select(SCHEDULE_SELECT)
+        .eq('vehicle_id', vehicleId)
+        .order('item_name'),
     ]);
 
     if (vehicleRes.error) throw new Error(vehicleRes.error.message);
@@ -193,8 +231,143 @@ export async function fetchVanLog(vehicleId: string): Promise<VanLog> {
         deadlineDate: r.deadline_date,
         creatorName: pickOne(r.creator)?.full_name ?? null,
       })),
+      schedule: ((scheduleRes.data ?? []) as ScheduleRow[]).map(mapSchedule),
     };
   });
+}
+
+const CATALOG_ERROR: Record<string, string> = {
+  '23505': 'That item is already in your list.',
+  '42501': 'Only an owner can change the maintenance list.',
+};
+
+const catalogError = (e: { code?: string; message: string }) =>
+  new Error((e.code && CATALOG_ERROR[e.code]) || e.message);
+
+type MaintenanceItemRow = {
+  id: string;
+  name: string;
+  default_cost: number | string | null;
+  sort_order: number | null;
+};
+
+const MAINTENANCE_ITEM_SELECT = 'id, name, default_cost, sort_order';
+
+const mapMaintenanceItem = (r: MaintenanceItemRow): MaintenanceItem => ({
+  id: r.id,
+  name: r.name,
+  defaultCost: numOrNull(r.default_cost),
+  sortOrder: r.sort_order ?? 0,
+});
+
+/**
+ * Every business owns its own copy of the catalog, so RLS already scopes this
+ * to the caller's rows. Readable by the whole team; only owners can write.
+ */
+export async function fetchMaintenanceItems(): Promise<MaintenanceItem[]> {
+  return offlineRead('maintenanceitems', async () => {
+    const { data, error } = await supabase
+      .from('maintenance_items')
+      .select(MAINTENANCE_ITEM_SELECT)
+      .order('sort_order')
+      .order('name');
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as MaintenanceItemRow[]).map(mapMaintenanceItem);
+  });
+}
+
+export async function addMaintenanceItem(
+  name: string,
+  defaultCost: number | null,
+): Promise<MaintenanceItem> {
+  const me = await getMyMemberRef();
+
+  const { data: last } = await supabase
+    .from('maintenance_items')
+    .select('sort_order')
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { data, error } = await supabase
+    .from('maintenance_items')
+    .insert({
+      business_id: me.businessId,
+      name: name.trim(),
+      default_cost: defaultCost,
+      sort_order: ((last?.sort_order as number | null) ?? 0) + 1,
+    })
+    .select(MAINTENANCE_ITEM_SELECT)
+    .single();
+  if (error) throw catalogError(error);
+
+  return mapMaintenanceItem(data as MaintenanceItemRow);
+}
+
+export async function updateMaintenanceItem(
+  id: string,
+  name: string,
+  defaultCost: number | null,
+): Promise<MaintenanceItem> {
+  const { data, error } = await supabase
+    .from('maintenance_items')
+    .update({ name: name.trim(), default_cost: defaultCost })
+    .eq('id', id)
+    .select(MAINTENANCE_ITEM_SELECT)
+    .single();
+  if (error) throw catalogError(error);
+  return mapMaintenanceItem(data as MaintenanceItemRow);
+}
+
+/**
+ * Schedule rows keep a text snapshot of the name, so deleting an item only
+ * removes it as a future choice — existing schedules are untouched.
+ */
+export async function deleteMaintenanceItem(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('maintenance_items')
+    .delete()
+    .eq('id', id);
+  if (error) throw catalogError(error);
+}
+
+export async function addServiceScheduleItem(
+  input: NewServiceScheduleInput,
+): Promise<ServiceScheduleItem> {
+  const invalid = validateScheduleInput(input);
+  if (invalid) throw new Error(invalid);
+
+  const me = await getMyMemberRef();
+
+  const { data, error } = await supabase
+    .from('vehicle_service_schedule')
+    .insert({
+      business_id: me.businessId,
+      vehicle_id: input.vehicleId,
+      service_type: input.serviceType,
+      item_name: input.itemName.trim(),
+      recurs_by: input.recursBy,
+      interval_months: input.recursBy === 'mileage' ? null : input.intervalMonths,
+      interval_km: input.recursBy === 'time' ? null : input.intervalKm,
+      last_done_on: input.lastDoneOn,
+      next_due_on: computeNextDueOn(
+        input.lastDoneOn,
+        input.recursBy,
+        input.intervalMonths,
+      ),
+      notes: input.notes?.trim() || null,
+    })
+    .select(SCHEDULE_SELECT)
+    .single();
+  if (error) {
+    throw new Error(
+      error.code === '42501'
+        ? 'Only an owner can change the service schedule.'
+        : error.message,
+    );
+  }
+
+  return mapSchedule(data as ScheduleRow);
 }
 
 const REPORT_ISSUE_ERROR: Record<string, string> = {

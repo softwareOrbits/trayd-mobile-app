@@ -233,6 +233,46 @@ export const makeFleetStyles = (theme: Theme) =>
       color: theme.colors.textMuted,
       paddingVertical: 6,
     },
+    sectionHeaderRow: {
+      marginTop: 6,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    sectionAction: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    sectionActionText: {
+      fontSize: 11,
+      fontFamily: theme.fonts.monoBold,
+      letterSpacing: 0.8,
+      color: theme.colors.secondary,
+    },
+    scheduleCard: {
+      borderRadius: theme.radii.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.creamBorder,
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: 14,
+    },
+    scheduleRow: { paddingVertical: 14, gap: 6 },
+    scheduleTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    scheduleName: {
+      flex: 1,
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.text,
+    },
+    scheduleMeta: {
+      fontSize: theme.typography.size.xs,
+      fontFamily: theme.fonts.regular,
+      color: theme.colors.textMuted,
+    },
+    scheduleNotes: {
+      fontSize: theme.typography.size.xs,
+      fontFamily: theme.fonts.regular,
+      color: theme.colors.textMuted,
+      fontStyle: 'italic',
+    },
   });
 
 export default makeFleetStyles;

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { ServiceScheduleSection } from '@/components/fleet/ServiceScheduleSection';
 import { vanPhotoUrl } from '@/services/fleet';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
@@ -208,16 +209,20 @@ export const VanLogPanel = ({
   log,
   ownerName,
   myMemberId,
+  canManageSchedule = false,
   onReport,
   onOpenTask,
+  onAddScheduleItem,
   onScroll,
   bottomPadding = 24,
 }: {
   log: VanLog;
   ownerName: string | null;
   myMemberId: string | null;
+  canManageSchedule?: boolean;
   onReport: () => void;
   onOpenTask: (taskId: string) => void;
+  onAddScheduleItem?: () => void;
   onScroll?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
   bottomPadding?: number;
 }) => {
@@ -347,6 +352,16 @@ export const VanLogPanel = ({
             ),
           )
         )}
+
+        {showService ? (
+          <ServiceScheduleSection
+            items={log.schedule ?? []}
+            maintenance={log.maintenance}
+            odometerKm={log.vehicle.odometerKm}
+            canManage={canManageSchedule && !!onAddScheduleItem}
+            onAdd={() => onAddScheduleItem?.()}
+          />
+        ) : null}
 
         <Text style={styles.sectionLabel}>HISTORY</Text>
         {history.length === 0 ? (

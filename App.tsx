@@ -89,7 +89,7 @@ function Bootstrap() {
               <AppShell />
             </CertComplianceProvider>
           </SyncProvider>
-          <Toast topOffset={100} config={toastConfig} />
+          <Toast topOffset={60} config={toastConfig} />
         </SafeAreaProvider>
       </BottomSheetModalProvider>
     </PaperProvider>
