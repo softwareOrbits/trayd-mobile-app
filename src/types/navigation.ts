@@ -36,6 +36,7 @@ export type MainStackParamList = {
   AssignTask: undefined;
   VanLog: { vehicleId: string };
   ReportVanIssue: { vehicleId?: string } | undefined;
+  AddServiceSchedule: { vehicleId: string; registration?: string };
   StartJob: undefined;
   AddNote: { jobId: string };
   AddReceipt: { jobId: string };

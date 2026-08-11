@@ -257,7 +257,11 @@ const ProfileScreen = () => {
     try {
       await sendFeedback(feedbackKind, feedbackText);
       setFeedbackModal(false);
-      Toast.show({ type: 'success', text1: 'Sent to Trayd — thank you.' });
+      Toast.show({
+        type: 'success',
+        text1: feedbackKind === 'bug' ? 'Bug reported' : 'Request sent',
+        text2: 'Thanks — the Trayd team will take a look.',
+      });
     } catch (e) {
       toastError(e, 'Could not send your feedback.');
     } finally {

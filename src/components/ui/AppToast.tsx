@@ -8,6 +8,6 @@ import { toastConfig } from './toastConfig';
  * toast fired from a modal would otherwise appear *behind* it. A Toast mounted
  * inside the modal becomes the active render target and shows on top.
  */
-export const AppToast = () => <Toast topOffset={100} config={toastConfig} />;
+export const AppToast = () => <Toast topOffset={60} config={toastConfig} />;
 
 export default AppToast;

@@ -12,6 +12,7 @@ import { JobHeader } from '@/components/ui';
 import { VanLogPanel } from '@/components/fleet/VanLogPanel';
 import { fetchOwnerFirstName, fetchVanLog } from '@/services/fleet';
 import { getMyMemberRef } from '@/services/member';
+import { useAppSelector } from '@/store/hooks';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { toastError } from '@/utils/toast';
@@ -24,6 +25,7 @@ const VanLogScreen = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const { params } = useRoute<RouteProp<MainStackParamList, 'VanLog'>>();
+  const isOwner = useAppSelector(s => s.auth.isOwner);
 
   const [log, setLog] = useState<VanLog | null>(null);
   const [ownerName, setOwnerName] = useState<string | null>(null);
@@ -61,12 +63,19 @@ const VanLogScreen = () => {
           log={log}
           ownerName={ownerName}
           myMemberId={myMemberId}
+          canManageSchedule={isOwner}
           onReport={() =>
             navigation.navigate('ReportVanIssue', {
               vehicleId: params.vehicleId,
             })
           }
           onOpenTask={taskId => navigation.navigate('TaskDetail', { taskId })}
+          onAddScheduleItem={() =>
+            navigation.navigate('AddServiceSchedule', {
+              vehicleId: params.vehicleId,
+              registration: log.vehicle.registration,
+            })
+          }
         />
       ) : (
         <View style={styles.loading}>
