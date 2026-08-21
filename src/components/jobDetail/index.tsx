@@ -17,6 +17,7 @@ import type {
 } from './types';
 
 export { default as LocationMap } from './LocationMap';
+export { default as CrewHoursSheet, type CrewHoursEdit } from './CrewHoursSheet';
 export type {
   InfoEntry,
   LineItemTag,

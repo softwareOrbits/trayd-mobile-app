@@ -1,7 +1,10 @@
 import { type StyleProp, type ViewStyle } from 'react-native';
-import Toast from 'react-native-toast-message';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
 import FloatingActionButton from './FloatingActionButton';
 import { useBottomNavHeight } from './BottomNav';
+import type { MainStackParamList } from '@/types';
 
 type AskTraydFabProps = {
   collapsed?: boolean;
@@ -10,6 +13,8 @@ type AskTraydFabProps = {
 
 export const AskTraydFab = ({ collapsed, style }: AskTraydFabProps) => {
   const navHeight = useBottomNavHeight();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<MainStackParamList>>();
 
   return (
     <FloatingActionButton
@@ -17,9 +22,7 @@ export const AskTraydFab = ({ collapsed, style }: AskTraydFabProps) => {
       icon="sparkles"
       tone="secondary"
       collapsed={collapsed}
-      onPress={() =>
-        Toast.show({ type: 'info', text1: 'Ask Trayd', text2: 'Coming soon' })
-      }
+      onPress={() => navigation.navigate('AskTrayd')}
       style={[{ bottom: navHeight + 16 }, style]}
     />
   );

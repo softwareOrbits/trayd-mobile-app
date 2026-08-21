@@ -1,6 +1,7 @@
 import { isHolidayKey } from '@/services/leave';
-import { MONTHS_SHORT } from '@/utils/constants';
 import {
+  fmtDMY,
+  fmtWeekdayDMY,
   pad,
   parseDateKey as parseKey,
   toDateKey as toKey,
@@ -36,36 +37,16 @@ export const countWorkingDays = (fromKey: string, toKeyStr: string) => {
   return count;
 };
 
-export const formatDay = (key: string) => {
-  const d = parseKey(key);
-  if (!d) return '';
-  return d.toLocaleDateString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  });
-};
+export const formatDay = (key: string) => fmtWeekdayDMY(parseKey(key));
 
-export const formatShort = (key: string) => {
-  const d = parseKey(key);
-  if (!d) return '';
-  return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
-};
+export const formatShort = (key: string) => fmtDMY(parseKey(key));
 
 const joinRange = (fromKey: string, toKeyStr: string, sep: string) => {
   const a = parseKey(fromKey);
   const b = parseKey(toKeyStr);
   if (!a || !b) return '';
   if (fromKey === toKeyStr) return formatDay(fromKey);
-  const sameMonth =
-    a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
-  const left = a.toLocaleDateString(
-    'en-GB',
-    sameMonth
-      ? { weekday: 'short', day: 'numeric' }
-      : { weekday: 'short', day: 'numeric', month: 'short' },
-  );
-  return `${left} ${sep} ${formatDay(toKeyStr)}`;
+  return `${fmtWeekdayDMY(a)} ${sep} ${fmtWeekdayDMY(b)}`;
 };
 
 export const formatRange = (fromKey: string, toKeyStr: string) =>

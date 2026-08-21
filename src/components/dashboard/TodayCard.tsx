@@ -3,15 +3,11 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { fmtDMY, weekdayShort } from '@/utils/datetime';
 import { makeDashboardBodyStyles } from '@/styles/dashboard.styles';
 
-const todayLabel = (d: Date) => {
-  const weekday = d.toLocaleDateString('en-GB', { weekday: 'short' }).toUpperCase();
-  const dayMonth = d
-    .toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-    .toUpperCase();
-  return `TODAY · ${weekday} ${dayMonth}`;
-};
+const todayLabel = (d: Date) =>
+  `TODAY · ${weekdayShort(d).toUpperCase()} ${fmtDMY(d)}`;
 
 export const TodayCard = () => {
   const { colors } = useTheme();

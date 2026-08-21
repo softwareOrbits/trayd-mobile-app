@@ -1,4 +1,4 @@
-import { pad } from '@/utils/datetime';
+import { fmtWeekdayDMY, pad } from '@/utils/datetime';
 import { fmtMoney } from '@/utils/format';
 
 export const WRAP_UP_TOTAL = 5;
@@ -16,13 +16,7 @@ export const fmtClock = (d: Date) => `${two(d.getHours())}:${two(d.getMinutes())
 
 export { fmtMoney };
 
-export const fmtDateLong = (d: Date) =>
-  d.toLocaleDateString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+export const fmtDateLong = (d: Date) => fmtWeekdayDMY(d);
 
 export function fmtHoursMinShort(mins: number) {
   const h = Math.floor(mins / 60);

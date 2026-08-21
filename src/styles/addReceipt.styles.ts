@@ -120,6 +120,33 @@ export const makeAddReceiptStyles = (theme: Theme) =>
       fontSize: theme.typography.size.xs,
       color: theme.colors.textMuted,
     },
+    fieldInput: {
+      flex: 1,
+      paddingVertical: 0,
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.text,
+    },
+    pickList: { maxHeight: 190 },
+    pickEmpty: {
+      paddingVertical: 12,
+      fontSize: theme.typography.size.xs,
+      color: theme.colors.textMuted,
+    },
+    pickRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.divider,
+    },
+    pickRowText: {
+      flex: 1,
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.semibold,
+      color: theme.colors.text,
+    },
 
     lineHead: {
       flexDirection: 'row',

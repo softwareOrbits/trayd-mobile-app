@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -30,7 +31,10 @@ import {
   confirmReceiptToJob,
   deleteReceiptLine,
   discardReceipt,
+  fetchKnownSuppliers,
   fetchReceiptLineItems,
+  findDuplicateReceipt,
+  normaliseSupplier,
   updateReceiptHeader,
   updateReceiptLine,
   uploadAndExtractReceipt,
@@ -65,6 +69,22 @@ const CONFIDENCE_LABEL: Record<ReceiptConfidence, string> = {
   low: 'LOW CONFIDENCE',
 };
 
+/**
+ * Named spends only — there is deliberately no "Other" bucket. Anything that
+ * doesn't fit gets typed in, so it lands as its own real category instead of
+ * everything collapsing into one useless pile.
+ */
+const CATEGORIES = [
+  'Materials',
+  'Tools & equipment',
+  'Plant hire',
+  'Fuel',
+  'PPE & safety',
+  'Subcontractor',
+  'Waste & skips',
+  'Parking & tolls',
+];
+
 const AddReceiptScreen = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeAddReceiptStyles);
@@ -85,12 +105,16 @@ const AddReceiptScreen = () => {
   const [vendor, setVendor] = useState('');
   const [location, setLocation] = useState('');
   const [receiptDate, setReceiptDate] = useState<string>(''); // yyyy-mm-dd
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [category, setCategory] = useState('');
+  const [suppliers, setSuppliers] = useState<string[] | null>(null);
+  const [supplierSheet, setSupplierSheet] = useState(false);
+  const [categorySheet, setCategorySheet] = useState(false);
   const [lines, setLines] = useState<ReviewLine[]>([]);
 
   const [saving, setSaving] = useState(false);
 
   // Edit sheets
-  const [headerSheet, setHeaderSheet] = useState(false);
   const [datePicker, setDatePicker] = useState(false);
   const [lineSheet, setLineSheet] = useState<'new' | string | null>(null);
   const [lDesc, setLDesc] = useState('');
@@ -270,19 +294,33 @@ const AddReceiptScreen = () => {
     }
   };
 
-  const saveHeader = async () => {
-    if (manual || !receiptId) {
-      setHeaderSheet(false);
-      return;
+  const supplierMatches = (suppliers ?? []).filter(name => {
+    const typed = normaliseSupplier(vendor);
+    return !typed || normaliseSupplier(name).includes(typed);
+  });
+
+  const openSupplierSheet = () => {
+    setSupplierSheet(true);
+    if (suppliers === null) {
+      fetchKnownSuppliers()
+        .then(setSuppliers)
+        .catch(() => setSuppliers([]));
     }
-    if (saving) return;
+  };
+
+  const pickSupplier = (name: string) => {
+    setVendor(name);
+    setSupplierSheet(false);
+  };
+
+  const saveHeader = async () => {
+    if (manual || !receiptId || saving) return;
     setSaving(true);
     try {
       await updateReceiptHeader(receiptId, {
         vendor: vendor.trim(),
         receiptDate: receiptDate.trim() || null,
       });
-      setHeaderSheet(false);
     } catch (e) {
       toastError(e, 'Could not save.');
     } finally {
@@ -290,9 +328,41 @@ const AddReceiptScreen = () => {
     }
   };
 
+  /**
+   * Asks before logging what looks like the same spend twice — the user can
+   * still go ahead, because split deliveries do happen.
+   */
+  const confirmNotDuplicate = async (): Promise<boolean> => {
+    if (!isOnline() || !vendor.trim()) return true;
+    const dupe = await findDuplicateReceipt({
+      vendor: vendor.trim(),
+      receiptDate: receiptDate.trim() || null,
+      invoiceNumber: invoiceNumber.trim() || null,
+      total,
+      excludeReceiptId: receiptId,
+    }).catch(() => null);
+    if (!dupe) return true;
+
+    const when = dupe.receiptDate ? fmtDate(dupe.receiptDate) : 'earlier';
+    const ref = dupe.invoiceNumber ? ` (${dupe.invoiceNumber})` : '';
+    return new Promise<boolean>(resolve => {
+      Alert.alert(
+        'Logged already?',
+        `${dupe.vendor ?? 'This supplier'}${ref} for ${fmtMoney(
+          dupe.total,
+        )} is already on record from ${when}.`,
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Save anyway', onPress: () => resolve(true) },
+        ],
+      );
+    });
+  };
+
   // ----- save to job / discard -----
   const saveToJob = async () => {
     if (saving) return;
+    if (!(await confirmNotDuplicate())) return;
     if (manual || !receiptId) {
       if (offlineActionBlocked()) return;
       if (!lines.length) {
@@ -344,6 +414,8 @@ const AddReceiptScreen = () => {
         vendor: vendor.trim() || 'Receipt',
         receiptDate: receiptDate.trim() || null,
         vatAmount,
+        invoiceNumber: invoiceNumber.trim() || null,
+        category: category.trim() || null,
       });
       const created = await confirmReceiptToJob(receiptId);
       toastSuccess(
@@ -476,14 +548,14 @@ const AddReceiptScreen = () => {
           </View>
         </View>
 
-        {/* Vendor */}
-        <Text style={styles.sectionLabel}>VENDOR</Text>
-        <Pressable style={styles.fieldCard} onPress={() => setHeaderSheet(true)}>
+        {/* Supplier */}
+        <Text style={styles.sectionLabel}>SUPPLIER</Text>
+        <Pressable style={styles.fieldCard} onPress={openSupplierSheet}>
           <View style={styles.fieldBody}>
-            <Text style={styles.fieldValue}>{vendor || 'Add vendor'}</Text>
+            <Text style={styles.fieldValue}>{vendor || 'Pick a supplier'}</Text>
             {location ? <Text style={styles.fieldSub}>{location}</Text> : null}
           </View>
-          <Ionicons name="pencil" size={16} color={colors.textMuted} />
+          <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
         </Pressable>
 
         {/* Date */}
@@ -491,6 +563,31 @@ const AddReceiptScreen = () => {
         <Pressable style={styles.fieldCard} onPress={() => setDatePicker(true)}>
           <Text style={styles.fieldValue}>{headerDate || 'Add date'}</Text>
           <Ionicons name="calendar-outline" size={16} color={colors.textMuted} />
+        </Pressable>
+
+        {/* Invoice / docket number */}
+        <Text style={styles.sectionLabel}>INVOICE / DOCKET NO.</Text>
+        <View style={styles.fieldCard}>
+          <TextInput
+            style={styles.fieldInput}
+            value={invoiceNumber}
+            onChangeText={setInvoiceNumber}
+            placeholder="e.g. INV-20482"
+            placeholderTextColor={colors.placeholder}
+            autoCapitalize="characters"
+          />
+        </View>
+
+        {/* Category */}
+        <Text style={styles.sectionLabel}>CATEGORY</Text>
+        <Pressable
+          style={styles.fieldCard}
+          onPress={() => setCategorySheet(true)}
+        >
+          <Text style={category ? styles.fieldValue : styles.fieldSub}>
+            {category || 'What was this spend?'}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
         </Pressable>
 
         {/* Line items */}
@@ -604,12 +701,12 @@ const AddReceiptScreen = () => {
         </Pressable>
       </View>
 
-      {/* Vendor edit sheet */}
+      {/* Supplier picker — known names first so spellings stay consistent */}
       <Modal
-        visible={headerSheet}
+        visible={supplierSheet}
         transparent
         animationType="fade"
-        onRequestClose={() => setHeaderSheet(false)}
+        onRequestClose={() => setSupplierSheet(false)}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -617,11 +714,56 @@ const AddReceiptScreen = () => {
         >
           <Pressable
             style={StyleSheet.absoluteFill}
-            onPress={() => setHeaderSheet(false)}
+            onPress={() => setSupplierSheet(false)}
           />
           <View style={[styles.sheet, { paddingBottom: insets.bottom + 20 }]}>
-            <Text style={styles.sheetTitle}>Vendor</Text>
-            <Input label="Vendor name" value={vendor} onChangeText={setVendor} />
+            <Text style={styles.sheetTitle}>Supplier</Text>
+            <Input
+              label="Supplier name"
+              value={vendor}
+              onChangeText={setVendor}
+              autoCapitalize="words"
+            />
+            {suppliers === null ? (
+              <ActivityIndicator color={colors.secondary} />
+            ) : (
+              <ScrollView
+                style={styles.pickList}
+                keyboardShouldPersistTaps="handled"
+              >
+                {supplierMatches.length === 0 ? (
+                  <Text style={styles.pickEmpty}>
+                    {vendor.trim()
+                      ? 'New supplier — it will be added to the list.'
+                      : 'No suppliers used yet.'}
+                  </Text>
+                ) : (
+                  supplierMatches.map(name => (
+                    <Pressable
+                      key={name}
+                      style={styles.pickRow}
+                      onPress={() => pickSupplier(name)}
+                    >
+                      <Ionicons
+                        name="storefront-outline"
+                        size={16}
+                        color={colors.textMuted}
+                      />
+                      <Text style={styles.pickRowText} numberOfLines={1}>
+                        {name}
+                      </Text>
+                      {normaliseSupplier(name) === normaliseSupplier(vendor) ? (
+                        <Ionicons
+                          name="checkmark"
+                          size={17}
+                          color={colors.primary}
+                        />
+                      ) : null}
+                    </Pressable>
+                  ))
+                )}
+              </ScrollView>
+            )}
             <AddressAutocomplete
               label="Location"
               value={location}
@@ -631,7 +773,66 @@ const AddReceiptScreen = () => {
               label="Done"
               fullWidth
               loading={saving}
-              onPress={saveHeader}
+              onPress={() => {
+                setSupplierSheet(false);
+                saveHeader();
+              }}
+            />
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Category picker */}
+      <Modal
+        visible={categorySheet}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCategorySheet(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.backdrop}
+        >
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setCategorySheet(false)}
+          />
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + 20 }]}>
+            <Text style={styles.sheetTitle}>Category</Text>
+            <ScrollView
+              style={styles.pickList}
+              keyboardShouldPersistTaps="handled"
+            >
+              {CATEGORIES.map(c => (
+                <Pressable
+                  key={c}
+                  style={styles.pickRow}
+                  onPress={() => {
+                    setCategory(c);
+                    setCategorySheet(false);
+                  }}
+                >
+                  <Text style={styles.pickRowText}>{c}</Text>
+                  {c === category ? (
+                    <Ionicons
+                      name="checkmark"
+                      size={17}
+                      color={colors.primary}
+                    />
+                  ) : null}
+                </Pressable>
+              ))}
+            </ScrollView>
+            <Input
+              label="Something else — name it"
+              value={CATEGORIES.includes(category) ? '' : category}
+              onChangeText={setCategory}
+              autoCapitalize="sentences"
+            />
+            <Button
+              label="Done"
+              fullWidth
+              onPress={() => setCategorySheet(false)}
             />
           </View>
         </KeyboardAvoidingView>

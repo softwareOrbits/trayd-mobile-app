@@ -14,14 +14,38 @@ export const parseDateKey = (key: string | null | undefined) => {
   return isNaN(d.getTime()) ? null : d;
 };
 
+const asDate = (value: Date | string | null | undefined): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+  const d =
+    value.length <= 10 ? new Date(`${value}T00:00:00`) : new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+/** Every date in the app reads day/month/year — 09/08/2026. */
+export const fmtDMY = (value: Date | string | null | undefined): string => {
+  const d = asDate(value);
+  return d ? `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}` : '';
+};
+
+export const weekdayShort = (value: Date | string | null | undefined): string => {
+  const d = asDate(value);
+  return d ? d.toLocaleDateString('en-GB', { weekday: 'short' }) : '';
+};
+
+/** 'Fri 09/08/2026' */
+export const fmtWeekdayDMY = (
+  value: Date | string | null | undefined,
+): string => {
+  const d = asDate(value);
+  return d ? `${weekdayShort(d)} ${fmtDMY(d)}` : '';
+};
+
 export const formatStamp = (d: Date, withTime = false) => {
   const weekday = d
     .toLocaleDateString('en-GB', { weekday: 'long' })
     .toUpperCase();
-  const dayMonth = d
-    .toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-    .toUpperCase();
-  const base = `${weekday} · ${dayMonth}`;
+  const base = `${weekday} · ${fmtDMY(d)}`;
   if (!withTime) return base;
   return `${base} · ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
@@ -43,32 +67,17 @@ export const fmtHM = (hours: number) => {
 export const timeOf = (t: string | null | undefined) =>
   t ? t.slice(0, 5) : null;
 
-export const fmtEventStamp = (iso: string) =>
-  new Date(iso).toLocaleString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+export const fmtEventStamp = (iso: string) => {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return `${fmtWeekdayDMY(d)} · ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
 
-export const fmtDayShort = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+export const fmtDayShort = (iso: string) => fmtDMY(iso);
 
-export const fmtDateWeekday = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  });
+export const fmtDateWeekday = (iso: string) => fmtWeekdayDMY(iso);
 
 export const fmtDateFull = (iso?: string | null): string | null => {
   if (!iso) return null;
-  const d = new Date(`${iso}T00:00:00`);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  return fmtDMY(iso) || iso;
 };

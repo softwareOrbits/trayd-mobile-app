@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Keyboard,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { MONTHS_FULL as MONTHS, MONTHS_SHORT } from '@/utils/constants';
-import { dateKey, pad, parseDateKey } from '@/utils/datetime';
+import { dateKey, pad, parseDateKey, toDateKey } from '@/utils/datetime';
 
 type Props = {
   visible: boolean;
@@ -32,6 +40,34 @@ const parseKey = parseDateKey;
 
 const mondayIndex = (jsDay: number) => (jsDay + 6) % 7;
 
+/** Types as `12/08/2026` — slashes appear on their own. */
+const maskDMY = (raw: string) => {
+  const digits = raw.replace(/[^0-9]/g, '').slice(0, 8);
+  const parts = [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 8)];
+  return parts.filter(p => p.length).join('/');
+};
+
+/** Only a real, complete day/month/year returns a key — nothing is guessed. */
+const keyFromDMY = (typed: string): string | null => {
+  const m = typed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  const [, dd, mm, yyyy] = m;
+  const day = Number(dd);
+  const month = Number(mm);
+  const year = Number(yyyy);
+  if (month < 1 || month > 12 || day < 1) return null;
+  if (day > new Date(year, month, 0).getDate()) return null;
+  return toDateKey(year, month - 1, day);
+};
+
+const dmyFromKey = (key: string | null | undefined) => {
+  const d = parseDateKey(key);
+  if (!d) return '';
+  return maskDMY(
+    `${pad(d.getDate())}${pad(d.getMonth() + 1)}${d.getFullYear()}`,
+  );
+};
+
 export const CalendarModal = ({
   visible,
   value,
@@ -46,13 +82,35 @@ export const CalendarModal = ({
   const selected = useMemo(() => parseKey(value), [value]);
   const [view, setView] = useState(() => selected ?? new Date());
   const [pickingMonth, setPickingMonth] = useState(false);
+  const [typed, setTyped] = useState(() => dmyFromKey(value));
 
   useEffect(() => {
     if (visible) {
       setView(selected ?? new Date());
       setPickingMonth(false);
+      setTyped(dmyFromKey(value));
     }
-  }, [visible, selected]);
+  }, [visible, selected, value]);
+
+  const typedKey = keyFromDMY(typed);
+
+  const onType = (raw: string) => {
+    const masked = maskDMY(raw);
+    setTyped(masked);
+    const key = keyFromDMY(masked);
+    const d = parseKey(key);
+    if (d) {
+      setPickingMonth(false);
+      setView(new Date(d.getFullYear(), d.getMonth(), 1));
+    }
+  };
+
+  const useTyped = () => {
+    if (!typedKey) return;
+    Keyboard.dismiss();
+    onSelect(typedKey);
+    onClose();
+  };
 
   const year = view.getFullYear();
   const month = view.getMonth();
@@ -77,6 +135,7 @@ export const CalendarModal = ({
     );
 
   const choose = (day: number) => {
+    Keyboard.dismiss();
     onSelect(toKey(new Date(year, month, day)));
     onClose();
   };
@@ -108,6 +167,28 @@ export const CalendarModal = ({
             <Text style={styles.title}>{title}</Text>
             <Pressable onPress={onClose} hitSlop={8}>
               <Ionicons name="close" size={22} color={colors.textMuted} />
+            </Pressable>
+          </View>
+
+          <View style={styles.typeRow}>
+            <TextInput
+              style={styles.typeInput}
+              value={typed}
+              onChangeText={onType}
+              placeholder="DD/MM/YYYY"
+              placeholderTextColor={colors.placeholder}
+              keyboardType="number-pad"
+              returnKeyType="done"
+              maxLength={10}
+              onSubmitEditing={useTyped}
+            />
+            <Pressable
+              style={[styles.typeBtn, !typedKey && styles.typeBtnOff]}
+              onPress={useTyped}
+              disabled={!typedKey}
+              hitSlop={6}
+            >
+              <Ionicons name="checkmark" size={18} color={colors.onPrimary} />
             </Pressable>
           </View>
 
@@ -249,6 +330,29 @@ export const makeStyles = (theme: Theme) =>
       fontFamily: theme.fonts.bold,
       color: theme.colors.text,
     },
+    typeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    typeInput: {
+      flex: 1,
+      height: 44,
+      borderRadius: theme.radii.md,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: 14,
+      fontSize: theme.typography.size.md,
+      fontFamily: theme.fonts.mono,
+      letterSpacing: 1,
+      color: theme.colors.text,
+    },
+    typeBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: theme.radii.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.primary,
+    },
+    typeBtnOff: { opacity: 0.4 },
     monthRow: {
       flexDirection: 'row',
       alignItems: 'center',
