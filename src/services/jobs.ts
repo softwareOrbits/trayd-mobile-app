@@ -862,18 +862,145 @@ export async function deleteReceiptLine(lineId: string): Promise<void> {
 
 export async function updateReceiptHeader(
   receiptId: string,
-  patch: { vendor?: string; receiptDate?: string | null; vatAmount?: number | null },
+  patch: {
+    vendor?: string;
+    receiptDate?: string | null;
+    vatAmount?: number | null;
+    invoiceNumber?: string | null;
+    category?: string | null;
+  },
 ): Promise<void> {
   const row: Record<string, unknown> = {};
   if (patch.vendor !== undefined) row.vendor = patch.vendor;
   if (patch.receiptDate !== undefined) row.receipt_date = patch.receiptDate;
   if (patch.vatAmount !== undefined) row.vat_amount = patch.vatAmount;
+  if (patch.invoiceNumber !== undefined) row.invoice_number = patch.invoiceNumber;
+  if (patch.category !== undefined) row.category = patch.category;
   if (!Object.keys(row).length) return;
   const { error } = await supabase
     .from('receipts')
     .update(row)
     .eq('id', receiptId);
   if (error) throw new Error(error.message);
+}
+
+/**
+ * "Screwfix" / "Screw Fix" / "SCREWFIX LTD." are the same supplier — compare on
+ * letters and digits only so the picker and the duplicate check agree.
+ */
+export const normaliseSupplier = (name: string) =>
+  name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const SUPPLIER_SCAN_LIMIT = 400;
+
+/**
+ * There is no supplier table, so the list is the names already used by this
+ * business (RLS-scoped), most used first — new names are still free text.
+ */
+export async function fetchKnownSuppliers(): Promise<string[]> {
+  return offlineRead('suppliers', async () => {
+    const { data, error } = await supabase
+      .from('receipts')
+      .select('vendor, created_at')
+      .not('vendor', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(SUPPLIER_SCAN_LIMIT);
+    if (error) throw new Error(error.message);
+
+    const seen = new Map<string, { name: string; count: number }>();
+    for (const row of (data ?? []) as { vendor: string | null }[]) {
+      const name = row.vendor?.trim();
+      if (!name) continue;
+      const key = normaliseSupplier(name);
+      if (!key) continue;
+      const hit = seen.get(key);
+      if (hit) hit.count += 1;
+      else seen.set(key, { name, count: 1 });
+    }
+    return [...seen.values()]
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+      .map(s => s.name);
+  });
+}
+
+export type DuplicateReceipt = {
+  id: string;
+  vendor: string | null;
+  receiptDate: string | null;
+  invoiceNumber: string | null;
+  total: number;
+};
+
+const AMOUNT_TOLERANCE = 0.02;
+
+/**
+ * Catches the same receipt logged twice before it reaches the job: an exact
+ * invoice-number match, or the same supplier on the same day for the same
+ * money. Totals come from the line items — receipts store no total column.
+ */
+export async function findDuplicateReceipt(input: {
+  vendor: string;
+  receiptDate: string | null;
+  invoiceNumber: string | null;
+  total: number;
+  excludeReceiptId?: string | null;
+}): Promise<DuplicateReceipt | null> {
+  const vendorKey = normaliseSupplier(input.vendor);
+  const invoiceKey = input.invoiceNumber?.trim().toLowerCase() ?? '';
+  if (!invoiceKey && (!vendorKey || !input.receiptDate)) return null;
+
+  let query = supabase
+    .from('receipts')
+    .select(
+      'id, vendor, receipt_date, invoice_number, receipt_line_items (quantity, unit_price)',
+    )
+    .limit(50);
+
+  if (invoiceKey) {
+    query = query.not('invoice_number', 'is', null);
+  } else {
+    query = query.eq('receipt_date', input.receiptDate as string);
+  }
+
+  const { data, error } = await query;
+  if (error) return null;
+
+  type Row = {
+    id: string;
+    vendor: string | null;
+    receipt_date: string | null;
+    invoice_number: string | null;
+    receipt_line_items: { quantity: number | string | null; unit_price: number | string | null }[] | null;
+  };
+
+  for (const row of (data ?? []) as Row[]) {
+    if (row.id === input.excludeReceiptId) continue;
+
+    const total = (row.receipt_line_items ?? []).reduce(
+      (sum, l) => sum + num(l.quantity) * num(l.unit_price),
+      0,
+    );
+    const sameInvoice =
+      !!invoiceKey &&
+      row.invoice_number?.trim().toLowerCase() === invoiceKey &&
+      normaliseSupplier(row.vendor ?? '') === vendorKey;
+    const sameSpend =
+      !invoiceKey &&
+      normaliseSupplier(row.vendor ?? '') === vendorKey &&
+      input.total > 0 &&
+      Math.abs(total - input.total) <= AMOUNT_TOLERANCE;
+
+    if (sameInvoice || sameSpend) {
+      return {
+        id: row.id,
+        vendor: row.vendor,
+        receiptDate: row.receipt_date,
+        invoiceNumber: row.invoice_number,
+        total,
+      };
+    }
+  }
+  return null;
 }
 
 export async function confirmReceiptToJob(receiptId: string): Promise<number> {
@@ -1158,6 +1285,29 @@ export async function editSegmentStartTime(
   const { error } = await supabase
     .from('job_time_entries')
     .update({ start_time: startIso, edit_reason: reason || null })
+    .eq('id', entryId);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Owner correction of a crew member's logged time. The `audit_time_entry_edit`
+ * trigger snapshots the original times, stamps who edited, and recomputes
+ * `hours` — so the app only sends the new times and a reason.
+ */
+export async function editSegmentTimes(
+  entryId: string,
+  patch: {
+    startIso?: string;
+    finishIso?: string | null;
+    reason?: string | null;
+  },
+): Promise<void> {
+  const row: Record<string, unknown> = { edit_reason: patch.reason || null };
+  if (patch.startIso !== undefined) row.start_time = patch.startIso;
+  if (patch.finishIso !== undefined) row.finish_time = patch.finishIso;
+  const { error } = await supabase
+    .from('job_time_entries')
+    .update(row)
     .eq('id', entryId);
   if (error) throw new Error(error.message);
 }

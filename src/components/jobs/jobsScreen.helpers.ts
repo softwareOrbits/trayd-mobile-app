@@ -4,7 +4,7 @@ import {
   type JobStatusGroup,
   type JobTabKey,
 } from '@/types';
-import { dateKey } from '@/utils/datetime';
+import { dateKey, fmtWeekdayDMY } from '@/utils/datetime';
 
 export { dateKey };
 
@@ -34,11 +34,7 @@ export const fmtSectionLabel = (date: string | null) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const days = Math.round((value.getTime() - today.getTime()) / 86400000);
-  const formatted = value.toLocaleDateString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  });
+  const formatted = fmtWeekdayDMY(value);
   if (days === 0) return `Today · ${formatted}`;
   if (days === 1) return `Tomorrow · ${formatted}`;
   if (days === -1) return `Yesterday · ${formatted}`;

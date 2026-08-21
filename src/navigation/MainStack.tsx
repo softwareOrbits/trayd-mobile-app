@@ -9,6 +9,7 @@ import AssignTaskScreen from '@/screens/main/AssignTaskScreen';
 import VanLogScreen from '@/screens/main/VanLogScreen';
 import ReportVanIssueScreen from '@/screens/main/ReportVanIssueScreen';
 import AddServiceScheduleScreen from '@/screens/main/AddServiceScheduleScreen';
+import AskTraydScreen from '@/screens/main/AskTraydScreen';
 import AddNoteScreen from '@/screens/main/AddNoteScreen';
 import AddReceiptScreen from '@/screens/main/AddReceiptScreen';
 import AddJobPhotoScreen from '@/screens/main/AddJobPhotoScreen';
@@ -48,6 +49,7 @@ const FieldStack = ({ isOwner }: { isOwner: boolean }) => (
       options={{ presentation: 'modal' }}
     />
     <Stack.Screen name="JobChat" component={ChatScreen} />
+    <Stack.Screen name="AskTrayd" component={AskTraydScreen} />
     {isOwner ? (
       <>
         <Stack.Screen

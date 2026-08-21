@@ -20,7 +20,7 @@ import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { useCollapsibleOnScroll } from '@/utils/useCollapsibleOnScroll';
 import { WEEK_LETTERS } from '@/utils/constants';
-import { timeOf } from '@/utils/datetime';
+import { fmtDMY, fmtWeekdayDMY, timeOf } from '@/utils/datetime';
 import { dateKey } from '@/components/jobs/jobsScreen.helpers';
 import { makeCalendarStyles } from '@/styles/calendar.styles';
 import {
@@ -53,31 +53,14 @@ const STATUS_WORD: Record<JobStatus, string> = {
 };
 
 const dayTitle = (key: string, todayKey: string) => {
-  const formatted = new Date(`${key}T00:00:00`).toLocaleDateString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'long',
-  });
+  const formatted = fmtWeekdayDMY(key);
   return key === todayKey ? `Today · ${formatted}` : formatted;
 };
 
-const groupLabel = (key: string) =>
-  new Date(`${key}T00:00:00`)
-    .toLocaleDateString('en-GB', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-    })
-    .toUpperCase();
+const groupLabel = (key: string) => fmtWeekdayDMY(key).toUpperCase();
 
 const filterLabel = (key: string) => {
-  const d = new Date(`${key}T00:00:00`);
-  const sameYear = d.getFullYear() === new Date().getFullYear();
-  return d.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    ...(sameYear ? {} : { year: '2-digit' }),
-  });
+  return fmtDMY(key);
 };
 
 const CalendarScreen = () => {

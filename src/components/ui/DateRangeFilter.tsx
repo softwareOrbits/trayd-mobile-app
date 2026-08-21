@@ -15,7 +15,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { MONTHS_FULL, MONTHS_SHORT, WEEK_LETTERS } from '@/utils/constants';
-import { parseDateKey, toDateKey } from '@/utils/datetime';
+import { fmtDMY, fmtWeekdayDMY, parseDateKey, toDateKey } from '@/utils/datetime';
 
 type Noun = { one: string; many: string };
 
@@ -41,27 +41,13 @@ const toKey = toDateKey;
 const parseKey = parseDateKey;
 const mondayIndex = (jsDay: number) => (jsDay + 6) % 7;
 
-const fmtDay = (key: string) => {
-  const d = parseKey(key);
-  if (!d) return '';
-  return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
-};
-const fmtDayLong = (key: string) => {
-  const d = parseKey(key);
-  if (!d) return '';
-  return d.toLocaleDateString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  });
-};
+const fmtDay = (key: string) => fmtDMY(parseKey(key));
+const fmtDayLong = (key: string) => fmtWeekdayDMY(parseKey(key));
 const fmtRange = (loKey: string, hiKey: string) => {
   const a = parseKey(loKey);
   const b = parseKey(hiKey);
   if (!a || !b) return '';
-  return a.getFullYear() === b.getFullYear()
-    ? `${fmtDay(loKey)} – ${fmtDay(hiKey)} ${b.getFullYear()}`
-    : `${fmtDay(loKey)} ${a.getFullYear()} – ${fmtDay(hiKey)} ${b.getFullYear()}`;
+  return `${fmtDay(loKey)} – ${fmtDay(hiKey)}`;
 };
 
 const plural = (n: number, noun: Noun) => `${n} ${n === 1 ? noun.one : noun.many}`;

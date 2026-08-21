@@ -42,7 +42,7 @@ import { makeEditJobStyles } from '@/styles/editJob.styles';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { goBackSafe } from '@/utils/navigation';
 import { ALL_DAY_TIME_OPTIONS } from '@/utils/constants';
-import { dateKey } from '@/utils/datetime';
+import { dateKey, fmtDMY, weekdayShort } from '@/utils/datetime';
 import type { JobType, MainStackParamList } from '@/types';
 
 const toKey = dateKey;
@@ -57,8 +57,8 @@ const dayLabel = (key: string) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
-  const dm = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  const wd = d.toLocaleDateString('en-GB', { weekday: 'short' });
+  const dm = fmtDMY(d);
+  const wd = weekdayShort(d);
   if (diff === 0) return { top: 'Today', bottom: dm };
   if (diff === 1) return { top: 'Tomorrow', bottom: dm };
   return { top: wd, bottom: dm };

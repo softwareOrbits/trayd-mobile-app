@@ -8,19 +8,15 @@ import { StatusPill } from '@/components/ui';
 import type { DashboardJob } from '@/services/dashboard';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { fmtDMY, weekdayShort } from '@/utils/datetime';
 import { makeDashboardBodyStyles } from '@/styles/dashboard.styles';
 import { JOB_TYPE_LABEL, type MainStackParamList } from '@/types';
 import { useDashboard } from './DashboardProvider';
 
 type JobTone = 'live' | 'next' | 'task';
 
-const todayLabel = (d: Date) => {
-  const weekday = d.toLocaleDateString('en-GB', { weekday: 'short' }).toUpperCase();
-  const dayMonth = d
-    .toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-    .toUpperCase();
-  return `TODAY · ${weekday} ${dayMonth}`;
-};
+const todayLabel = (d: Date) =>
+  `TODAY · ${weekdayShort(d).toUpperCase()} ${fmtDMY(d)}`;
 
 const localityOf = (addr: string | null) => {
   if (!addr) return '';

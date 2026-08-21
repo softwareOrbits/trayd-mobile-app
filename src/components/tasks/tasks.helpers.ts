@@ -1,4 +1,5 @@
 import { MONTHS_FULL } from '@/utils/constants';
+import { fmtDMY, fmtWeekdayDMY } from '@/utils/datetime';
 import type { Task, TaskPeriod } from '@/types';
 
 const SHIFT_TIME_ZONE = 'Europe/Dublin';
@@ -18,19 +19,9 @@ export const inPeriod = (dateStr: string | null, p: TaskPeriod): boolean => {
 };
 
 export const dayHeaderLabel = (dateStr: string): string =>
-  new Date(`${dateStr}T00:00:00`)
-    .toLocaleDateString('en-GB', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-    })
-    .toUpperCase();
+  fmtWeekdayDMY(dateStr).toUpperCase();
 
-export const doneWhenLabel = (dateStr: string): string =>
-  new Date(`${dateStr}T00:00:00`).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-  });
+export const doneWhenLabel = (dateStr: string): string => fmtDMY(dateStr);
 
 export const completedSections = (
   tasks: Task[],
@@ -74,7 +65,7 @@ export const deadlineLabel = (task: Task): string => {
   const date = new Date(`${task.deadlineDate}T00:00:00`);
   const today = new Date(`${irishToday()}T00:00:00`);
   const diff = Math.round((date.getTime() - today.getTime()) / 86400000);
-  const dm = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const dm = fmtDMY(date);
   const day =
     diff === 0
       ? 'Today'
@@ -82,11 +73,7 @@ export const deadlineLabel = (task: Task): string => {
         ? 'Tomorrow'
         : diff === -1
           ? 'Yesterday'
-          : date.toLocaleDateString('en-GB', {
-              weekday: 'short',
-              day: 'numeric',
-              month: 'short',
-            });
+          : fmtWeekdayDMY(date);
   const base = diff === 0 || diff === 1 || diff === -1 ? `${day} · ${dm}` : day;
   return task.deadlineTime ? `${base} · ${task.deadlineTime}` : base;
 };

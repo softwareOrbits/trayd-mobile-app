@@ -121,7 +121,6 @@ const JobsScreen = () => {
   // the open segment (active jobs only) keeps ticking. Paused jobs have no open
   // segment, so their timer stops — no more mock time running in the background.
   const [segMeta, setSegMeta] = useState<Map<string, JobSegment[]>>(new Map());
-  const [startMeta, setStartMeta] = useState<Map<string, string>>(new Map());
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -186,7 +185,6 @@ const JobsScreen = () => {
   useEffect(() => {
     if (!liveIds.length) {
       setSegMeta(new Map());
-      setStartMeta(new Map());
       return;
     }
     let active = true;
@@ -198,18 +196,11 @@ const JobsScreen = () => {
         const cached = await loadJobCache(id);
         if (fetched) saveJobCache(id, { segments: fetched });
         const segs = fetched ?? cached?.segments ?? [];
-        return { id, segs, startedAt: cached?.detail?.startedAt ?? null };
+        return { id, segs };
       }),
     ).then(results => {
       if (!active) return;
       setSegMeta(new Map(results.map(r => [r.id, r.segs] as const)));
-      setStartMeta(
-        new Map(
-          results.flatMap(r =>
-            r.startedAt ? [[r.id, r.startedAt] as const] : [],
-          ),
-        ),
-      );
     });
     return () => {
       active = false;
@@ -234,13 +225,8 @@ const JobsScreen = () => {
       const days = new Set(segs.map(s => s.jobDayId).filter(Boolean)).size;
       return { elapsed: formatElapsed(hours * 3_600_000), day: Math.max(1, days) };
     }
-    const startedAt = startMeta.get(job.id);
-    if (job.status === 'active' && startedAt) {
-      return {
-        elapsed: formatElapsed(now - new Date(startedAt).getTime()),
-        day: 1,
-      };
-    }
+    // No time entries of mine ⇒ no elapsed time. The job's `started_at` says
+    // when the job went live, not when I clocked in.
     return { elapsed: '00:00:00', day: 1 };
   };
 

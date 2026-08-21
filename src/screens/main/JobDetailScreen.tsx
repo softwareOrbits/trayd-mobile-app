@@ -23,6 +23,7 @@ import { StatusBadge, LiveStateBadge } from '@/components/jobs';
 import {
   ActionGrid,
   Callout,
+  CrewHoursSheet,
   DayRow,
   EmployerNote,
   InfoRow,
@@ -34,6 +35,7 @@ import {
   RosterChips,
   Section,
   TimerCard,
+  type CrewHoursEdit,
   type PhotoTag,
   type RosterMember,
 } from '@/components/jobDetail';
@@ -41,6 +43,7 @@ import {
   buildDayBreakdown,
   deleteJobPhoto,
   editSegmentStartTime,
+  editSegmentTimes,
   fetchJobDays,
   fetchJobDetail,
   fetchJobMaterials,
@@ -91,6 +94,7 @@ import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { dayNumberFor, formatElapsed } from '@/utils/liveMeta';
 import { formatDuration } from '@/utils/duration';
+import { fmtWeekdayDMY } from '@/utils/datetime';
 import { isNetworkError } from '@/utils/errors';
 import { toastError, toastSuccess } from '@/utils/toast';
 import { haptics } from '@/utils/haptics';
@@ -174,6 +178,7 @@ const JobDetailScreen = () => {
 
   // Timer-edit sheet: adjusts the running segment's start time (audited).
   const [timeSheet, setTimeSheet] = useState(false);
+  const [crewHoursSheet, setCrewHoursSheet] = useState(false);
   const [timeHH, setTimeHH] = useState('00');
   const [timeMM, setTimeMM] = useState('00');
   const [timeReason, setTimeReason] = useState('');
@@ -519,6 +524,55 @@ const JobDetailScreen = () => {
       null
     );
   }, [segments, myMemberId]);
+
+  const memberNameOf = (memberId: string) => {
+    if (memberId === myMemberId) return 'You';
+    return crew.find(c => c.id === memberId)?.name ?? 'Crew member';
+  };
+
+  const saveCrewHours = async (edit: CrewHoursEdit) => {
+    if (savingTime) return;
+    const at = (base: string, hh: string, mm: string) => {
+      const d = new Date(base);
+      d.setHours(
+        Math.min(23, Math.max(0, parseInt(hh, 10) || 0)),
+        Math.min(59, Math.max(0, parseInt(mm, 10) || 0)),
+        0,
+        0,
+      );
+      return d;
+    };
+
+    const start = at(edit.segment.startTime, edit.startHH, edit.startMM);
+    const finish = edit.segment.finishTime
+      ? at(edit.segment.finishTime, edit.finishHH, edit.finishMM)
+      : null;
+
+    if (start.getTime() > Date.now()) {
+      Toast.show({ type: 'error', text1: 'Start time is in the future.' });
+      return;
+    }
+    if (finish && finish.getTime() <= start.getTime()) {
+      Toast.show({ type: 'error', text1: 'Finish must be after the start.' });
+      return;
+    }
+
+    setSavingTime(true);
+    try {
+      await editSegmentTimes(edit.segment.id, {
+        startIso: start.toISOString(),
+        finishIso: finish ? finish.toISOString() : undefined,
+        reason: edit.reason.trim() || null,
+      });
+      setSegments(await fetchJobSegments(detail!.id));
+      setCrewHoursSheet(false);
+      toastSuccess('Hours updated.');
+    } catch (e) {
+      toastError(e, 'Could not update those hours.');
+    } finally {
+      setSavingTime(false);
+    }
+  };
 
   const openTimeEdit = () => {
     if (!editSegment) {
@@ -921,10 +975,11 @@ const JobDetailScreen = () => {
     ? 'PAUSED'
     : 'NOT STARTED';
   const segElapsed = segmentsElapsedHours(mySegments, now);
+  // Only my own time entries drive this card. The job row's `started_at` is
+  // not my clock — counting from it showed days of "elapsed" on jobs nobody
+  // had ever clocked into, right beside a NOT STARTED label.
   const elapsed = myHasSegments
     ? formatElapsed(segElapsed.hours * 3_600_000)
-    : segments.length === 0 && detail.startedAt
-    ? formatElapsed(now - new Date(detail.startedAt).getTime())
     : '00:00:00';
   // Per-day breakdown from job_days (mds §5.5). The "Day N+1 · Resume today"
   // card is synthetic — resume_job materialises the row only on resume.
@@ -935,26 +990,15 @@ const JobDetailScreen = () => {
     state === 'paused' && !!lastDay && lastDay.workDate < todayISO;
   const day = days.length
     ? days.length + (showNextDayPrompt ? 1 : 0)
-    : segElapsed.earliestStart ?? detail.startedAt
-    ? dayNumberFor(segElapsed.earliestStart ?? detail.startedAt!)
+    : segElapsed.earliestStart
+    ? dayNumberFor(segElapsed.earliestStart)
     : 1;
   const pausedSince = pausedSinceFrom(segments);
 
-  const fmtDayDate = (d: string) =>
-    new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-    });
+  const fmtDayDate = (d: string) => fmtWeekdayDMY(d);
   const fmtPausedSince = (iso: string) => {
     const d = new Date(iso);
-    return `${d
-      .toLocaleDateString('en-GB', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-      })
-      .toUpperCase()} · ${fmtTime(iso.slice(11, 16))}`;
+    return `${fmtWeekdayDMY(d).toUpperCase()} · ${fmtTime(iso.slice(11, 16))}`;
   };
   // "Days so far" — only meaningful once a job spans days or is paused.
   const daysSoFar =
@@ -1126,7 +1170,12 @@ const JobDetailScreen = () => {
         </View>
       ) : null}
       {roster.length ? (
-        <Section title="Roster" card={false}>
+        <Section
+          title="Roster"
+          card={false}
+          action={isOwner ? 'Edit hours' : undefined}
+          onAction={isOwner ? () => setCrewHoursSheet(true) : undefined}
+        >
           <RosterChips members={roster} />
         </Section>
       ) : null}
@@ -1368,7 +1417,12 @@ const JobDetailScreen = () => {
               </View>
             ) : null}
             {roster.length ? (
-              <Section title="Roster" card={false}>
+              <Section
+                title="Roster"
+                card={false}
+                action={isOwner ? 'Edit hours' : undefined}
+                onAction={isOwner ? () => setCrewHoursSheet(true) : undefined}
+              >
                 <RosterChips members={roster} />
               </Section>
             ) : null}
@@ -1663,6 +1717,15 @@ const JobDetailScreen = () => {
         onSave={saveMaterial}
         onRemove={removeMaterial}
         onClose={() => setMatSheet(null)}
+      />
+
+      <CrewHoursSheet
+        visible={crewHoursSheet}
+        segments={segments}
+        nameOf={memberNameOf}
+        saving={savingTime}
+        onSave={saveCrewHours}
+        onClose={() => setCrewHoursSheet(false)}
       />
 
       <TimeEditSheet

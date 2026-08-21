@@ -25,6 +25,7 @@ import { useAppDispatch } from '@/store/hooks';
 import { setUnread } from '@/store/notificationsSlice';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { fmtDMY } from '@/utils/datetime';
 import { makeNotificationsStyles } from '@/styles/notifications.styles';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -50,10 +51,7 @@ const fmtAgo = (iso: string) => {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-  });
+  return fmtDMY(new Date(iso));
 };
 
 const NotificationsScreen = () => {
