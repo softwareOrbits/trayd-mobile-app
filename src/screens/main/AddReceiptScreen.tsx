@@ -23,7 +23,14 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Toast from 'react-native-toast-message';
 
-import { AppToast, Button, CalendarModal, Input } from '@/components/ui';
+import {
+  AppToast,
+  Button,
+  CalendarModal,
+  FilePreview,
+  Input,
+  useFilePreview,
+} from '@/components/ui';
 import { AddressAutocomplete } from '@/components/AddressAutocomplete';
 import { MaterialSelect } from '@/components/MaterialSelect';
 import {
@@ -34,11 +41,13 @@ import {
   fetchKnownSuppliers,
   fetchReceiptLineItems,
   findDuplicateReceipt,
+  retryReceiptExtraction,
   normaliseSupplier,
   updateReceiptHeader,
   updateReceiptLine,
   uploadAndExtractReceipt,
   type ExtractedReceipt,
+  type ExtractStatus,
   type JobMaterial,
   type ReceiptConfidence,
   type ReceiptLine,
@@ -101,6 +110,8 @@ const AddReceiptScreen = () => {
   const [receiptId, setReceiptId] = useState<string | null>(null);
   const [storagePath, setStoragePath] = useState<string | null>(null);
   const [extracted, setExtracted] = useState<ExtractedReceipt | null>(null);
+  const [extractStatus, setExtractStatus] = useState<ExtractStatus | null>(null);
+  const [rescanning, setRescanning] = useState(false);
 
   const [vendor, setVendor] = useState('');
   const [location, setLocation] = useState('');
@@ -116,6 +127,7 @@ const AddReceiptScreen = () => {
 
   // Edit sheets
   const [datePicker, setDatePicker] = useState(false);
+  const preview = useFilePreview();
   const [lineSheet, setLineSheet] = useState<'new' | string | null>(null);
   const [lDesc, setLDesc] = useState('');
   const [lQty, setLQty] = useState('1');
@@ -141,12 +153,26 @@ const AddReceiptScreen = () => {
       setReceiptId(res.receiptId);
       setStoragePath(res.storagePath);
       setExtracted(res.extracted);
+      setExtractStatus(res.status);
       if (res.extracted) {
         setVendor(res.extracted.vendor ?? '');
         setLocation(res.extracted.location ?? '');
         setReceiptDate(res.extracted.receipt_date ?? '');
       }
       await loadLines(res.receiptId, res.extracted);
+      if (res.status !== 'extracted') {
+        // Be straight about it rather than showing an empty "auto-extracted"
+        // list: the photo is saved, the items just need typing (or a re-scan).
+        setManual(true);
+        Toast.show({
+          type: 'info',
+          text1:
+            res.status === 'failed'
+              ? 'Couldn’t read that receipt'
+              : 'Scan is taking too long',
+          text2: 'Add the items by hand, or tap Scan again.',
+        });
+      }
     } catch (e) {
       toastError(e, 'Could not upload the receipt.');
       navigation.goBack();
@@ -182,6 +208,33 @@ const AddReceiptScreen = () => {
   const startManual = () => {
     setManual(true);
     setPhase('review');
+  };
+
+  const rescan = async () => {
+    if (!receiptId || rescanning) return;
+    setRescanning(true);
+    try {
+      const res = await retryReceiptExtraction(receiptId);
+      setExtractStatus(res.status);
+      setExtracted(res.extracted);
+      if (res.status === 'extracted') {
+        setManual(false);
+        if (res.extracted) {
+          setVendor(prev => res.extracted?.vendor ?? prev);
+          setLocation(prev => res.extracted?.location ?? prev);
+          setReceiptDate(prev => res.extracted?.receipt_date ?? prev);
+        }
+        await loadLines(receiptId, res.extracted);
+        toastSuccess('Receipt read — check the items below.');
+      } else {
+        toastError(
+          new Error('Still couldn’t read it — add the items by hand.'),
+          'Still couldn’t read it.',
+        );
+      }
+    } finally {
+      setRescanning(false);
+    }
   };
 
   // ----- totals (recomputed from the editable lines) -----
@@ -509,7 +562,18 @@ const AddReceiptScreen = () => {
         {/* Auto-extracted header card */}
         <View style={styles.autoCard}>
           {photoUri ? (
-            <Image source={{ uri: photoUri }} style={styles.thumb} />
+            <Pressable
+              onPress={() =>
+                preview.open([
+                  { uri: photoUri, label: vendor || 'Receipt photo' },
+                ])
+              }
+            >
+              <Image source={{ uri: photoUri }} style={styles.thumb} />
+              <View style={styles.thumbBadge}>
+                <Ionicons name="expand" size={12} color={colors.white} />
+              </View>
+            </Pressable>
           ) : (
             <View style={styles.thumb} />
           )}
@@ -544,6 +608,27 @@ const AddReceiptScreen = () => {
                   {CONFIDENCE_LABEL[extracted.overall_confidence]}
                 </Text>
               </View>
+            ) : null}
+            {receiptId && extractStatus && extractStatus !== 'extracted' ? (
+              <Pressable
+                style={styles.rescanBtn}
+                onPress={rescan}
+                disabled={rescanning}
+                hitSlop={6}
+              >
+                {rescanning ? (
+                  <ActivityIndicator size="small" color={colors.secondary} />
+                ) : (
+                  <Ionicons
+                    name="refresh"
+                    size={14}
+                    color={colors.secondary}
+                  />
+                )}
+                <Text style={styles.rescanText}>
+                  {rescanning ? 'Reading…' : 'Scan again'}
+                </Text>
+              </Pressable>
             ) : null}
           </View>
         </View>
@@ -910,6 +995,7 @@ const AddReceiptScreen = () => {
         onSelect={setReceiptDate}
         onClose={() => setDatePicker(false)}
       />
+      <FilePreview {...preview.props} />
       <AppToast />
     </View>
   );

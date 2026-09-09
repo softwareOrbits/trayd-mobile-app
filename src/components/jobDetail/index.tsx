@@ -3,6 +3,7 @@ import { Image, Linking, Pressable, Text, View } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Toast from 'react-native-toast-message';
 
+import { FilePreview, useFilePreview } from '@/components/ui';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import type { IconName } from '@/types';
@@ -343,16 +344,20 @@ const PHOTO_PHASES = [
 const Thumb = ({
   photo,
   onDelete,
+  onPress,
 }: {
   photo: PhotoTag;
   onDelete?: () => void;
+  onPress?: () => void;
 }) => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.photo}>
       {photo.uri ? (
-        <Image source={{ uri: photo.uri }} style={styles.photoImg} />
+        <Pressable onPress={onPress} disabled={!onPress}>
+          <Image source={{ uri: photo.uri }} style={styles.photoImg} />
+        </Pressable>
       ) : (
         <Text style={styles.photoText}>{photo.label}</Text>
       )}
@@ -375,15 +380,32 @@ export const PhotoStrip = ({
   onDelete?: (id: string) => void;
 }) => {
   const styles = useThemedStyles(makeStyles);
+  const preview = useFilePreview();
   const deleteFor = (p: PhotoTag) =>
     onDelete && p.id ? () => onDelete(p.id as string) : undefined;
+
+  const previewable = photos.filter(p => !!p.uri);
+  const openFor = (p: PhotoTag) => {
+    if (!p.uri) return undefined;
+    return () =>
+      preview.open(
+        previewable.map(item => ({ uri: item.uri as string, label: item.label })),
+        previewable.indexOf(p),
+      );
+  };
 
   if (!grouped) {
     return (
       <View style={styles.photoRow}>
         {photos.map((p, i) => (
-          <Thumb key={p.id ?? `${p.label}-${i}`} photo={p} onDelete={deleteFor(p)} />
+          <Thumb
+            key={p.id ?? `${p.label}-${i}`}
+            photo={p}
+            onDelete={deleteFor(p)}
+            onPress={openFor(p)}
+          />
         ))}
+        <FilePreview {...preview.props} />
       </View>
     );
   }
@@ -413,11 +435,13 @@ export const PhotoStrip = ({
                   key={p.id ?? `${group.label}-${i}`}
                   photo={p}
                   onDelete={deleteFor(p)}
+                  onPress={openFor(p)}
                 />
               ))}
             </View>
           </View>
         ))}
+      <FilePreview {...preview.props} />
     </View>
   );
 };

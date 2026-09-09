@@ -16,7 +16,12 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Toast from 'react-native-toast-message';
 
-import { Button, InfoCard } from '@/components/ui';
+import {
+  Button,
+  FilePreview,
+  InfoCard,
+  useFilePreview,
+} from '@/components/ui';
 import {
   fetchMyVan,
   fetchOwnerFirstName,
@@ -57,6 +62,7 @@ const ReportVanIssueScreen = () => {
   const [description, setDescription] = useState('');
   const [drivable, setDrivable] = useState<boolean | null>(null);
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
+  const preview = useFilePreview();
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
@@ -225,7 +231,16 @@ const ReportVanIssueScreen = () => {
         <View style={styles.photoRow}>
           {photos.map((photo, idx) => (
             <View key={photo.uri} style={styles.photoThumb}>
-              <Image source={{ uri: photo.uri }} style={styles.photoImg} />
+              <Pressable
+                onPress={() =>
+                  preview.open(
+                    photos.map(x => ({ uri: x.uri, label: 'Issue photo' })),
+                    idx,
+                  )
+                }
+              >
+                <Image source={{ uri: photo.uri }} style={styles.photoImg} />
+              </Pressable>
               <Pressable
                 style={styles.photoRemove}
                 onPress={() => removePhoto(idx)}
@@ -307,6 +322,8 @@ const ReportVanIssueScreen = () => {
           </View>
         </View>
       </Modal>
+
+      <FilePreview {...preview.props} />
     </View>
   );
 };

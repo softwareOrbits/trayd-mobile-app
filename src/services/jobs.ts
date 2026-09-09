@@ -687,8 +687,15 @@ export async function addJobNote(
 }
 
 const RECEIPT_BUCKET = 'receipts';
-/** Max wait for the extract-receipt Edge Function before manual-entry fallback. */
-const EXTRACT_TIMEOUT_MS = 15000;
+/**
+ * How long to wait for OCR before offering manual entry. The Edge Function
+ * downloads the file and runs a Claude vision call, so a cold start can take
+ * well over the 15s we used to allow — and the old code gave up on the HTTP
+ * call while the function carried on and wrote the line items seconds later,
+ * which is why scans looked like "it only took a photo".
+ */
+const EXTRACT_DEADLINE_MS = 60000;
+const EXTRACT_POLL_MS = 1500;
 
 export type ReceiptConfidence = 'high' | 'medium' | 'low';
 
@@ -714,12 +721,65 @@ export type ExtractedReceipt = {
   issues?: string;
 };
 
+export type ExtractStatus = 'extracted' | 'failed' | 'timeout';
+
 export type ReceiptExtraction = {
   receiptId: string;
   storagePath: string;
-  ok: boolean;
+  status: ExtractStatus;
   extracted: ExtractedReceipt | null;
 };
+
+const sleep = (ms: number) =>
+  new Promise<void>(resolve => setTimeout(resolve, ms));
+
+type ReceiptStatusRow = {
+  ocr_status: string | null;
+  ocr_raw: { extracted?: ExtractedReceipt } | null;
+};
+
+/**
+ * The Edge Function writes `receipts.ocr_status` and the line items itself, so
+ * the row — not the HTTP response — is the source of truth. Polling it means a
+ * slow or dropped invoke still ends up showing the extracted items.
+ */
+async function waitForExtraction(
+  receiptId: string,
+  deadlineMs: number,
+): Promise<{ status: ExtractStatus; extracted: ExtractedReceipt | null }> {
+  const until = Date.now() + deadlineMs;
+  while (Date.now() < until) {
+    await sleep(EXTRACT_POLL_MS);
+    // Nothing will land while the phone is off the network — don't sit on a
+    // spinner for a minute.
+    if (!isOnline()) return { status: 'timeout', extracted: null };
+    const { data } = await supabase
+      .from('receipts')
+      .select('ocr_status, ocr_raw')
+      .eq('id', receiptId)
+      .maybeSingle();
+    const row = data as ReceiptStatusRow | null;
+    if (row?.ocr_status === 'extracted') {
+      return { status: 'extracted', extracted: row.ocr_raw?.extracted ?? null };
+    }
+    if (row?.ocr_status === 'failed') return { status: 'failed', extracted: null };
+  }
+  return { status: 'timeout', extracted: null };
+}
+
+/** Re-runs OCR on a receipt whose first attempt failed or timed out. */
+export async function retryReceiptExtraction(
+  receiptId: string,
+): Promise<{ status: ExtractStatus; extracted: ExtractedReceipt | null }> {
+  await supabase
+    .from('receipts')
+    .update({ ocr_status: 'pending' })
+    .eq('id', receiptId);
+  supabase.functions
+    .invoke('extract-receipt', { body: { receipt_id: receiptId } })
+    .catch(() => undefined);
+  return waitForExtraction(receiptId, EXTRACT_DEADLINE_MS);
+}
 
 export async function uploadAndExtractReceipt(input: {
   jobId: string;
@@ -750,34 +810,42 @@ export async function uploadAndExtractReceipt(input: {
     .single();
   if (insErr) throw new Error(insErr.message);
 
-  try {
-    // The Edge Function can cold-start or stall on Claude; cap the wait so the
-    // spinner can never hang. On timeout we fall back to manual entry â€” the row
-    // and image are already saved (mds job-logging Â§6).
-    const call = supabase.functions.invoke('extract-receipt', {
-      body: { receipt_id: receipt.id },
-    });
-    call.catch(() => undefined); // swallow a late rejection if the timeout wins
-    const { data, error } = await Promise.race([
-      call,
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('extract_timeout')), EXTRACT_TIMEOUT_MS),
-      ),
-    ]);
-    if (error) throw error;
-    if (!data || data.ok === false) {
-      return { receiptId: receipt.id, storagePath: path, ok: false, extracted: null };
-    }
-    return {
-      receiptId: receipt.id,
-      storagePath: path,
-      ok: true,
-      extracted: (data.extracted ?? null) as ExtractedReceipt | null,
-    };
-  } catch (e) {
-    console.warn('extract-receipt:', e instanceof Error ? e.message : e);
-    return { receiptId: receipt.id, storagePath: path, ok: false, extracted: null };
-  }
+  // Fire the function, then watch the row. A slow or lost HTTP response no
+  // longer costs us the extraction: the function keeps running and writes the
+  // line items, and the poll below picks them up.
+  const call = supabase.functions.invoke('extract-receipt', {
+    body: { receipt_id: receipt.id },
+  });
+  // Whichever answers first wins: the HTTP response (fast path) or the row.
+  const fromCall = call.then(
+    ({ data, error }): Promise<{
+      status: ExtractStatus;
+      extracted: ExtractedReceipt | null;
+    }> => {
+      if (!error && data && data.ok !== false) {
+        return Promise.resolve({
+          status: 'extracted' as const,
+          extracted: (data.extracted ?? null) as ExtractedReceipt | null,
+        });
+      }
+      // A transport error may just mean the response was lost in transit while
+      // the function ran on — keep watching the row instead of giving up.
+      return waitForExtraction(receipt.id, EXTRACT_DEADLINE_MS);
+    },
+    () => waitForExtraction(receipt.id, EXTRACT_DEADLINE_MS),
+  );
+
+  const settled = await Promise.race([
+    fromCall,
+    waitForExtraction(receipt.id, EXTRACT_DEADLINE_MS),
+  ]);
+
+  return {
+    receiptId: receipt.id,
+    storagePath: path,
+    status: settled.status,
+    extracted: settled.extracted,
+  };
 }
 
 export type ReceiptLine = {

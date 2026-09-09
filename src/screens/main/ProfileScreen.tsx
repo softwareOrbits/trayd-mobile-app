@@ -21,7 +21,15 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Toast from 'react-native-toast-message';
 
-import { AppToast, Avatar, Button, Input, useBottomNavHeight } from '@/components/ui';
+import {
+  AppToast,
+  Avatar,
+  Button,
+  FilePreview,
+  Input,
+  useBottomNavHeight,
+  useFilePreview,
+} from '@/components/ui';
 import {
   WEEK_DAYS,
   fetchMemberStats,
@@ -121,6 +129,7 @@ const ProfileScreen = () => {
   const [member, setMember] = useState<MemberProfile | null>(null);
   const [stats, setStats] = useState<MemberStats | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const preview = useFilePreview();
   const [queued, setQueued] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notify, setNotify] = useState(true);
@@ -982,6 +991,21 @@ const ProfileScreen = () => {
             <Text style={styles.modalText}>
               Helps your crew recognise you on chat and on the site.
             </Text>
+            {photoUrl ? (
+              <Button
+                label="View photo"
+                variant="outlined"
+                color="secondary"
+                leftIcon="expand"
+                fullWidth
+                onPress={() => {
+                  setPhotoSheet(false);
+                  preview.open([
+                    { uri: photoUrl, label: member?.fullName ?? 'Profile photo' },
+                  ]);
+                }}
+              />
+            ) : null}
             <Button label="Take a photo" fullWidth onPress={takePhoto} />
             <Button
               label="Choose from library"
@@ -1000,6 +1024,7 @@ const ProfileScreen = () => {
         </View>
       </Modal>
 
+      <FilePreview {...preview.props} />
       <AppToast />
     </View>
   );

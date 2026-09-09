@@ -8,7 +8,14 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Toast from 'react-native-toast-message';
 
-import { Button, CalendarModal, Input, ImageThumb } from '@/components/ui';
+import {
+  Button,
+  CalendarModal,
+  FilePreview,
+  Input,
+  ImageThumb,
+  useFilePreview,
+} from '@/components/ui';
 import {
   CheckboxRow,
   CustomerCard,
@@ -86,6 +93,7 @@ const StartJobScreen = () => {
   const [jobType, setJobType] = useState<string | null>(null);
   const [crew, setCrew] = useState<string[]>([]);
   const [photos, setPhotos] = useState<PhotoAsset[]>([]);
+  const preview = useFilePreview();
   const [busy, setBusy] = useState<'start' | 'schedule' | 'save' | null>(null);
   const [datePicker, setDatePicker] = useState(false);
 
@@ -820,7 +828,17 @@ const StartJobScreen = () => {
     bodyContent = (
       <View style={styles.photoGrid}>
         {photos.map((p, i) => (
-          <ImageThumb key={p.uri} uri={p.uri} onRemove={() => removePhoto(i)} />
+          <ImageThumb
+            key={p.uri}
+            uri={p.uri}
+            onPress={() =>
+              preview.open(
+                photos.map(x => ({ uri: x.uri, label: 'Job photo' })),
+                i,
+              )
+            }
+            onRemove={() => removePhoto(i)}
+          />
         ))}
         <Pressable style={styles.photoAddTile} onPress={addPhotos}>
           <Ionicons name="camera-outline" size={26} color={colors.textMuted} />
@@ -894,6 +912,8 @@ const StartJobScreen = () => {
         }}
         onClose={() => setDatePicker(false)}
       />
+
+      <FilePreview {...preview.props} />
     </>
   );
 };

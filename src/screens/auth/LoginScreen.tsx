@@ -59,7 +59,7 @@ const LoginScreen = () => {
           variant: 'warning',
           title: 'Account Suspended',
           message:
-            'Your employee account has been suspended. Please contact your organization administrator for assistance.',
+            'Your account has been suspended. Get in touch with your company’s admin to sort it out.',
         });
       } else {
         setBanner({
@@ -174,7 +174,7 @@ const LoginScreen = () => {
             style={styles.joinButton}
             hitSlop={8}
           >
-            <Text style={styles.joinText}>Join Organization</Text>
+            <Text style={styles.joinText}>Join your company</Text>
           </Pressable>
         </View>
       </ScrollView>
