@@ -1,4 +1,5 @@
-import { ScrollView, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Image, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   useNavigation,
@@ -9,8 +10,14 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Pressable } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { Button } from '@/components/ui';
-import { daysToExpiry } from '@/services/certifications';
+import {
+  Button,
+  FilePreview,
+  previewKindOf,
+  useFilePreview,
+} from '@/components/ui';
+import { certDocumentUrl, daysToExpiry } from '@/services/certifications';
+import { toastError } from '@/utils/toast';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { fmtDateFull } from '@/utils/datetime';
@@ -28,6 +35,42 @@ const CertificationDetailScreen = () => {
   const { params } =
     useRoute<RouteProp<MainStackParamList, 'CertificationDetail'>>();
   const { cert, holder } = params;
+  const preview = useFilePreview();
+  const [docUrl, setDocUrl] = useState<string | null>(null);
+  const [loadingDoc, setLoadingDoc] = useState(false);
+
+  useEffect(() => {
+    if (!cert.documentPath) return undefined;
+    let active = true;
+    certDocumentUrl(cert.documentPath)
+      .then(url => active && setDocUrl(url))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [cert.documentPath]);
+
+  const openDocument = async () => {
+    if (!cert.documentPath || loadingDoc) return;
+    const url = docUrl ?? (await resolveDoc());
+    if (!url) return;
+    preview.open([{ uri: url, label: cert.typeName }]);
+  };
+
+  const resolveDoc = async () => {
+    setLoadingDoc(true);
+    try {
+      const url = await certDocumentUrl(cert.documentPath as string);
+      setDocUrl(url);
+      if (!url) toastError(new Error('That file could not be opened.'), '');
+      return url;
+    } catch (e) {
+      toastError(e, 'Could not open that file.');
+      return null;
+    } finally {
+      setLoadingDoc(false);
+    }
+  };
 
   const banner = () => {
     const d = daysToExpiry(cert.expiresOn);
@@ -119,6 +162,37 @@ const CertificationDetailScreen = () => {
           ))}
         </View>
 
+        {cert.documentPath ? (
+          <Pressable
+            style={styles.docRow}
+            onPress={openDocument}
+            disabled={loadingDoc}
+          >
+            {docUrl && previewKindOf({ uri: docUrl }) === 'image' ? (
+              <Image source={{ uri: docUrl }} style={styles.docThumb} />
+            ) : (
+              <View style={styles.docIcon}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={20}
+                  color={colors.secondary}
+                />
+              </View>
+            )}
+            <View style={styles.docBody}>
+              <Text style={styles.docTitle}>Certificate file</Text>
+              <Text style={styles.docHint}>
+                {loadingDoc ? 'Opening…' : 'Tap to view'}
+              </Text>
+            </View>
+            {loadingDoc ? (
+              <ActivityIndicator size="small" color={colors.secondary} />
+            ) : (
+              <Ionicons name="expand" size={17} color={colors.textMuted} />
+            )}
+          </Pressable>
+        ) : null}
+
         <View style={{ height: 20 }} />
         <Button
           label="Edit certificate"
@@ -127,6 +201,8 @@ const CertificationDetailScreen = () => {
             navigation.navigate('EditCertification', { cert, holder })
           }
         />
+
+        <FilePreview {...preview.props} />
       </ScrollView>
     </View>
   );

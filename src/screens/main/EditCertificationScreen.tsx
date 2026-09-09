@@ -17,10 +17,17 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { Button, CalendarModal, Input } from '@/components/ui';
+import {
+  Button,
+  CalendarModal,
+  FilePreview,
+  Input,
+  useFilePreview,
+} from '@/components/ui';
 import {
   fetchCertificationTypes,
   updateCertification,
+  certDocumentUrl,
   uploadCertDocument,
   statusOf,
   type CertificationType,
@@ -68,6 +75,23 @@ const EditCertificationScreen = () => {
   const [datePicker, setDatePicker] = useState<'issue' | 'expiry' | null>(null);
   const [saving, setSaving] = useState(false);
   const { refresh: refreshCompliance } = useCertCompliance();
+
+  const preview = useFilePreview();
+  const [viewingDoc, setViewingDoc] = useState(false);
+
+  const viewDocument = async () => {
+    if (!photoPath || viewingDoc) return;
+    setViewingDoc(true);
+    try {
+      const url = await certDocumentUrl(photoPath);
+      if (!url) throw new Error('That file could not be opened.');
+      preview.open([{ uri: url, label: 'Certificate file' }]);
+    } catch (e) {
+      toastError(e, 'Could not open that file.');
+    } finally {
+      setViewingDoc(false);
+    }
+  };
 
   const addPhoto = async () => {
     const [photo] = await acquirePhotos({ selectionLimit: 1 });
@@ -262,6 +286,23 @@ const EditCertificationScreen = () => {
           </Text>
         </Pressable>
 
+        {photoPath ? (
+          <Pressable
+            style={styles.viewDocBtn}
+            onPress={viewDocument}
+            disabled={viewingDoc}
+          >
+            {viewingDoc ? (
+              <ActivityIndicator size="small" color={colors.secondary} />
+            ) : (
+              <Ionicons name="expand" size={15} color={colors.secondary} />
+            )}
+            <Text style={styles.viewDocText}>
+              {viewingDoc ? 'Opening…' : 'View attached file'}
+            </Text>
+          </Pressable>
+        ) : null}
+
         <View style={{ height: 24 }} />
         <Button
           label="Save changes"
@@ -320,6 +361,8 @@ const EditCertificationScreen = () => {
         onSelect={setExpires}
         onClose={() => setDatePicker(null)}
       />
+
+      <FilePreview {...preview.props} />
     </View>
   );
 };

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
+import { FilePreview, useFilePreview } from '@/components/ui';
 import { ServiceScheduleSection } from '@/components/fleet/ServiceScheduleSection';
 import { vanPhotoUrl } from '@/services/fleet';
 import { useTheme } from '@/theme';
@@ -54,14 +55,16 @@ const IssueCard = ({
   mine: boolean;
 }) => {
   const styles = useThemedStyles(makeFleetStyles);
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const preview = useFilePreview();
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
 
   useEffect(() => {
     let active = true;
-    const first = issue.photoPaths[0];
-    if (!first) return undefined;
-    vanPhotoUrl(first)
-      .then(url => active && setPhotoUrl(url))
+    if (!issue.photoPaths.length) return undefined;
+    Promise.all(issue.photoPaths.map(path => vanPhotoUrl(path)))
+      .then(urls => {
+        if (active) setPhotoUrls(urls.filter((u): u is string => !!u));
+      })
       .catch(() => {});
     return () => {
       active = false;
@@ -94,9 +97,22 @@ const IssueCard = ({
         </Text>
       </View>
       <Text style={styles.cardBody}>{issue.description}</Text>
-      {photoUrl ? (
+      {photoUrls.length ? (
         <View style={styles.cardPhotoRow}>
-          <Image source={{ uri: photoUrl }} style={styles.cardPhoto} />
+          {photoUrls.map((url, i) => (
+            <Pressable
+              key={url}
+              onPress={() =>
+                preview.open(
+                  photoUrls.map(u => ({ uri: u, label: issue.issueNumber })),
+                  i,
+                )
+              }
+            >
+              <Image source={{ uri: url }} style={styles.cardPhoto} />
+            </Pressable>
+          ))}
+          <FilePreview {...preview.props} />
         </View>
       ) : null}
       <Text style={styles.cardFooter}>

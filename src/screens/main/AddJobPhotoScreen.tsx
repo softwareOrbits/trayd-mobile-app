@@ -9,7 +9,12 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { AppToast, Button } from '@/components/ui';
+import {
+  AppToast,
+  Button,
+  FilePreview,
+  useFilePreview,
+} from '@/components/ui';
 import { addJobPhotos, type JobPhoto, type JobPhotoPhase } from '@/services/jobs';
 import { loadJobCache, saveJobCache } from '@/services/jobCache';
 import { enqueue, offlineActionBlocked } from '@/offline';
@@ -50,6 +55,7 @@ const AddJobPhotoScreen = () => {
     params.photoCount === 0 ? 'before' : 'during',
   );
   const [photos, setPhotos] = useState<PhotoAsset[]>([]);
+  const preview = useFilePreview();
   const [saving, setSaving] = useState(false);
 
   const addPhotos = async () => {
@@ -180,7 +186,16 @@ const AddJobPhotoScreen = () => {
               <View style={styles.photoGrid}>
                 {inPhase.map(({ photo, idx }) => (
                   <View key={photo.uri} style={styles.photoThumb}>
-                    <Image source={{ uri: photo.uri }} style={styles.photoImg} />
+                    <Pressable
+                      onPress={() =>
+                        preview.open(
+                          photos.map(x => ({ uri: x.uri, label: x.phase.toUpperCase() })),
+                          idx,
+                        )
+                      }
+                    >
+                      <Image source={{ uri: photo.uri }} style={styles.photoImg} />
+                    </Pressable>
                     <Pressable
                       style={styles.photoRemove}
                       onPress={() => removePhoto(idx)}
@@ -224,6 +239,7 @@ const AddJobPhotoScreen = () => {
           onPress={save}
         />
       </View>
+      <FilePreview {...preview.props} />
       <AppToast />
     </View>
   );

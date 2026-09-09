@@ -28,6 +28,12 @@ export { default as LoadingScreen } from '@/components/LoadingScreen';
 export { default as CountTabs, type CountTab } from './CountTabs';
 export { default as StatusPill, type StatusTone } from './StatusPill';
 export { default as ImageThumb } from './ImageThumb';
+export {
+  default as FilePreview,
+  useFilePreview,
+  previewKindOf,
+  type PreviewFile,
+} from './FilePreview';
 export { default as IconPill } from './IconPill';
 export { default as MediaListItem } from './MediaListItem';
 export { default as InfoCard, type InfoCardTone } from './InfoCard';
