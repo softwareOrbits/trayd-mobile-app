@@ -1,25 +1,27 @@
 import { useState } from 'react';
 import { Image, View } from 'react-native';
-import Ionicons from '@react-native-vector-icons/ionicons';
 import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { Button, TextLink } from '@/components/ui';
+import {
+  AmberButton,
+  HeroAvatar,
+  OnbLink,
+  OutlineButton,
+} from '@/components/onboarding';
 import {
   capturePhoto,
   pickPhotos,
   type CapturedPhoto,
 } from '@/utils/capturePhoto';
 import { uploadProfilePhoto } from '@/services/member';
-import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeProfilePhotoStyles } from '@/styles/profilePhoto.styles';
 import type { AuthStackParamList } from '@/types';
 import OnboardingScaffold from './OnboardingScaffold';
 
 const ProfilePhotoScreen = () => {
-  const { colors } = useTheme();
   const styles = useThemedStyles(makeProfilePhotoStyles);
   const navigation =
     useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
@@ -64,36 +66,29 @@ const ProfilePhotoScreen = () => {
     <OnboardingScaffold
       step={3}
       icon={
-        <View style={styles.avatar}>
-          {preview ? (
+        preview ? (
+          <View style={styles.avatar}>
             <Image source={{ uri: preview }} style={styles.avatarImage} />
-          ) : (
-            <Ionicons name="person" size={56} color={colors.textMuted} />
-          )}
-          <View style={styles.cameraBadge}>
-            <Ionicons name="camera" size={16} color={colors.secondary} />
           </View>
-        </View>
+        ) : (
+          <HeroAvatar />
+        )
       }
       title="Add a profile photo"
       subtitle="Helps your crew recognise you on chat and on the site."
       footer={
         <>
-          <Button
+          <AmberButton
             label="Take a photo"
-            fullWidth
             loading={uploading}
             onPress={takePhoto}
           />
-          <Button
+          <OutlineButton
             label="Upload from library"
-            variant="outlined"
-            color="secondary"
-            fullWidth
             disabled={uploading}
             onPress={pickFromLibrary}
           />
-          <TextLink label="Skip for now" onPress={next} />
+          <OnbLink label="Skip for now" onPress={next} />
         </>
       }
     />

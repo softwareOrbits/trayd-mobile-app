@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
-import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { Button } from '@/components/ui';
+import {
+  AmberButton,
+  HeroSuccess,
+  useOnbStyles,
+} from '@/components/onboarding';
 import { usePrimingComplete } from '@/navigation/OnboardingStack';
 import {
   fetchMyMember,
@@ -10,7 +13,6 @@ import {
   type MemberProfile,
   type NextJob,
 } from '@/services/member';
-import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeWelcomeDoneStyles } from '@/styles/welcomeDone.styles';
 import OnboardingScaffold from './OnboardingScaffold';
@@ -19,8 +21,8 @@ const firstName = (fullName: string | null | undefined) =>
   fullName?.trim().split(/\s+/)[0] ?? 'there';
 
 const WelcomeDoneScreen = () => {
-  const { colors } = useTheme();
   const styles = useThemedStyles(makeWelcomeDoneStyles);
+  const onb = useOnbStyles();
   const complete = usePrimingComplete();
 
   const [member, setMember] = useState<MemberProfile | null>(null);
@@ -42,16 +44,12 @@ const WelcomeDoneScreen = () => {
 
   return (
     <OnboardingScaffold
-      icon={
-        <View style={styles.check}>
-          <Ionicons name="checkmark" size={48} color={colors.white} />
-        </View>
-      }
+      icon={<HeroSuccess />}
       title={`You're in, ${firstName(member?.fullName)}`}
       subtitle={
         member?.companyName ? (
           <>
-            <Text style={styles.bold}>{member.companyName}</Text>
+            <Text style={onb.subStrong}>{member.companyName}</Text>
             {' will send jobs to you here.'}
             {nextJob ? ' Your first one is waiting in the queue.' : ''}
           </>
@@ -59,7 +57,7 @@ const WelcomeDoneScreen = () => {
           "You're all set. Jobs will show up here."
         )
       }
-      footer={<Button label="Enter Trayd" fullWidth onPress={complete} />}
+      footer={<AmberButton label="Enter Trayd" onPress={complete} />}
     >
       {nextJob ? (
         <View style={styles.jobCard}>

@@ -48,9 +48,12 @@ export type TabsProps = {
 export type InputProps = TextInputProps & {
   label?: string;
   error?: string;
+  leftIcon?: IconName;
   rightIcon?: IconName;
   onRightIconPress?: () => void;
+  focusHighlight?: boolean;
   containerStyle?: StyleProp<ViewStyle>;
+  labelStyle?: StyleProp<TextStyle>;
 };
 
 export type AvatarProps = {

@@ -1,30 +1,20 @@
 import { StyleSheet } from 'react-native';
 
 import type { Theme } from '@/theme';
+import { ONB } from './onboarding.styles';
 
-export const makeProfilePhotoStyles = (theme: Theme) =>
+export const makeProfilePhotoStyles = (_theme: Theme) =>
   StyleSheet.create({
     avatar: {
-      width: 104,
-      height: 104,
-      borderRadius: 52,
-      backgroundColor: theme.colors.borderMuted,
+      width: 140,
+      height: 140,
+      borderRadius: 70,
+      backgroundColor: ONB.paper,
+      borderWidth: 1.5,
+      borderColor: ONB.navy,
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
     },
     avatarImage: { width: '100%', height: '100%' },
-    cameraBadge: {
-      position: 'absolute',
-      bottom: 2,
-      right: 2,
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      backgroundColor: theme.colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 3,
-      borderColor: theme.colors.background,
-    },
   });

@@ -7,10 +7,8 @@ import {
   type Ref,
 } from 'react';
 import {
-  ActivityIndicator,
   AppState,
   BackHandler,
-  Image,
   Linking,
   Platform,
   Pressable,
@@ -31,6 +29,7 @@ import { BASE_URL } from '@env';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
+import { LoadingScreen } from '@/components/ui';
 import { useAppDispatch } from '@/store/hooks';
 import { setSelectedView, signOut } from '@/store/authSlice';
 import type { MainStackParamList } from '@/types';
@@ -260,17 +259,14 @@ const EmployerWebViewScreen = () => {
               </Pressable>
             ) : null}
           </View>
-        ) : !ready ? (
-          <View style={[styles.veil, { backgroundColor: colors.background }]}>
-            <Image
-              source={require('@assets/images/small_logo.png')}
-              style={styles.veilLogo}
-              resizeMode="contain"
-            />
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
         ) : null}
       </View>
+
+      {configured && !loadError && !ready ? (
+        <View style={styles.veil}>
+          <LoadingScreen />
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -288,7 +284,6 @@ const makeStyles = (theme: Theme) =>
       justifyContent: 'center',
       gap: 20,
     },
-    veilLogo: { width: 96, height: 70 },
     errorText: {
       paddingHorizontal: 40,
       textAlign: 'center',

@@ -29,8 +29,6 @@ export { makeConfirmInviteStyles } from './confirmInvite.styles';
 export { makeResetPasswordStyles } from './resetPassword.styles';
 export { makeVerifyIdentityStyles } from './verifyIdentity.styles';
 
-export { makeOnboardingLocationStyles } from './onboardingLocation.styles';
-export { makeOnboardingNotificationsStyles } from './onboardingNotifications.styles';
 export { makeProfilePhotoStyles } from './profilePhoto.styles';
 export { makeWelcomeDoneStyles } from './welcomeDone.styles';
 export { makeOnboardingScaffoldStyles } from './onboardingScaffold.styles';

@@ -73,7 +73,7 @@ function Bootstrap() {
   if (!ready) {
     return (
       <>
-        <StatusBar barStyle="light-content" />
+        <StatusBar barStyle="dark-content" />
         <LoadingScreen />
       </>
     );
@@ -123,7 +123,7 @@ function App() {
         <PersistGate
           loading={
             <ThemeProvider>
-              <StatusBar barStyle="light-content" />
+              <StatusBar barStyle="dark-content" />
               <LoadingScreen />
             </ThemeProvider>
           }

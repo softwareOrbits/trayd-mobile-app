@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   Text,
@@ -12,7 +11,16 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { BackButton, Banner, Button } from '@/components/ui';
+import { BackButton, Banner } from '@/components/ui';
+import {
+  IdentRow,
+  OnbCTAs,
+  OnbDivider,
+  OnbHeading,
+  OnbTopMark,
+  useOnbStyles,
+  ONB,
+} from '@/components/onboarding';
 import { supabase } from '@/services/supabase';
 import { fetchMyMember, type MemberProfile } from '@/services/member';
 import { useTheme } from '@/theme';
@@ -26,6 +34,7 @@ const firstName = (fullName: string | null) =>
 const ConfirmInviteScreen = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeConfirmInviteStyles);
+  const onb = useOnbStyles();
   const insets = useSafeAreaInsets();
   const navigation =
     useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
@@ -39,11 +48,9 @@ const ConfirmInviteScreen = () => {
     let active = true;
     fetchMyMember()
       .then(m => {
-        console.log('[invite] fetched member info:', m);
         if (active) setMember(m);
       })
       .catch(e => {
-        console.log('[invite] fetchMyMember error:', e?.message ?? e);
         if (active) setError(e?.message ?? 'Something went wrong.');
       })
       .finally(() => active && setLoading(false));
@@ -59,7 +66,7 @@ const ConfirmInviteScreen = () => {
 
   if (loading) {
     return (
-      <View style={[styles.flex, styles.centered]}>
+      <View style={[onb.shell, styles.centered]}>
         <ActivityIndicator color={colors.secondary} />
       </View>
     );
@@ -67,62 +74,58 @@ const ConfirmInviteScreen = () => {
 
   const rows = member
     ? [
-        { label: 'Name', value: member.fullName ?? '—' },
-        { label: 'Role', value: member.roleName ?? '—' },
-        { label: 'Company', value: member.companyName ?? '—' },
-        { label: 'Email', value: member.email ?? '—' },
+        { label: 'Name', value: member.fullName ?? '—', mono: false },
+        { label: 'Role', value: member.roleName ?? '—', mono: false },
+        { label: 'Company', value: member.companyName ?? '—', mono: true },
+        { label: 'Email', value: member.email ?? '—', mono: true },
       ]
     : [];
 
   return (
-    <View style={styles.flex}>
+    <View style={onb.shell}>
       <BackButton absolute />
       <ScrollView
-        style={styles.flex}
+        style={onb.shell}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 },
+          { paddingTop: insets.top + 2, paddingBottom: insets.bottom },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Image
-            source={require('@assets/images/small_logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <Text style={styles.title}>
-            Welcome to Trayd, {firstName(member?.fullName ?? null)}
-          </Text>
-          {member?.companyName ? (
-            <Text style={styles.subtitle}>
-              <Text style={styles.subtitleStrong}>{member.companyName}</Text>
-              {' has invited you to join their crew.'}
-            </Text>
-          ) : null}
-        </View>
+        <OnbTopMark />
+        <OnbHeading
+          title={`Welcome to Trayd, ${firstName(member?.fullName ?? null)}`}
+          sub={
+            member?.companyName ? (
+              <>
+                <Text style={onb.subStrong}>{member.companyName}</Text>
+                {' has invited you to join their crew.'}
+              </>
+            ) : undefined
+          }
+        />
 
         {error ? (
           <Banner
             variant="error"
             title="We couldn't load your invite"
             message={error}
-            style={styles.banner}
+            style={onb.banner}
           />
         ) : (
-          <View style={styles.card}>
-            {rows.map((row, index) => (
-              <View
-                key={row.label}
-                style={[
-                  styles.row,
-                  index < rows.length - 1 ? styles.rowDivider : null,
-                ]}
-              >
-                <Text style={styles.rowLabel}>{row.label.toUpperCase()}</Text>
-                <Text style={styles.rowValue}>{row.value}</Text>
-              </View>
-            ))}
+          <View style={styles.cardWrap}>
+            <View style={onb.card}>
+              {rows.map((row, index) => (
+                <Fragment key={row.label}>
+                  {index > 0 ? <OnbDivider /> : null}
+                  <IdentRow
+                    label={row.label}
+                    value={row.value}
+                    mono={row.mono}
+                  />
+                </Fragment>
+              ))}
+            </View>
           </View>
         )}
 
@@ -141,11 +144,7 @@ const ConfirmInviteScreen = () => {
               ]}
             >
               {isAdult ? (
-                <Ionicons
-                  name="checkmark"
-                  size={15}
-                  color={colors.onPrimary}
-                />
+                <Ionicons name="checkmark" size={14} color={ONB.navy} />
               ) : null}
             </View>
             <Text style={styles.consentText}>
@@ -154,30 +153,22 @@ const ConfirmInviteScreen = () => {
           </Pressable>
         ) : null}
 
-        <View style={styles.footer}>
-          {member && !error ? (
-            <Button
-              label="That's me"
-              fullWidth
-              disabled={!isAdult}
-              onPress={() =>
-                navigation.navigate('CreatePassword', {
-                  email: member.email ?? '',
-                  mode: 'onboard',
-                })
-              }
-            />
-          ) : null}
-          <Pressable
-            onPress={signOutToLogin}
-            style={styles.signoutLink}
-            hitSlop={8}
-          >
-            <Text style={styles.signoutText}>
-              {error ? 'Back to sign in' : 'Not me — sign out'}
-            </Text>
-          </Pressable>
-        </View>
+        {member && !error ? (
+          <OnbCTAs
+            primary="That's me"
+            disabled={!isAdult}
+            onPrimary={() =>
+              navigation.navigate('CreatePassword', {
+                email: member.email ?? '',
+                mode: 'onboard',
+              })
+            }
+            secondary="Not me — sign out"
+            onSecondary={signOutToLogin}
+          />
+        ) : (
+          <OnbCTAs primary="Back to sign in" onPrimary={signOutToLogin} />
+        )}
       </ScrollView>
     </View>
   );

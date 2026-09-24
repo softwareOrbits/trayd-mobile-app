@@ -6,6 +6,7 @@ import {
 import { supabase } from '@/services/supabase';
 import { clearMemberCache } from '@/services/member';
 import { unregisterPush } from '@/services/push';
+import { getKeepSignedIn } from '@/services/authPrefs';
 import { getJwtClaims } from '@/utils/jwt';
 import type {
   AuthState,
@@ -78,6 +79,10 @@ export const restoreSession = createAsyncThunk<SetCredentialsPayload | null>(
   async () => {
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
+      return null;
+    }
+    if (!(await getKeepSignedIn())) {
+      await supabase.auth.signOut({ scope: 'local' });
       return null;
     }
     const isOwner = readIsOwner(data.session.access_token);

@@ -1,54 +1,51 @@
 import { StyleSheet } from 'react-native';
 
 import type { Theme } from '@/theme';
+import { ONB } from './onboarding.styles';
 
 export const makeWelcomeDoneStyles = (theme: Theme) =>
   StyleSheet.create({
-    check: {
-      width: 88,
-      height: 88,
-      borderRadius: 44,
-      backgroundColor: theme.colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    bold: {
-      color: theme.colors.text,
-      fontFamily: theme.fonts.bold,
-    },
     jobCard: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      alignSelf: 'stretch',
-      marginTop: 8,
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.md,
+      marginTop: 24,
+      marginHorizontal: 22,
+      backgroundColor: ONB.paper,
+      borderRadius: 14,
       borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      padding: 12,
+      borderColor: ONB.cardLine,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      shadowColor: '#0E1A2D',
+      shadowOpacity: 0.06,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 2,
     },
     jobBadge: {
-      width: 28,
-      height: 28,
-      borderRadius: 8,
-      backgroundColor: theme.colors.primary,
+      width: 38,
+      height: 38,
+      borderRadius: 9,
+      backgroundColor: ONB.amber,
       alignItems: 'center',
       justifyContent: 'center',
     },
     jobBadgeText: {
-      color: theme.colors.onPrimary,
-      fontSize: theme.typography.size.sm,
+      color: ONB.navy,
+      fontSize: 12,
+      fontFamily: theme.fonts.monoBold,
+      includeFontPadding: false,
+    },
+    jobInfo: { flex: 1, minWidth: 0, gap: 2 },
+    jobTitle: {
+      color: ONB.navy,
+      fontSize: 13,
       fontFamily: theme.fonts.bold,
     },
-    jobInfo: { flex: 1, gap: 2 },
-    jobTitle: {
-      color: theme.colors.text,
-      fontSize: theme.typography.size.md,
-      fontFamily: theme.fonts.semibold,
-    },
     jobMeta: {
-      color: theme.colors.textMuted,
-      fontSize: theme.typography.size.sm,
+      color: ONB.muted,
+      fontSize: 12,
+      fontFamily: theme.fonts.regular,
     },
   });
