@@ -16,6 +16,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { ChatBubble } from '@/components/chat';
 import {
+  AskApprovalCard,
   AskBlockCard,
   AskComposer,
   AskHistoryDrawer,
@@ -23,6 +24,7 @@ import {
 } from '@/components/ask';
 import {
   askTrayd,
+  commitAskAction,
   fetchAskConversations,
   fetchAskMessages,
 } from '@/services/askTrayd';
@@ -33,7 +35,12 @@ import { useThemedStyles } from '@/utils/useThemedStyles';
 import { firstNameOf } from '@/utils/name';
 import { toastError } from '@/utils/toast';
 import { makeAskTraydStyles } from '@/styles/askTrayd.styles';
-import type { AskConversation, AskMessage, MainStackParamList } from '@/types';
+import type {
+  AskConversation,
+  AskMessage,
+  AskProposal,
+  MainStackParamList,
+} from '@/types';
 
 const AskTraydScreen = () => {
   const { colors } = useTheme();
@@ -94,6 +101,7 @@ const AskTraydScreen = () => {
           role: 'assistant',
           text: res.answer,
           blocks: res.blocks,
+          proposal: res.proposal ?? null,
         },
       ]);
       loadHistory();
@@ -121,6 +129,9 @@ const AskTraydScreen = () => {
       setOpeningThread(false);
     }
   };
+
+  const approve = (proposal: AskProposal) =>
+    commitAskAction(proposal, conversationId);
 
   const scrollToEnd = () => scrollRef.current?.scrollToEnd({ animated: true });
 
@@ -199,6 +210,14 @@ const AskTraydScreen = () => {
                   {message.blocks.map((block, i) => (
                     <AskBlockCard key={`${message.id}-b${i}`} block={block} />
                   ))}
+                </View>
+              ) : null}
+              {message.proposal ? (
+                <View style={styles.blockWrap}>
+                  <AskApprovalCard
+                    proposal={message.proposal}
+                    onApprove={approve}
+                  />
                 </View>
               ) : null}
             </View>

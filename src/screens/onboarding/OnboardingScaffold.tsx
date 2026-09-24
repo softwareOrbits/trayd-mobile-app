@@ -1,6 +1,13 @@
 import { type ReactNode } from 'react';
-import { Image, ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import {
+  OnbHeading,
+  OnbStep,
+  OnbTopMark,
+  useOnbStyles,
+} from '@/components/onboarding';
 import { makeOnboardingScaffoldStyles } from '@/styles/onboardingScaffold.styles';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 
@@ -24,60 +31,30 @@ export const OnboardingScaffold = ({
   footer,
 }: OnboardingScaffoldProps) => {
   const styles = useThemedStyles(makeOnboardingScaffoldStyles);
+  const onb = useOnbStyles();
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.flex}>
+    <View style={onb.shell}>
       <ScrollView
-        style={styles.flex}
+        style={onb.shell}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 },
+          { paddingTop: insets.top + 2, paddingBottom: insets.bottom },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {step ? (
-          <View style={styles.progressRow}>
-            <View style={styles.segments}>
-              {Array.from({ length: total }).map((_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.segment,
-                    i < step ? styles.segmentOn : styles.segmentOff,
-                  ]}
-                />
-              ))}
-            </View>
-            <Text style={styles.stepLabel}>{`STEP ${step} OF ${total}`}</Text>
-          </View>
+        {step ? <OnbStep step={step} total={total} /> : <OnbTopMark />}
+
+        {icon ? (
+          <View style={step ? onb.hero : onb.heroSuccess}>{icon}</View>
         ) : null}
 
-        <Image
-          source={require('@assets/images/small_logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <OnbHeading title={title} sub={subtitle} />
+        {children}
 
-        {step ? (
-          <>
-            <View style={styles.iconArea}>{icon}</View>
-            <View style={styles.textBlock}>
-              <Text style={styles.title}>{title}</Text>
-              {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-              {children}
-            </View>
-          </>
-        ) : (
-          <View style={styles.centeredGroup}>
-            {icon}
-            <Text style={styles.title}>{title}</Text>
-            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-            {children}
-          </View>
-        )}
-
-        <View style={styles.footer}>{footer}</View>
+        <View style={onb.spacer} />
+        <View style={onb.ctas}>{footer}</View>
       </ScrollView>
     </View>
   );

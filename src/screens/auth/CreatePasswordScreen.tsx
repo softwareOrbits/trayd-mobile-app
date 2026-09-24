@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import {
-  Image,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,7 +18,16 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
 
-import { BackButton, Button, Input } from '@/components/ui';
+import { BackButton } from '@/components/ui';
+import {
+  OnbCTAs,
+  OnbHeading,
+  OnbTopMark,
+  RuleCheck,
+  StrengthMeter,
+  useOnbStyles,
+  ONB,
+} from '@/components/onboarding';
 import { supabase } from '@/services/supabase';
 import { fetchMyMember } from '@/services/member';
 import { useAppDispatch } from '@/store/hooks';
@@ -39,6 +49,7 @@ const STRENGTH_LABELS = ['Weak', 'Weak', 'Fair', 'Good', 'Strong'];
 const CreatePasswordScreen = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeCreatePasswordStyles);
+  const onb = useOnbStyles();
   const insets = useSafeAreaInsets();
   const navigation =
     useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
@@ -49,6 +60,7 @@ const CreatePasswordScreen = () => {
 
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
+  const [focused, setFocused] = useState(false);
 
   const results = RULES.map(rule => rule.test(password));
   const score = results.filter(Boolean).length;
@@ -110,100 +122,81 @@ const CreatePasswordScreen = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-    >
+    <KeyboardAvoidingView style={onb.shell}>
       <BackButton absolute />
       <ScrollView
-        style={styles.flex}
+        style={onb.shell}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 },
+          { paddingTop: insets.top + 2, paddingBottom: insets.bottom },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
-        <View style={styles.header}>
-          <Image
-            source={require('@assets/images/small_logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <Text style={styles.title}>Create your password</Text>
-          <Text style={styles.subtitle}>
-            {"You'll use this with "}
-            <Text style={styles.subtitleStrong}>{params.email}</Text>
-            {' to sign in.'}
-          </Text>
-        </View>
+        <OnbTopMark />
+        <OnbHeading
+          title="Create your password"
+          sub={
+            <>
+              {"You'll use this with "}
+              <Text style={onb.subStrong}>{params.email}</Text>
+              {' to sign in.'}
+            </>
+          }
+        />
 
         <View style={styles.form}>
-          <Input
-            label="Password"
-            placeholder="Enter a password"
-            secureTextEntry={!show}
-            autoCapitalize="none"
-            autoCorrect={false}
-            value={password}
-            onChangeText={setPassword}
-            rightIcon={show ? 'eye-off-outline' : 'eye-outline'}
-            onRightIconPress={() => setShow(s => !s)}
-          />
+          <View>
+            <Text style={onb.fieldLabel}>Password</Text>
+            <View style={onb.inputRow}>
+              <TextInput
+                style={[
+                  onb.input,
+                  onb.inputWithIcon,
+                  focused && onb.inputFocused,
+                ]}
+                placeholder="Enter a password"
+                placeholderTextColor={colors.placeholder}
+                secureTextEntry={!show}
+                autoCapitalize="none"
+                autoCorrect={false}
+                value={password}
+                onChangeText={setPassword}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+              />
+              <Pressable
+                style={onb.inputIcon}
+                onPress={() => setShow(v => !v)}
+                hitSlop={8}
+              >
+                <Ionicons
+                  name={show ? 'eye-off-outline' : 'eye-outline'}
+                  size={18}
+                  color={ONB.muted}
+                />
+              </Pressable>
+            </View>
+          </View>
 
           {password.length > 0 ? (
-            <View style={styles.strengthBlock}>
-              <View style={styles.strengthBar}>
-                {[0, 1, 2, 3].map(i => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.strengthSegment,
-                      {
-                        backgroundColor:
-                          i < score ? colors.primary : colors.borderMuted,
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
-              <Text style={styles.strengthLabel}>{STRENGTH_LABELS[score]}</Text>
-            </View>
+            <StrengthMeter filled={score} label={STRENGTH_LABELS[score]} />
           ) : null}
 
           <View style={styles.checklist}>
-            {RULES.map((rule, i) => {
-              const met = results[i];
-              return (
-                <View key={rule.label} style={styles.checkRow}>
-                  <Ionicons
-                    name={met ? 'checkmark-circle' : 'ellipse-outline'}
-                    size={18}
-                    color={met ? colors.green : colors.textMuted}
-                  />
-                  <Text
-                    style={[
-                      styles.checkText,
-                      { color: met ? colors.text : colors.textMuted },
-                    ]}
-                  >
-                    {rule.label}
-                  </Text>
-                </View>
-              );
-            })}
+            {RULES.map((rule, i) => (
+              <RuleCheck key={rule.label} ok={results[i]} label={rule.label} />
+            ))}
           </View>
         </View>
 
-        <View style={styles.footer}>
-          <Button
-            label="Continue"
-            fullWidth
-            loading={loading}
-            disabled={!canContinue}
-            onPress={onSubmit}
-          />
-        </View>
+        <OnbCTAs
+          primary="Continue"
+          onPrimary={onSubmit}
+          loading={loading}
+          disabled={!canContinue}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );

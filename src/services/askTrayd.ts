@@ -3,8 +3,10 @@ import { isOnline } from '@/offline/connectivity';
 import type {
   AskAnswer,
   AskBlock,
+  AskCommitResult,
   AskConversation,
   AskMessage,
+  AskProposal,
 } from '@/types';
 
 const FUNCTION_NAME = 'ask-trayd-agent';
@@ -12,6 +14,8 @@ const FUNCTION_NAME = 'ask-trayd-agent';
 const OFFLINE_ANSWER =
   'You’re offline — Ask Trayd needs a connection to look anything up.';
 const GENERIC_ANSWER = 'Something went wrong. Please try again.';
+const OFFLINE_COMMIT =
+  'You’re offline — reconnect to save this.';
 
 const ERROR_ANSWER: Record<string, string> = {
   not_authenticated: 'Please sign in again to ask about your work.',
@@ -22,6 +26,13 @@ type AgentResponse = {
   conversation_id?: string;
   answer?: string;
   blocks?: AskBlock[];
+  proposed_action?: AskProposal;
+  error?: string;
+};
+
+type CommitResponse = {
+  committed?: { op?: string; entity?: string; id?: string };
+  message?: string;
   error?: string;
 };
 
@@ -58,6 +69,62 @@ export async function askTrayd(
     conversationId: data.conversation_id ?? conversationId,
     answer: data.answer ?? GENERIC_ANSWER,
     blocks: data.blocks ?? [],
+    proposal: data.proposed_action ?? null,
+  };
+}
+
+const COMMIT_ERROR: Record<string, string> = {
+  unknown_action: 'That action is not supported yet.',
+  not_a_member: 'You don’t have permission to do that.',
+  not_authenticated: 'Please sign in again to do that.',
+};
+
+async function readErrorBody(error: unknown): Promise<CommitResponse | null> {
+  const context = (error as { context?: { json?: () => Promise<unknown> } })
+    ?.context;
+  if (!context?.json) return null;
+  try {
+    return (await context.json()) as CommitResponse;
+  } catch {
+    return null;
+  }
+}
+
+export async function commitAskAction(
+  proposal: AskProposal,
+  conversationId: string | null,
+): Promise<AskCommitResult> {
+  if (!isOnline()) {
+    return { ok: false, message: OFFLINE_COMMIT };
+  }
+
+  const { data, error } = await supabase.functions.invoke<CommitResponse>(
+    FUNCTION_NAME,
+    {
+      body: {
+        commit: { op: proposal.op, params: proposal.params },
+        conversation_id: conversationId,
+      },
+    },
+  );
+
+  const body = data ?? (error ? await readErrorBody(error) : null);
+
+  if (body?.error) {
+    return {
+      ok: false,
+      message: body.message ?? COMMIT_ERROR[body.error] ?? GENERIC_ANSWER,
+    };
+  }
+  if (error || !body) {
+    return { ok: false, message: GENERIC_ANSWER };
+  }
+
+  return {
+    ok: true,
+    message: body.message ?? 'Done.',
+    id: body.committed?.id,
+    entity: body.committed?.entity,
   };
 }
 

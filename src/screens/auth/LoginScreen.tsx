@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
@@ -11,11 +11,15 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { useAppDispatch } from '@/store/hooks';
 import { ACCOUNT_SUSPENDED, signInWithPassword } from '@/store/authSlice';
+import { setKeepSignedIn } from '@/services/authPrefs';
 import { Banner, Button, Input } from '@/components/ui';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { toastError } from '@/utils/toast';
 import type { AuthStackParamList } from '@/types';
 import { makeLoginStyles } from '@/styles/login.styles';
+
+const SIGNUP_URL = 'https://app.trayd.ie/signup';
 
 const schema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email'),
@@ -42,6 +46,7 @@ const LoginScreen = () => {
 
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [keepSignedIn, setKeepSignedInState] = useState(true);
   const [banner, setBanner] = useState<{
     variant: 'error' | 'warning';
     title: string;
@@ -52,6 +57,7 @@ const LoginScreen = () => {
     setLoading(true);
     setBanner(null);
     try {
+      await setKeepSignedIn(keepSignedIn);
       await dispatch(signInWithPassword(data)).unwrap();
     } catch (err) {
       if (err === ACCOUNT_SUSPENDED) {
@@ -74,15 +80,19 @@ const LoginScreen = () => {
     }
   };
 
+  const openSignup = () => {
+    Linking.openURL(SIGNUP_URL).catch(() =>
+      toastError(new Error('Could not open the sign-up page.'), ''),
+    );
+  };
+
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-    >
+    <KeyboardAvoidingView style={styles.flex}>
       <ScrollView
         style={styles.flex}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 },
+          { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -104,10 +114,8 @@ const LoginScreen = () => {
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>
-            Sign in to continue to your employee workspace.
-          </Text>
+          <Text style={styles.title}>Welcome back</Text>
+          <Text style={styles.subtitle}>Sign in to your Trayd workspace.</Text>
         </View>
 
         <View style={styles.form}>
@@ -117,6 +125,10 @@ const LoginScreen = () => {
             render={({ field: { value, onChange, onBlur } }) => (
               <Input
                 label="Email"
+                labelStyle={styles.fieldLabel}
+                style={styles.input}
+                leftIcon="mail-outline"
+                focusHighlight
                 placeholder="name@company.com"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -134,6 +146,10 @@ const LoginScreen = () => {
             render={({ field: { value, onChange, onBlur } }) => (
               <Input
                 label="Password"
+                labelStyle={styles.fieldLabel}
+                style={styles.input}
+                leftIcon="lock-closed-outline"
+                focusHighlight
                 placeholder="Min. 6 characters"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
@@ -148,34 +164,90 @@ const LoginScreen = () => {
             )}
           />
 
-          <Pressable
-            onPress={() => navigation.navigate('ResetPassword')}
-            style={styles.forgotRow}
-            hitSlop={8}
-          >
-            <Ionicons
-              name="information-circle-outline"
-              size={16}
-              color={colors.primary}
-            />
-            <Text style={styles.forgotText}>Forgot Password?</Text>
-          </Pressable>
+          <View style={styles.row}>
+            <Pressable
+              style={styles.remember}
+              onPress={() => setKeepSignedInState(v => !v)}
+              hitSlop={8}
+            >
+              <View
+                style={[
+                  styles.checkbox,
+                  !keepSignedIn && styles.checkboxOff,
+                ]}
+              >
+                {keepSignedIn ? (
+                  <Ionicons name="checkmark" size={13} color={colors.white} />
+                ) : null}
+              </View>
+              <Text style={styles.rememberText}>Keep me signed in</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => navigation.navigate('ResetPassword')}
+              hitSlop={8}
+            >
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.footer}>
           <Button
             label="Log In"
+            rightIcon="arrow-forward"
             fullWidth
             loading={loading}
+            style={styles.primary}
             onPress={handleSubmit(onSubmit)}
           />
-          <Pressable
-            onPress={() => navigation.navigate('InviteCode')}
-            style={styles.joinButton}
-            hitSlop={8}
-          >
-            <Text style={styles.joinText}>Join your company</Text>
-          </Pressable>
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>NEW TO TRAYD?</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <View style={styles.tiles}>
+            <Pressable style={styles.tile} onPress={openSignup}>
+              <View style={styles.tileIcon}>
+                <Ionicons name="business-outline" size={18} color={colors.white} />
+              </View>
+              <Text style={styles.tileTitle}>I run a business</Text>
+              <Text style={styles.tileText}>
+                Set up your team · 30 days free
+              </Text>
+              <View style={styles.tileGo}>
+                <Text style={styles.tileGoText}>Sign up</Text>
+                <Ionicons
+                  name="arrow-forward"
+                  size={14}
+                  color={colors.secondary}
+                />
+              </View>
+            </Pressable>
+
+            <Pressable
+              style={styles.tile}
+              onPress={() => navigation.navigate('InviteCode')}
+            >
+              <View style={[styles.tileIcon, styles.tileIconTeam]}>
+                <Ionicons name="person-outline" size={18} color="#3D6E55" />
+              </View>
+              <Text style={styles.tileTitle}>I’m an employee</Text>
+              <Text style={styles.tileText}>
+                Enter the code your boss sent you
+              </Text>
+              <View style={styles.tileGo}>
+                <Text style={[styles.tileGoText, styles.tileGoTextTeam]}>
+                  Join
+                </Text>
+                <Ionicons name="arrow-forward" size={14} color="#3D6E55" />
+              </View>
+            </Pressable>
+          </View>
+
+          <Text style={styles.fine}>BUILT IN IRELAND · CANCEL ANYTIME</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

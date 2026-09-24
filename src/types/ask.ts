@@ -25,10 +25,31 @@ export type AskTableBlock = {
 
 export type AskBlock = AskListBlock | AskTableBlock;
 
+export type AskProposalDetail = {
+  label: string;
+  value: string;
+};
+
+export type AskProposal = {
+  op: string;
+  entity: string;
+  summary: string;
+  params: Record<string, unknown>;
+  details: AskProposalDetail[];
+};
+
+export type AskCommitResult = {
+  ok: boolean;
+  message: string;
+  id?: string;
+  entity?: string;
+};
+
 export type AskAnswer = {
   conversationId: string | null;
   answer: string;
   blocks: AskBlock[];
+  proposal?: AskProposal | null;
 };
 
 export type AskMessage = {
@@ -36,6 +57,7 @@ export type AskMessage = {
   role: 'user' | 'assistant';
   text: string;
   blocks: AskBlock[];
+  proposal?: AskProposal | null;
 };
 
 export type AskConversation = {
