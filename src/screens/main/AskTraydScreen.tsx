@@ -14,11 +14,10 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { ChatBubble } from '@/components/chat';
 import {
-  AskApprovalCard,
   AskBlockCard,
   AskComposer,
+  AskDraftCard,
   AskHistoryDrawer,
   AskTypingBubble,
 } from '@/components/ask';
@@ -39,6 +38,7 @@ import type {
   AskConversation,
   AskMessage,
   AskProposal,
+  AskProposalDetail,
   MainStackParamList,
 } from '@/types';
 
@@ -50,14 +50,17 @@ const AskTraydScreen = () => {
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const scrollRef = useRef<ScrollView>(null);
   const storedName = useAppSelector(s => s.auth.user?.name);
+  const unread = useAppSelector(s => s.notifications.unread);
 
   const [firstName, setFirstName] = useState(() => firstNameOf(storedName));
+  const initials = (firstName || 'You').slice(0, 2).toUpperCase();
   const [messages, setMessages] = useState<AskMessage[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
   const [history, setHistory] = useState<AskConversation[] | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [openingThread, setOpeningThread] = useState(false);
+  const [draft, setDraft] = useState('');
 
   const loadHistory = useCallback(
     () =>
@@ -133,6 +136,9 @@ const AskTraydScreen = () => {
   const approve = (proposal: AskProposal) =>
     commitAskAction(proposal, conversationId);
 
+  const requestEdit = (detail: AskProposalDetail) =>
+    setDraft(`Change the ${detail.label.toLowerCase()} to `);
+
   const scrollToEnd = () => scrollRef.current?.scrollToEnd({ animated: true });
 
   return (
@@ -151,21 +157,41 @@ const AskTraydScreen = () => {
           }}
           hitSlop={8}
         >
-          <Ionicons name="menu" size={20} color={colors.white} />
+          <Ionicons name="menu" size={26} color={colors.white} />
         </Pressable>
+
+        <Text style={styles.title}>Ask Trayd</Text>
 
         <Pressable
-          style={styles.headerBtn}
-          onPress={() => navigation.goBack()}
+          style={styles.bellWrap}
+          onPress={() => navigation.navigate('Tabs', { screen: 'Notifications' })}
           hitSlop={8}
         >
-          <Ionicons name="chevron-back" size={19} color={colors.white} />
+          <Ionicons name="notifications-outline" size={24} color={colors.white} />
+          {unread > 0 ? (
+            <View style={styles.bellBadge}>
+              <Text style={styles.bellBadgeText}>
+                {unread > 9 ? '9+' : unread}
+              </Text>
+            </View>
+          ) : null}
         </Pressable>
+      </View>
 
-        <View style={styles.titleCol}>
-          <Text style={styles.title}>Ask Trayd</Text>
-          <Text style={styles.subtitle}>Your hours, jobs & leave</Text>
-        </View>
+      <View style={styles.subBar}>
+        <Pressable
+          style={styles.chatsPill}
+          onPress={() => {
+            loadHistory();
+            setDrawerOpen(true);
+          }}
+        >
+          <Ionicons name="time-outline" size={18} color={colors.primary} />
+          <Text style={styles.chatsPillText}>Chats</Text>
+        </Pressable>
+        <Pressable style={styles.newChatBox} onPress={newChat} hitSlop={8}>
+          <Ionicons name="add" size={20} color="#7a8391" />
+        </Pressable>
       </View>
 
       <ScrollView
@@ -196,38 +222,50 @@ const AskTraydScreen = () => {
         {openingThread ? (
           <ActivityIndicator color={colors.secondary} />
         ) : (
-          messages.map(message => (
-            <View key={message.id}>
-              <ChatBubble
-                message={{
-                  id: message.id,
-                  role: message.role,
-                  text: message.text,
-                }}
-              />
-              {message.blocks.length ? (
-                <View style={styles.blockWrap}>
+          messages.map(message =>
+            message.role === 'user' ? (
+              <View key={message.id} style={styles.userRow}>
+                <View style={styles.userBubble}>
+                  <Text style={styles.userText}>{message.text}</Text>
+                </View>
+                <View style={styles.userAvatar}>
+                  <Text style={styles.userAvatarText}>{initials}</Text>
+                </View>
+              </View>
+            ) : (
+              <View key={message.id} style={styles.botRow}>
+                <View style={styles.botAvatar}>
+                  <Ionicons name="sparkles" size={16} color={colors.primary} />
+                </View>
+                <View style={styles.botBubble}>
+                  {message.text ? (
+                    <Text style={styles.botText}>{message.text}</Text>
+                  ) : null}
                   {message.blocks.map((block, i) => (
                     <AskBlockCard key={`${message.id}-b${i}`} block={block} />
                   ))}
+                  {message.proposal ? (
+                    <AskDraftCard
+                      proposal={message.proposal}
+                      onApprove={approve}
+                      onEditRequest={requestEdit}
+                    />
+                  ) : null}
                 </View>
-              ) : null}
-              {message.proposal ? (
-                <View style={styles.blockWrap}>
-                  <AskApprovalCard
-                    proposal={message.proposal}
-                    onApprove={approve}
-                  />
-                </View>
-              ) : null}
-            </View>
-          ))
+              </View>
+            ),
+          )
         )}
 
         {asking ? <AskTypingBubble /> : null}
       </ScrollView>
 
-      <AskComposer onSend={send} disabled={asking} />
+      <AskComposer
+        value={draft}
+        onChangeText={setDraft}
+        onSend={send}
+        disabled={asking}
+      />
 
       <AskHistoryDrawer
         visible={drawerOpen}

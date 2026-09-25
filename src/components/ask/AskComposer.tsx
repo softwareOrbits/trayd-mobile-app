@@ -9,15 +9,24 @@ import { makeAskTraydStyles } from '@/styles/askTrayd.styles';
 
 export const AskComposer = ({
   onSend,
+  value,
+  onChangeText,
   disabled = false,
 }: {
   onSend: (text: string) => void;
+  value?: string;
+  onChangeText?: (text: string) => void;
   disabled?: boolean;
 }) => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeAskTraydStyles);
   const insets = useSafeAreaInsets();
-  const [text, setText] = useState('');
+  const [internal, setInternal] = useState('');
+  const text = value ?? internal;
+  const setText = (next: string) => {
+    if (onChangeText) onChangeText(next);
+    else setInternal(next);
+  };
 
   const submit = () => {
     const trimmed = text.trim();
@@ -35,7 +44,7 @@ export const AskComposer = ({
           style={styles.composerInput}
           value={text}
           onChangeText={setText}
-          placeholder="Ask about your hours, jobs…"
+          placeholder="Ask Trayd…"
           placeholderTextColor={colors.placeholder}
           multiline
           onSubmitEditing={submit}
@@ -44,12 +53,19 @@ export const AskComposer = ({
         />
 
         <Pressable
-          style={[styles.composerSend, disabled && styles.composerSendOff]}
+          style={[
+            styles.composerSend,
+            (disabled || !text.trim()) && styles.composerSendOff,
+          ]}
           onPress={submit}
           disabled={disabled}
           hitSlop={6}
         >
-          <Ionicons name="send" size={17} color={colors.onPrimary} />
+          <Ionicons
+            name="arrow-up"
+            size={20}
+            color={text.trim() && !disabled ? colors.onPrimary : '#A8AEB8'}
+          />
         </Pressable>
       </View>
     </View>

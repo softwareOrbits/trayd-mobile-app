@@ -11,7 +11,7 @@ const BAR_FILL_WIDTH = BAR_WIDTH * 0.4;
 const SPLASH_CREAM = '#F4EFE4';
 const BUILT_INK = '#7a8391';
 
-export const LoadingScreen = () => {
+export const LoadingScreen = ({ compact = false }: { compact?: boolean } = {}) => {
   const styles = useThemedStyles(makeStyles);
   const markIn = useRef(new Animated.Value(0)).current;
   const headlineIn = useRef(new Animated.Value(0)).current;
@@ -90,16 +90,18 @@ export const LoadingScreen = () => {
         style={[styles.mark, markStyle]}
         resizeMode="contain"
       />
-      <Animated.Text style={[styles.headline, headlineStyle]}>
-        You’re on the tools.{'\n'}
-        <Text style={styles.headlineAccent}>We’re on the admin.</Text>
-      </Animated.Text>
+      {compact ? null : (
+        <Animated.Text style={[styles.headline, headlineStyle]}>
+          You’re on the tools.{'\n'}
+          <Text style={styles.headlineAccent}>We’re on the admin.</Text>
+        </Animated.Text>
+      )}
 
-      <View style={styles.foot}>
+      <View style={compact ? styles.footCompact : styles.foot}>
         <View style={styles.bar}>
           <Animated.View style={[styles.barFill, sweepStyle]} />
         </View>
-        <Text style={styles.built}>BUILT IN IRELAND</Text>
+        {compact ? null : <Text style={styles.built}>BUILT IN IRELAND</Text>}
       </View>
     </View>
   );
@@ -127,6 +129,7 @@ export const makeStyles = (theme: Theme) =>
       includeFontPadding: false,
     },
     headlineAccent: { color: theme.colors.primary },
+    footCompact: { marginTop: 28, alignItems: 'center' },
     foot: {
       position: 'absolute',
       left: 0,

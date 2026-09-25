@@ -16,6 +16,11 @@ export const NativeMessage = {
   READY: 'READY',
   /** Web-initiated sign-out (e.g. OwnerGuard bounced a non-owner). */
   SIGNED_OUT: 'SIGNED_OUT',
+  /**
+   * The web's route guard found no session and would otherwise render its own
+   * `/login`. Native owns sign-in, so the shell re-seeds and reloads instead.
+   */
+  AUTH_LOST: 'AUTH_LOST',
   SWITCH_VIEW: 'SWITCH_VIEW',
   /** Web wants the native share sheet for a generated PDF. */
   SAVE_PDF: 'SAVE_PDF',
@@ -24,6 +29,7 @@ export const NativeMessage = {
 export type NativeInboundMessage =
   | { type: typeof NativeMessage.READY }
   | { type: typeof NativeMessage.SIGNED_OUT }
+  | { type: typeof NativeMessage.AUTH_LOST }
   | { type: typeof NativeMessage.SWITCH_VIEW }
   | { type: typeof NativeMessage.SAVE_PDF; filename: string; base64: string };
 
