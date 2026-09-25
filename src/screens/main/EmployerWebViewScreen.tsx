@@ -35,6 +35,7 @@ import { setSelectedView, signOut } from '@/store/authSlice';
 import type { MainStackParamList } from '@/types';
 import { supabase } from '@/services/supabase';
 import { savePdfAndShare } from '@/services/pdf';
+import { haptics } from '@/utils/haptics';
 import {
   buildBootstrapScript,
   NativeMessage,
@@ -234,6 +235,12 @@ const EmployerWebViewScreen = () => {
           break;
         case NativeMessage.SAVE_PDF:
           savePdfAndShare(msg.filename, msg.base64).catch(() => undefined);
+          break;
+        case NativeMessage.HAPTIC:
+          if (msg.style === 'medium') haptics.press();
+          else if (msg.style === 'success') haptics.success();
+          else if (msg.style === 'warning') haptics.warning();
+          else haptics.tap();
           break;
       }
     },
