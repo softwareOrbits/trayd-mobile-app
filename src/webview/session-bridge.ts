@@ -24,6 +24,7 @@ export const NativeMessage = {
   SWITCH_VIEW: 'SWITCH_VIEW',
   /** Web wants the native share sheet for a generated PDF. */
   SAVE_PDF: 'SAVE_PDF',
+  HAPTIC: 'HAPTIC',
 } as const;
 
 export type NativeInboundMessage =
@@ -31,7 +32,8 @@ export type NativeInboundMessage =
   | { type: typeof NativeMessage.SIGNED_OUT }
   | { type: typeof NativeMessage.AUTH_LOST }
   | { type: typeof NativeMessage.SWITCH_VIEW }
-  | { type: typeof NativeMessage.SAVE_PDF; filename: string; base64: string };
+  | { type: typeof NativeMessage.SAVE_PDF; filename: string; base64: string }
+  | { type: typeof NativeMessage.HAPTIC; style?: 'light' | 'medium' | 'success' | 'warning' };
 
 /**
  * Supabase derives its auth storage key from the project ref (the first label of
