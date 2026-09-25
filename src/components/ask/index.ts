@@ -1,4 +1,4 @@
-export { default as AskApprovalCard } from './AskApprovalCard';
+export { default as AskDraftCard } from './AskDraftCard';
 export { default as AskBlockCard } from './AskBlockCard';
 export { default as AskComposer } from './AskComposer';
 export { default as AskHistoryDrawer } from './AskHistoryDrawer';

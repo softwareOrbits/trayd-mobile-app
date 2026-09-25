@@ -62,6 +62,33 @@ type ShouldStartLoad = NonNullable<WebViewProps['onShouldStartLoadWithRequest']>
 /** Host of a URL without pulling in a URL polyfill: `https://a.b/c` → `a.b`. */
 const hostOf = (url: string): string => url.split('/')[2] ?? '';
 
+/** Path of a URL, query and hash stripped: `https://a.b/login?x=1` → `/login`. */
+const pathOf = (url: string): string =>
+  `/${url.split('/').slice(3).join('/').split('?')[0].split('#')[0]}`.replace(
+    /\/+$/,
+    '',
+  ) || '/';
+
+/**
+ * The dashboard's own auth routes. Native owns sign-in — the employer is already
+ * signed in before this screen mounts — so the WebView landing on one of these
+ * always means its seeded session was rejected, never a screen to show.
+ */
+const WEB_AUTH_ROUTES = [
+  '/login',
+  '/signup',
+  '/auth/forgot',
+  '/auth/reset',
+  '/auth/accept-invite',
+];
+
+const isWebAuthRoute = (url: string): boolean => {
+  const path = pathOf(url);
+  return WEB_AUTH_ROUTES.some(
+    route => path === route || path.startsWith(`${route}/`),
+  );
+};
+
 const EmployerWebViewScreen = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -75,8 +102,13 @@ const EmployerWebViewScreen = () => {
   const openedExternal = useRef(false);
 
   const [bootstrap, setBootstrap] = useState<string | null>(null);
+  const [seedKey, setSeedKey] = useState(0);
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const recovering = useRef(false);
+  const reseeded = useRef(false);
+  const signingOut = useRef(false);
 
   const configured = !!BASE_URL;
 
@@ -150,6 +182,31 @@ const EmployerWebViewScreen = () => {
     return () => sub.remove();
   }, [dispatch, navigation]);
 
+  /**
+   * The dashboard fell back to its own sign-in. Almost always its seeded session
+   * went stale — native rotates the refresh token on its own schedule, which
+   * invalidates the copy the WebView booted with. Re-seed from the live native
+   * session and remount so the bootstrap runs again with fresh tokens. If it
+   * happens a second time the session is genuinely gone, so hand back to the
+   * native login rather than leaving the web one on screen.
+   */
+  const recoverWebSession = useCallback(() => {
+    if (recovering.current || signingOut.current) return;
+    recovering.current = true;
+    setReady(false);
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session || reseeded.current) {
+        signingOut.current = true;
+        dispatch(signOut());
+        return;
+      }
+      reseeded.current = true;
+      setBootstrap(buildBootstrapScript(data.session));
+      setSeedKey(key => key + 1);
+      recovering.current = false;
+    });
+  }, [dispatch]);
+
   const onMessage = useCallback(
     (event: WebViewMessageEvent) => {
       let msg: NativeInboundMessage;
@@ -165,8 +222,12 @@ const EmployerWebViewScreen = () => {
         case NativeMessage.SIGNED_OUT:
           // Cover the WebView so a web-side /login redirect isn't visible while
           // the native app tears the screen down.
+          signingOut.current = true;
           setReady(false);
           dispatch(signOut());
+          break;
+        case NativeMessage.AUTH_LOST:
+          recoverWebSession();
           break;
         case NativeMessage.SWITCH_VIEW:
           dispatch(setSelectedView(null));
@@ -176,30 +237,44 @@ const EmployerWebViewScreen = () => {
           break;
       }
     },
-    [dispatch],
+    [dispatch, recoverWebSession],
   );
 
   // Keep external hosts (Stripe checkout/portal, etc.) out of the WebView — open
   // them in the system browser and reload on return. Same-origin + Supabase stay.
-  const onShouldStartLoad = useCallback<ShouldStartLoad>(req => {
-    if (req.isTopFrame === false) return true;
-    const url = req.url;
-    if (!url.startsWith('http')) return true;
-    const host = hostOf(url);
-    const appHost = hostOf(BASE_URL);
-    const isExternal =
-      host !== appHost && !host.endsWith('supabase.co');
-    if (isExternal) {
-      openedExternal.current = true;
-      Linking.openURL(url).catch(() => undefined);
-      return false;
-    }
-    return true;
-  }, []);
+  const onShouldStartLoad = useCallback<ShouldStartLoad>(
+    req => {
+      if (req.isTopFrame === false) return true;
+      const url = req.url;
+      if (!url.startsWith('http')) return true;
+      const host = hostOf(url);
+      const appHost = hostOf(BASE_URL);
+      const isExternal =
+        host !== appHost && !host.endsWith('supabase.co');
+      if (isExternal) {
+        openedExternal.current = true;
+        Linking.openURL(url).catch(() => undefined);
+        return false;
+      }
+      // Never let a full load of the web sign-in through — recover instead.
+      if (isWebAuthRoute(url)) {
+        recoverWebSession();
+        return false;
+      }
+      return true;
+    },
+    [recoverWebSession],
+  );
 
-  const onNavStateChange = useCallback((navState: WebViewNavigation) => {
-    canGoBackRef.current = navState.canGoBack;
-  }, []);
+  // Client-side route changes skip `onShouldStartLoadWithRequest`, so the web's
+  // own `<Navigate to="/login">` is caught here instead.
+  const onNavStateChange = useCallback(
+    (navState: WebViewNavigation) => {
+      canGoBackRef.current = navState.canGoBack;
+      if (isWebAuthRoute(navState.url)) recoverWebSession();
+    },
+    [recoverWebSession],
+  );
 
   const onLoadError = useCallback((description?: string) => {
     setLoadError(description || 'The dashboard could not be loaded.');
@@ -219,6 +294,9 @@ const EmployerWebViewScreen = () => {
       >
         {configured && bootstrap ? (
           <TypedWebView
+            // Remounts on a re-seed so the bootstrap script runs again with the
+            // refreshed session instead of replaying the stale one on reload.
+            key={seedKey}
             ref={webRef}
             source={{ uri: BASE_URL }}
             originWhitelist={['*']}
@@ -264,7 +342,7 @@ const EmployerWebViewScreen = () => {
 
       {configured && !loadError && !ready ? (
         <View style={styles.veil}>
-          <LoadingScreen />
+          <LoadingScreen compact />
         </View>
       ) : null}
     </View>
