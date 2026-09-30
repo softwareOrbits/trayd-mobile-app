@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -20,13 +21,20 @@ import {
   AskDraftCard,
   AskHistoryDrawer,
   AskTypingBubble,
+  type ComposerAttachment,
 } from '@/components/ask';
 import {
+  ASK_UPLOAD_MAX_BYTES,
+  ASK_UPLOAD_TYPES,
   askTrayd,
   commitAskAction,
   fetchAskConversations,
   fetchAskMessages,
+  removeAskFile,
+  uploadAskFile,
 } from '@/services/askTrayd';
+import { pickAttachments } from '@/utils/pickAttachments';
+import { FilePreview, useFilePreview } from '@/components/ui';
 import { fetchMyMember } from '@/services/member';
 import { useAppSelector } from '@/store/hooks';
 import { useTheme } from '@/theme';
@@ -35,12 +43,50 @@ import { firstNameOf } from '@/utils/name';
 import { toastError } from '@/utils/toast';
 import { makeAskTraydStyles } from '@/styles/askTrayd.styles';
 import type {
+  AskAttachment,
+  AskCommitResult,
   AskConversation,
   AskMessage,
   AskProposal,
-  AskProposalDetail,
   MainStackParamList,
 } from '@/types';
+
+const MAX_ATTACHMENTS = 10;
+
+type TileTone = 'amber' | 'navy' | 'green';
+
+const TILE_TONE: Record<TileTone, { bg: string; fg: string }> = {
+  amber: { bg: '#FCEBD1', fg: '#9A5B0A' },
+  navy: { bg: '#DDE6F2', fg: '#16345A' },
+  green: { bg: '#DCE8E0', fg: '#2F5C45' },
+};
+
+type Tile = {
+  title: string;
+  sub: string;
+  query: string;
+  icon: 'document-text-outline' | 'calendar-outline' | 'car-outline' | 'people-outline' | 'time-outline' | 'checkbox-outline' | 'sunny-outline';
+  tone: TileTone;
+};
+
+const OWNER_TILES: Tile[] = [
+  { title: 'Create an invoice', sub: 'For a customer, as a draft', query: 'Create an invoice', icon: 'document-text-outline', tone: 'amber' },
+  { title: 'Today’s jobs', sub: 'Where the team is and what’s next', query: 'What jobs are on today?', icon: 'calendar-outline', tone: 'navy' },
+  { title: 'Vehicles', sub: 'NCT, tax, service due', query: 'Which vans have NCT or tax due soon?', icon: 'car-outline', tone: 'navy' },
+  { title: 'Team & leave', sub: 'Who’s off, balances, certs', query: 'Who is off this week?', icon: 'people-outline', tone: 'green' },
+];
+
+const EMPLOYEE_TILES: Tile[] = [
+  { title: 'My jobs today', sub: 'Where I’m going and what’s next', query: 'What are my jobs today?', icon: 'calendar-outline', tone: 'amber' },
+  { title: 'My hours', sub: 'This week’s timesheet', query: 'How many hours have I done this week?', icon: 'time-outline', tone: 'navy' },
+  { title: 'My tasks', sub: 'What’s due and when', query: 'What tasks do I have due?', icon: 'checkbox-outline', tone: 'navy' },
+  { title: 'My leave', sub: 'Balance and upcoming days off', query: 'How much leave do I have left?', icon: 'sunny-outline', tone: 'green' },
+];
+
+const OWNER_CHIPS = ['Who’s on site today?', 'Unpaid invoices', 'Van NCT due?'];
+const EMPLOYEE_CHIPS = ['What’s my next job?', 'My van', 'Certs expiring?'];
+
+type PendingAttachment = ComposerAttachment & { ref?: AskAttachment };
 
 const AskTraydScreen = () => {
   const { colors } = useTheme();
@@ -61,6 +107,9 @@ const AskTraydScreen = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [openingThread, setOpeningThread] = useState(false);
   const [draft, setDraft] = useState('');
+  const [pending, setPending] = useState<PendingAttachment[]>([]);
+  const isOwner = useAppSelector(s => s.auth.isOwner);
+  const preview = useFilePreview();
 
   const loadHistory = useCallback(
     () =>
@@ -85,17 +134,106 @@ const AskTraydScreen = () => {
     };
   }, [firstName]);
 
-  const send = async (query: string) => {
-    const trimmed = query.trim();
-    if (!trimmed || asking) return;
+  const attach = async () => {
+    const room = MAX_ATTACHMENTS - pending.length;
+    if (room <= 0) {
+      toastError(
+        new Error(`You can attach up to ${MAX_ATTACHMENTS} files.`),
+        '',
+      );
+      return;
+    }
+    const picked = await pickAttachments(room);
+    for (const file of picked) {
+      const bytes = Math.floor((file.base64.length * 3) / 4);
+      if (!ASK_UPLOAD_TYPES.includes(file.mediaType)) {
+        toastError(new Error(`${file.name}: only photos can be attached.`), '');
+        continue;
+      }
+      if (bytes > ASK_UPLOAD_MAX_BYTES) {
+        toastError(new Error(`${file.name} is over 10 MB.`), '');
+        continue;
+      }
+      const id = `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      setPending(prev => [
+        ...prev,
+        {
+          id,
+          name: file.name,
+          mediaType: file.mediaType,
+          previewUri: file.previewUri,
+          status: 'uploading',
+        },
+      ]);
+      uploadAskFile(file)
+        .then(ref =>
+          setPending(prev =>
+            prev.map(a => (a.id === id ? { ...a, status: 'ready', ref } : a)),
+          ),
+        )
+        .catch(() =>
+          setPending(prev =>
+            prev.map(a => (a.id === id ? { ...a, status: 'failed' } : a)),
+          ),
+        );
+    }
+  };
 
+  const previewFiles = (files: AskAttachment[], index: number) => {
+    const images = files.filter(f => f.previewUri);
+    const start = images.indexOf(files[index]);
+    preview.open(
+      images.map(f => ({
+        uri: f.previewUri as string,
+        label: f.name,
+        kind: 'image' as const,
+      })),
+      Math.max(start, 0),
+    );
+  };
+
+  const previewPending = (id: string) => {
+    const ready = pending.filter(a => a.status === 'ready' && a.ref);
+    const index = ready.findIndex(a => a.id === id);
+    if (index < 0) return;
+    previewFiles(
+      ready.map(a => a.ref as AskAttachment),
+      index,
+    );
+  };
+
+  const removeAttachment = (id: string) =>
+    setPending(prev => {
+      const target = prev.find(a => a.id === id);
+      if (target?.ref) removeAskFile(target.ref.path);
+      return prev.filter(a => a.id !== id);
+    });
+
+  const send = async (query: string) => {
+    const ready = pending.filter(a => a.status === 'ready' && a.ref);
+    const trimmed =
+      query.trim() || (ready.length ? 'Here are the files I attached.' : '');
+    if (!trimmed || asking) return;
+    const files = ready.map(a => a.ref as AskAttachment);
+
+    setPending([]);
     setMessages(prev => [
       ...prev,
-      { id: `u-${Date.now()}`, role: 'user', text: trimmed, blocks: [] },
+      {
+        id: `u-${Date.now()}`,
+        role: 'user',
+        text: query.trim(),
+        blocks: [],
+        attachments: files,
+      },
     ]);
     setAsking(true);
     try {
-      const res = await askTrayd(trimmed, conversationId);
+      const res = await askTrayd(
+        trimmed,
+        conversationId,
+        files.map(f => ({ path: f.path, media_type: f.media_type })),
+      );
       setConversationId(res.conversationId);
       setMessages(prev => [
         ...prev,
@@ -133,11 +271,46 @@ const AskTraydScreen = () => {
     }
   };
 
-  const approve = (proposal: AskProposal) =>
-    commitAskAction(proposal, conversationId);
+  const approve = (proposal: AskProposal, input?: Record<string, unknown>) =>
+    commitAskAction(proposal, conversationId, input);
 
-  const requestEdit = (detail: AskProposalDetail) =>
-    setDraft(`Change the ${detail.label.toLowerCase()} to `);
+  const openCreated = (result: AskCommitResult) => {
+    const id = result.id;
+    switch ((result.entity ?? '').toLowerCase()) {
+      case 'job':
+      case 'quotation':
+        return id
+          ? {
+              label: 'Open in Jobs',
+              go: () => navigation.navigate('JobDetail', { jobId: id }),
+            }
+          : null;
+      case 'task':
+        return id
+          ? {
+              label: 'Open in Tasks',
+              go: () => navigation.navigate('TaskDetail', { taskId: id }),
+            }
+          : null;
+      case 'certification':
+        return {
+          label: 'Open in Certifications',
+          go: () => navigation.navigate('Certifications'),
+        };
+      case 'public holiday':
+        return {
+          label: 'Open in Leave',
+          go: () => navigation.navigate('Tabs', { screen: 'Leave' }),
+        };
+      case 'van':
+        return {
+          label: 'Open in Fleet',
+          go: () => navigation.navigate('Tabs', { screen: 'Fleet' }),
+        };
+      default:
+        return null;
+    }
+  };
 
   const scrollToEnd = () => scrollRef.current?.scrollToEnd({ animated: true });
 
@@ -151,13 +324,14 @@ const AskTraydScreen = () => {
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable
           style={styles.headerBtn}
-          onPress={() => {
-            loadHistory();
-            setDrawerOpen(true);
-          }}
+          onPress={() =>
+            navigation.canGoBack()
+              ? navigation.goBack()
+              : navigation.navigate('Tabs', { screen: 'Home' })
+          }
           hitSlop={8}
         >
-          <Ionicons name="menu" size={26} color={colors.white} />
+          <Ionicons name="chevron-back" size={26} color={colors.white} />
         </Pressable>
 
         <Text style={styles.title}>Ask Trayd</Text>
@@ -204,18 +378,53 @@ const AskTraydScreen = () => {
         onContentSizeChange={scrollToEnd}
       >
         {messages.length === 0 && !openingThread ? (
-          <View style={styles.emptyWrap}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="sparkles" size={24} color={colors.primary} />
+          <View>
+            <View style={styles.greet}>
+              <View style={styles.greetAvatar}>
+                <Ionicons name="sparkles" size={20} color={colors.primary} />
+              </View>
+              <View style={styles.greetText}>
+                <Text style={styles.greetTitle}>
+                  {firstName ? `Hey, ${firstName}.` : 'Hey there.'}
+                </Text>
+                <Text style={styles.greetSub}>
+                  {isOwner
+                    ? 'Ask about your jobs, invoices, hours, fleet or team.'
+                    : 'Ask about your jobs, hours, leave, tasks or van.'}
+                </Text>
+              </View>
             </View>
-            <Text style={styles.emptyTitle}>
-              {firstName
-                ? `Hi ${firstName} — ask me anything.`
-                : 'Ask me anything.'}
-            </Text>
-            <Text style={styles.emptyText}>
-              I know your hours, jobs, leave and van. Type your question below.
-            </Text>
+
+            <Text style={styles.suggestLabel}>TRY ASKING</Text>
+            <View style={styles.tileGrid}>
+              {(isOwner ? OWNER_TILES : EMPLOYEE_TILES).map(tile => (
+                <Pressable
+                  key={tile.title}
+                  style={styles.tile}
+                  onPress={() => send(tile.query)}
+                  disabled={asking}
+                >
+                  <View style={[styles.tileIcon, { backgroundColor: TILE_TONE[tile.tone].bg }]}>
+                    <Ionicons name={tile.icon} size={19} color={TILE_TONE[tile.tone].fg} />
+                  </View>
+                  <Text style={styles.tileTitle}>{tile.title}</Text>
+                  <Text style={styles.tileSub}>{tile.sub}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={styles.chipRow}>
+              {(isOwner ? OWNER_CHIPS : EMPLOYEE_CHIPS).map(chip => (
+                <Pressable
+                  key={chip}
+                  style={styles.chip}
+                  onPress={() => send(chip)}
+                  disabled={asking}
+                >
+                  <Text style={styles.chipText}>{chip}</Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
         ) : null}
 
@@ -225,8 +434,27 @@ const AskTraydScreen = () => {
           messages.map(message =>
             message.role === 'user' ? (
               <View key={message.id} style={styles.userRow}>
-                <View style={styles.userBubble}>
-                  <Text style={styles.userText}>{message.text}</Text>
+                <View style={styles.userCol}>
+                  {message.attachments?.length ? (
+                    <View style={styles.userAttachRow}>
+                      {message.attachments.map((a, i, all) => (
+                        <Pressable
+                          key={a.path}
+                          onPress={() => previewFiles(all, i)}
+                        >
+                          <Image
+                            source={{ uri: a.previewUri }}
+                            style={styles.userAttachImg}
+                          />
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : null}
+                  {message.text ? (
+                    <View style={styles.userBubble}>
+                      <Text style={styles.userText}>{message.text}</Text>
+                    </View>
+                  ) : null}
                 </View>
                 <View style={styles.userAvatar}>
                   <Text style={styles.userAvatarText}>{initials}</Text>
@@ -247,8 +475,9 @@ const AskTraydScreen = () => {
                   {message.proposal ? (
                     <AskDraftCard
                       proposal={message.proposal}
+                      canApprove={isOwner}
                       onApprove={approve}
-                      onEditRequest={requestEdit}
+                      onOpen={openCreated}
                     />
                   ) : null}
                 </View>
@@ -265,7 +494,13 @@ const AskTraydScreen = () => {
         onChangeText={setDraft}
         onSend={send}
         disabled={asking}
+        attachments={pending}
+        onAttach={attach}
+        onRemoveAttachment={removeAttachment}
+        onPreviewAttachment={previewPending}
       />
+
+      <FilePreview {...preview.props} />
 
       <AskHistoryDrawer
         visible={drawerOpen}
