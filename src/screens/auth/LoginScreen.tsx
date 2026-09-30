@@ -10,7 +10,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { useAppDispatch } from '@/store/hooks';
-import { ACCOUNT_SUSPENDED, signInWithPassword } from '@/store/authSlice';
+import {
+  ACCOUNT_SUSPENDED,
+  BUSINESS_SETUP_INCOMPLETE,
+  signInWithPassword,
+} from '@/store/authSlice';
 import { setKeepSignedIn } from '@/services/authPrefs';
 import { Banner, Button, Input } from '@/components/ui';
 import { useTheme } from '@/theme';
@@ -20,6 +24,7 @@ import type { AuthStackParamList } from '@/types';
 import { makeLoginStyles } from '@/styles/login.styles';
 
 const SIGNUP_URL = 'https://app.trayd.ie/signup';
+const WEB_LOGIN_URL = 'https://app.trayd.ie/login';
 
 const schema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email'),
@@ -51,6 +56,7 @@ const LoginScreen = () => {
     variant: 'error' | 'warning';
     title: string;
     message: string;
+    finishSetup?: boolean;
   } | null>(null);
 
   const onSubmit = async (data: LoginForm) => {
@@ -60,7 +66,15 @@ const LoginScreen = () => {
       await setKeepSignedIn(keepSignedIn);
       await dispatch(signInWithPassword(data)).unwrap();
     } catch (err) {
-      if (err === ACCOUNT_SUSPENDED) {
+      if (err === BUSINESS_SETUP_INCOMPLETE) {
+        setBanner({
+          variant: 'warning',
+          title: 'Finish setting up your business',
+          message:
+            'Your email is confirmed, but your business isn’t set up yet. Complete the setup on the web, then sign in here.',
+          finishSetup: true,
+        });
+      } else if (err === ACCOUNT_SUSPENDED) {
         setBanner({
           variant: 'warning',
           title: 'Account Suspended',
@@ -78,6 +92,12 @@ const LoginScreen = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const openWebSetup = () => {
+    Linking.openURL(WEB_LOGIN_URL).catch(() =>
+      toastError(new Error('Could not open the setup page.'), ''),
+    );
   };
 
   const openSignup = () => {
@@ -104,6 +124,8 @@ const LoginScreen = () => {
             title={banner.title}
             message={banner.message}
             onDismiss={() => setBanner(null)}
+            actionLabel={banner.finishSetup ? 'Finish setup' : undefined}
+            onAction={banner.finishSetup ? openWebSetup : undefined}
             style={styles.banner}
           />
         ) : null}

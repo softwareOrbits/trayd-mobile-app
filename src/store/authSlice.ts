@@ -20,6 +20,13 @@ import type {
 // active business (removed/suspended) — the custom access-token hook leaves
 // `business_id` null in that case.
 export const ACCOUNT_SUSPENDED = 'account_suspended';
+export const BUSINESS_SETUP_INCOMPLETE = 'business_setup_incomplete';
+
+const hasBusiness = async (): Promise<boolean> => {
+  const { data, error } = await supabase.rpc('get_onboarding_state');
+  if (error) return true;
+  return (data as { has_business?: boolean } | null)?.has_business !== false;
+};
 
 const initialState: AuthState = {
   accessToken: null,
@@ -61,8 +68,11 @@ export const signInWithPassword = createAsyncThunk<
   // claim (custom_access_token_hook skips removed rows) — block entry.
   const claims = getJwtClaims(data.session.access_token);
   if (!claims?.business_id) {
+    const reason = (await hasBusiness())
+      ? ACCOUNT_SUSPENDED
+      : BUSINESS_SETUP_INCOMPLETE;
     await supabase.auth.signOut();
-    return rejectWithValue(ACCOUNT_SUSPENDED);
+    return rejectWithValue(reason);
   }
   const isOwner = readIsOwner(data.session.access_token);
   return {

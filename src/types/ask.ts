@@ -30,12 +30,44 @@ export type AskProposalDetail = {
   value: string;
 };
 
+export type AskFieldWidget = 'text' | 'date' | 'number' | 'toggle' | 'select';
+
+export type AskFieldSource =
+  | 'customers'
+  | 'employees'
+  | 'team'
+  | 'leave_types'
+  | 'roles';
+
+export type AskField = {
+  key: string;
+  label: string;
+  value: unknown;
+  required: boolean;
+  widget: AskFieldWidget;
+  options?: string[];
+  source?: AskFieldSource;
+};
+
+export type AskUploadRef = {
+  path: string;
+  media_type?: string;
+};
+
+export type AskAttachment = AskUploadRef & {
+  name: string;
+  previewUri?: string;
+};
+
 export type AskProposal = {
   op: string;
   entity: string;
   summary: string;
   params: Record<string, unknown>;
   details: AskProposalDetail[];
+  fields?: AskField[];
+  attachments?: AskUploadRef[];
+  input?: Record<string, unknown>;
 };
 
 export type AskCommitResult = {
@@ -43,6 +75,7 @@ export type AskCommitResult = {
   message: string;
   id?: string;
   entity?: string;
+  attached?: number;
 };
 
 export type AskAnswer = {
@@ -58,6 +91,7 @@ export type AskMessage = {
   text: string;
   blocks: AskBlock[];
   proposal?: AskProposal | null;
+  attachments?: AskAttachment[];
 };
 
 export type AskConversation = {

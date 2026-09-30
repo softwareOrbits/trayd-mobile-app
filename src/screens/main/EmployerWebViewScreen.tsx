@@ -7,6 +7,7 @@ import {
   type Ref,
 } from 'react';
 import {
+  ActivityIndicator,
   AppState,
   BackHandler,
   Linking,
@@ -29,7 +30,6 @@ import { BASE_URL } from '@env';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { LoadingScreen } from '@/components/ui';
 import { useAppDispatch } from '@/store/hooks';
 import { setSelectedView, signOut } from '@/store/authSlice';
 import type { MainStackParamList } from '@/types';
@@ -348,8 +348,8 @@ const EmployerWebViewScreen = () => {
       </View>
 
       {configured && !loadError && !ready ? (
-        <View style={styles.veil}>
-          <LoadingScreen compact />
+        <View style={[styles.veil, { backgroundColor: colors.background }]}>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : null}
     </View>

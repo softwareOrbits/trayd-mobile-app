@@ -11,6 +11,8 @@ type BannerProps = {
   title: string;
   message?: string;
   onDismiss?: () => void;
+  actionLabel?: string;
+  onAction?: () => void;
   style?: ViewStyle;
 };
 
@@ -19,6 +21,8 @@ export const Banner = ({
   title,
   message,
   onDismiss,
+  actionLabel,
+  onAction,
   style,
 }: BannerProps) => {
   const { colors } = useTheme();
@@ -36,6 +40,13 @@ export const Banner = ({
       <View style={styles.textCol}>
         <Text style={[styles.title, { color: accent }]}>{title}</Text>
         {message ? <Text style={styles.message}>{message}</Text> : null}
+        {actionLabel && onAction ? (
+          <Pressable onPress={onAction} hitSlop={8} style={styles.action}>
+            <Text style={[styles.actionText, { color: accent }]}>
+              {actionLabel}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
       {onDismiss ? (
         <Pressable onPress={onDismiss} hitSlop={8} style={styles.close}>
@@ -69,6 +80,11 @@ export const makeStyles = (theme: Theme) =>
       lineHeight: 18,
     },
     close: { marginTop: 1 },
+    action: { alignSelf: 'flex-start', marginTop: 6 },
+    actionText: {
+      fontSize: theme.typography.size.xs,
+      fontFamily: theme.fonts.semibold,
+    },
   });
 
 export default Banner;
