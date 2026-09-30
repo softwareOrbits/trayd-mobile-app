@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -7,7 +7,11 @@ import {
   ScrollView,
   Text,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
+import { ListFooterLoader } from '@/components/ui';
+import { PAGE_SIZE } from '@/utils/pagination';
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
@@ -71,13 +75,48 @@ export const TasksPanel = ({
   const [period, setPeriod] = useState<TaskPeriod>(currentPeriod);
   const [pickerOpen, setPickerOpen] = useState(false);
 
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const busy = useRef(false);
+
   const load = useCallback(async () => {
+    busy.current = true;
     try {
-      setTasks(await fetchTasks());
+      const page = await fetchTasks({ offset: 0, limit: PAGE_SIZE });
+      setTasks(page);
+      setHasMore(page.length === PAGE_SIZE);
     } catch {
       setTasks(prev => prev ?? []);
+    } finally {
+      busy.current = false;
     }
   }, []);
+
+  const loadMore = useCallback(async () => {
+    if (busy.current || !hasMore || tasks === null) return;
+    busy.current = true;
+    setLoadingMore(true);
+    try {
+      const page = await fetchTasks({ offset: tasks.length, limit: PAGE_SIZE });
+      setTasks(prev => {
+        const seen = new Set((prev ?? []).map(t => t.id));
+        return [...(prev ?? []), ...page.filter(t => !seen.has(t.id))];
+      });
+      setHasMore(page.length === PAGE_SIZE);
+    } catch {
+      setHasMore(false);
+    } finally {
+      busy.current = false;
+      setLoadingMore(false);
+    }
+  }, [hasMore, tasks]);
+
+  const onNearEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 320) {
+      loadMore();
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -148,6 +187,8 @@ export const TasksPanel = ({
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={refresh}
+          onScroll={onNearEnd}
+          scrollEventThrottle={100}
         >
           <Pressable
             style={styles.periodPill}
@@ -225,6 +266,7 @@ export const TasksPanel = ({
               </Fragment>
             ))
           )}
+          <ListFooterLoader visible={loadingMore} />
         </ScrollView>
 
         <TaskPeriodPicker
@@ -247,6 +289,9 @@ export const TasksPanel = ({
       contentContainerStyle={[styles.list, { paddingBottom: bottomInset + 24 }]}
       showsVerticalScrollIndicator={false}
       refreshControl={refresh}
+      onEndReached={loadMore}
+      onEndReachedThreshold={0.4}
+      ListFooterComponent={<ListFooterLoader visible={loadingMore} />}
       ListEmptyComponent={
         <View style={styles.empty}>
           <View style={styles.emptyIcon}>

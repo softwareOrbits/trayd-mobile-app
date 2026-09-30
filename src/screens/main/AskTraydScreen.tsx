@@ -35,6 +35,7 @@ import {
 } from '@/services/askTrayd';
 import { pickAttachments } from '@/utils/pickAttachments';
 import { FilePreview, useFilePreview } from '@/components/ui';
+import { PAGE_SIZE } from '@/utils/pagination';
 import { fetchMyMember } from '@/services/member';
 import { useAppSelector } from '@/store/hooks';
 import { useTheme } from '@/theme';
@@ -111,13 +112,42 @@ const AskTraydScreen = () => {
   const isOwner = useAppSelector(s => s.auth.isOwner);
   const preview = useFilePreview();
 
+  const [historyHasMore, setHistoryHasMore] = useState(true);
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
+  const historyBusy = useRef(false);
+
   const loadHistory = useCallback(
     () =>
-      fetchAskConversations()
-        .then(setHistory)
+      fetchAskConversations({ offset: 0, limit: PAGE_SIZE })
+        .then(rows => {
+          setHistory(rows);
+          setHistoryHasMore(rows.length === PAGE_SIZE);
+        })
         .catch(() => setHistory([])),
     [],
   );
+
+  const loadMoreHistory = async () => {
+    if (historyBusy.current || !historyHasMore || history === null) return;
+    historyBusy.current = true;
+    setHistoryLoadingMore(true);
+    try {
+      const rows = await fetchAskConversations({
+        offset: history.length,
+        limit: PAGE_SIZE,
+      });
+      setHistory(prev => {
+        const seen = new Set((prev ?? []).map(c => c.id));
+        return [...(prev ?? []), ...rows.filter(c => !seen.has(c.id))];
+      });
+      setHistoryHasMore(rows.length === PAGE_SIZE);
+    } catch {
+      setHistoryHasMore(false);
+    } finally {
+      historyBusy.current = false;
+      setHistoryLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     loadHistory();
@@ -509,6 +539,8 @@ const AskTraydScreen = () => {
         onOpen={openThread}
         onNewChat={newChat}
         onClose={() => setDrawerOpen(false)}
+        onEndReached={loadMoreHistory}
+        loadingMore={historyLoadingMore}
       />
     </KeyboardAvoidingView>
   );

@@ -4,6 +4,7 @@ import { getMyMemberRef } from './member';
 import { num, pickOne } from './rows';
 import type {
   AssignableEmployee,
+  ListPage,
   NewTaskInput,
   Task,
   TaskEvent,
@@ -64,12 +65,17 @@ const mapTask = (r: TaskRow): Task => ({
   vehicle: pickOne(r.vehicle),
 });
 
-export async function fetchTasks(): Promise<Task[]> {
-  return offlineRead('tasks', async () => {
-    const { data, error } = await supabase
+export async function fetchTasks(page?: ListPage): Promise<Task[]> {
+  const key = page ? `tasks:${page.offset}:${page.limit}` : 'tasks';
+  return offlineRead(key, async () => {
+    let query = supabase
       .from('tasks')
       .select(SELECT)
       .order('deadline_date', { nullsFirst: false });
+    if (page) {
+      query = query.order('id').range(page.offset, page.offset + page.limit - 1);
+    }
+    const { data, error } = await query;
     if (error) throw new Error(error.message);
     return (data as TaskRow[]).map(mapTask);
   });

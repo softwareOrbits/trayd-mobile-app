@@ -17,6 +17,7 @@ export type NotificationItem = {
 export type NotificationList = {
   items: NotificationItem[];
   unread: number;
+  fetched?: number;
 };
 
 export type NotificationTarget =
@@ -187,13 +188,19 @@ async function loadJobsById(ids: string[]): Promise<Map<string, JobRow>> {
   return new Map(((data ?? []) as JobRow[]).map(j => [j.id, j]));
 }
 
-export async function listNotifications(limit = 30): Promise<NotificationList> {
-  const { data: rows, error } = await supabase
+export async function listNotifications(
+  limit = 30,
+  offset?: number,
+): Promise<NotificationList> {
+  const base = supabase
     .from('user_notifications')
     .select('id, notification_id, read_at, created_at')
-    .order('created_at', { ascending: false })
-    .limit(limit * 2);
+    .order('created_at', { ascending: false });
+  const { data: rows, error } = await (offset == null
+    ? base.limit(limit * 2)
+    : base.order('id').range(offset, offset + limit - 1));
   if (error) throw new Error(error.message);
+  const fetched = rows?.length ?? 0;
 
   const seen = new Set<string>();
   const deduped: UserNotifRow[] = [];
@@ -203,7 +210,7 @@ export async function listNotifications(limit = 30): Promise<NotificationList> {
     deduped.push(r);
     if (deduped.length >= limit) break;
   }
-  if (!deduped.length) return { items: [], unread: 0 };
+  if (!deduped.length) return { items: [], unread: 0, fetched };
 
   const { data: notifs, error: nErr } = await supabase
     .from('notifications')
@@ -258,7 +265,7 @@ export async function listNotifications(limit = 30): Promise<NotificationList> {
     };
   });
 
-  return { items, unread: items.filter(i => !i.read).length };
+  return { items, unread: items.filter(i => !i.read).length, fetched };
 }
 
 export async function markNotificationRead(id: string): Promise<void> {

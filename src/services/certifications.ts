@@ -9,6 +9,7 @@ const CERT_BUCKET = 'certifications';
 import type {
   CertStatus,
   CertificationType,
+  ListPage,
   MemberCertification,
 } from '@/types';
 
@@ -59,15 +60,21 @@ const typeOf = (r: MemberCertRow) => {
   };
 };
 
-export async function fetchMyCertifications(): Promise<MemberCertification[]> {
+export async function fetchMyCertifications(
+  page?: ListPage,
+): Promise<MemberCertification[]> {
   const me = await getMyMemberRef();
-  const { data, error } = await supabase
+  let query = supabase
     .from('member_certifications')
     .select(
       'id, certification_type_id, cert_number, issued_on, expires_on, document_path, note, certification_types(name, issuing_body)',
     )
     .eq('business_member_id', me.id)
     .order('expires_on', { ascending: true, nullsFirst: false });
+  if (page) {
+    query = query.order('id').range(page.offset, page.offset + page.limit - 1);
+  }
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
   return ((data ?? []) as MemberCertRow[]).map(r => {
     const t = typeOf(r);

@@ -101,6 +101,8 @@ export type JobsState = {
   items: Job[];
   status: JobsStatus;
   error: string | null;
+  hasMore: boolean;
+  loadingMore: boolean;
 };
 
 export type LiveState = 'active' | 'paused';
