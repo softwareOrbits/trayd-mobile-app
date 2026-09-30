@@ -15,6 +15,7 @@ import {
   type LeaveRequestDraft,
   type LeaveStatus,
   type LeaveType,
+  type ListPage,
 } from '@/types';
 
 const LEAVE_BUCKET = 'leave-documents';
@@ -251,17 +252,19 @@ const displayNote = (r: RequestRow, status: LeaveStatus): string | null => {
   return r.note || (decision && !isAuto ? r.decision_note : null);
 };
 
-export async function fetchLeaveRequests(): Promise<LeaveRequest[]> {
+export async function fetchLeaveRequests(
+  page?: ListPage,
+): Promise<LeaveRequest[]> {
+  const cacheKey = page ? `${REQUESTS_CACHE_KEY}:p${page.offset}` : REQUESTS_CACHE_KEY;
   try {
-    const live = await fetchLiveRequests();
-    AsyncStorage.setItem(REQUESTS_CACHE_KEY, JSON.stringify(live)).catch(
-      () => {},
-    );
+    const live = await fetchLiveRequests(page);
+    if (!page || page.offset === 0) {
+      AsyncStorage.setItem(cacheKey, JSON.stringify(live)).catch(() => {});
+    }
     return live;
   } catch (e) {
-    const raw = await AsyncStorage.getItem(REQUESTS_CACHE_KEY).catch(
-      () => null,
-    );
+    if (page && page.offset > 0) return [];
+    const raw = await AsyncStorage.getItem(cacheKey).catch(() => null);
     if (raw) return JSON.parse(raw) as LeaveRequest[];
     throw e;
   }
@@ -274,11 +277,11 @@ export async function fetchLeaveRequestById(
   return all.find(r => r.id === id) ?? null;
 }
 
-async function fetchLiveRequests(): Promise<LeaveRequest[]> {
+async function fetchLiveRequests(page?: ListPage): Promise<LeaveRequest[]> {
   const me = await getMyMemberRef();
   const types = await loadLeaveTypes();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('leave_requests')
     .select(
       `id, status, start_date, end_date, total_days, note, decision_note,
@@ -287,6 +290,10 @@ async function fetchLiveRequests(): Promise<LeaveRequest[]> {
     )
     .eq('business_member_id', me.id)
     .order('start_date', { ascending: false });
+  if (page) {
+    query = query.order('id').range(page.offset, page.offset + page.limit - 1);
+  }
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
 
   const uiById = new Map(types.map(t => [t.id, uiTypeFor(t)]));

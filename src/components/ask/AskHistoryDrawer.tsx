@@ -9,6 +9,8 @@ import {
   StyleSheet,
   Text,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -42,6 +44,8 @@ export const AskHistoryDrawer = ({
   onOpen,
   onNewChat,
   onClose,
+  onEndReached,
+  loadingMore = false,
 }: {
   visible: boolean;
   conversations: AskConversation[] | null;
@@ -49,7 +53,15 @@ export const AskHistoryDrawer = ({
   onOpen: (id: string) => void;
   onNewChat: () => void;
   onClose: () => void;
+  onEndReached?: () => void;
+  loadingMore?: boolean;
 }) => {
+  const onNearEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 200) {
+      onEndReached?.();
+    }
+  };
   const { colors } = useTheme();
   const styles = useThemedStyles(makeAskTraydStyles);
   const insets = useSafeAreaInsets();
@@ -106,6 +118,8 @@ export const AskHistoryDrawer = ({
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+              onScroll={onNearEnd}
+              scrollEventThrottle={100}
             >
               {conversations.map(c => {
                 const group = groupOf(c.updatedAt);
@@ -140,6 +154,9 @@ export const AskHistoryDrawer = ({
                   </View>
                 );
               })}
+              {loadingMore ? (
+                <ActivityIndicator color={colors.secondary} />
+              ) : null}
             </ScrollView>
           )}
         </Animated.View>

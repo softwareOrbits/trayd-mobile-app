@@ -1,17 +1,20 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
   ScrollView,
   Text,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { Button } from '@/components/ui';
+import { Button, ListFooterLoader } from '@/components/ui';
+import { PAGE_SIZE } from '@/utils/pagination';
 import {
   daysToExpiry,
   fetchMyCertifications,
@@ -46,13 +49,49 @@ const CertificationsScreen = () => {
   const [holder, setHolder] = useState('');
   const [role, setRole] = useState('');
   const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const busy = useRef(false);
+
+  const loadMore = async () => {
+    if (busy.current || !hasMore || loading) return;
+    busy.current = true;
+    setLoadingMore(true);
+    try {
+      const page = await fetchMyCertifications({
+        offset: certs.length,
+        limit: PAGE_SIZE,
+      });
+      setCerts(prev => {
+        const seen = new Set(prev.map(c => c.id));
+        return [...prev, ...page.filter(c => !seen.has(c.id))];
+      });
+      setHasMore(page.length === PAGE_SIZE);
+    } catch {
+      setHasMore(false);
+    } finally {
+      busy.current = false;
+      setLoadingMore(false);
+    }
+  };
+
+  const onNearEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 320) {
+      loadMore();
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
       setLoading(true);
-      fetchMyCertifications()
-        .then(c => active && setCerts(c))
+      fetchMyCertifications({ offset: 0, limit: PAGE_SIZE })
+        .then(c => {
+          if (!active) return;
+          setCerts(c);
+          setHasMore(c.length === PAGE_SIZE);
+        })
         .catch(() => active && setCerts([]))
         .finally(() => active && setLoading(false));
       fetchMyMember()
@@ -110,6 +149,8 @@ const CertificationsScreen = () => {
             { paddingBottom: insets.bottom + 32 },
           ]}
           showsVerticalScrollIndicator={false}
+          onScroll={onNearEnd}
+          scrollEventThrottle={100}
         >
           <Text style={styles.subtitle}>
             {[holder, role].filter(Boolean).join(' · ')}
@@ -215,6 +256,7 @@ const CertificationsScreen = () => {
               ) : null}
             </>
           )}
+          <ListFooterLoader visible={loadingMore} />
         </ScrollView>
       )}
     </View>

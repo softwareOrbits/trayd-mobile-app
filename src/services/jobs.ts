@@ -8,7 +8,7 @@ import { uuidv4 } from '@/utils/uuid';
 import { offlineRead } from './readCache';
 import { loadJobCache } from './jobCache';
 import { isOnline } from '@/offline/connectivity';
-import type { Job, JobDetail, JobStatus, JobType } from '@/types';
+import type { Job, JobDetail, JobStatus, JobType, ListPage } from '@/types';
 
 type ListRow = {
   id: string;
@@ -95,12 +95,13 @@ const mapDetail = (r: DetailRow): JobDetail => ({
 });
 
 /** Jobs where the signed-in employee is the primary assignee. */
-export async function fetchMyJobs(): Promise<Job[]> {
+export async function fetchMyJobs(page?: ListPage): Promise<Job[]> {
   const me = await getMyMemberRef();
   const { data, error } = await supabase.rpc('list_jobs', {
     p_tab: 'all',
     p_employee_id: me.id,
-    p_limit: 100,
+    p_limit: page?.limit ?? 100,
+    p_offset: page?.offset ?? 0,
   });
   if (error) throw new Error(error.message);
   return ((data ?? []) as ListRow[]).map(mapList);

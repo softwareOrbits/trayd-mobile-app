@@ -13,6 +13,7 @@ import type {
   AskMessage,
   AskProposal,
   AskUploadRef,
+  ListPage,
 } from '@/types';
 
 const FUNCTION_NAME = 'ask-trayd-agent';
@@ -256,11 +257,17 @@ export function clearAskFieldOptions(): void {
 }
 
 /** History is read-only on the client — the Edge Function writes every turn. */
-export async function fetchAskConversations(): Promise<AskConversation[]> {
-  const { data, error } = await supabase
+export async function fetchAskConversations(
+  page?: ListPage,
+): Promise<AskConversation[]> {
+  let query = supabase
     .from('ai_conversations')
     .select('id, title, updated_at')
     .order('updated_at', { ascending: false });
+  if (page) {
+    query = query.order('id').range(page.offset, page.offset + page.limit - 1);
+  }
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
 
   return (

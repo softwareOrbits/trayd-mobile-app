@@ -27,6 +27,8 @@ import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { fmtDMY } from '@/utils/datetime';
 import { makeNotificationsStyles } from '@/styles/notifications.styles';
+import { ListFooterLoader } from '@/components/ui';
+import { PAGE_SIZE } from '@/utils/pagination';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -66,19 +68,59 @@ const NotificationsScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const readPending = useRef(new Set<string>());
+  const offset = useRef(0);
+  const busy = useRef(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const unread = items.filter(i => !i.read).length;
 
-  const load = useCallback(async () => {
-    const result = await listNotifications().catch(() => null);
-    if (!result) return;
+  const withPendingReads = (list: NotificationItem[]) => {
     const pending = readPending.current;
-    const merged = pending.size
-      ? result.items.map(i => (pending.has(i.id) ? { ...i, read: true } : i))
-      : result.items;
+    return pending.size
+      ? list.map(i => (pending.has(i.id) ? { ...i, read: true } : i))
+      : list;
+  };
+
+  const load = useCallback(async () => {
+    busy.current = true;
+    const result = await listNotifications(PAGE_SIZE, 0).catch(() => null);
+    busy.current = false;
+    if (!result) return;
+    const merged = withPendingReads(result.items);
+    offset.current = result.fetched ?? 0;
+    setHasMore((result.fetched ?? 0) === PAGE_SIZE);
     setItems(merged);
     dispatch(setUnread(merged.filter(i => !i.read).length));
   }, [dispatch]);
+
+  const loadMore = async () => {
+    if (busy.current || !hasMore) return;
+    busy.current = true;
+    setLoadingMore(true);
+    const result = await listNotifications(PAGE_SIZE, offset.current).catch(
+      () => null,
+    );
+    busy.current = false;
+    setLoadingMore(false);
+    if (!result) {
+      setHasMore(false);
+      return;
+    }
+    offset.current += result.fetched ?? 0;
+    setHasMore((result.fetched ?? 0) === PAGE_SIZE);
+    setItems(prev => {
+      const seen = new Set(prev.map(i => i.notificationId));
+      const next = [
+        ...prev,
+        ...withPendingReads(result.items).filter(
+          i => !seen.has(i.notificationId),
+        ),
+      ];
+      dispatch(setUnread(next.filter(i => !i.read).length));
+      return next;
+    });
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -199,6 +241,9 @@ const NotificationsScreen = () => {
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={<ListFooterLoader visible={loadingMore} />}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

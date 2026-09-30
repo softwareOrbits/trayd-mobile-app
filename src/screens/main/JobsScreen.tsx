@@ -18,7 +18,11 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { FloatingActionButton, useBottomNavHeight } from '@/components/ui';
+import {
+  FloatingActionButton,
+  ListFooterLoader,
+  useBottomNavHeight,
+} from '@/components/ui';
 import {
   CompletedDateFilter,
   CompletedJobItem,
@@ -33,7 +37,7 @@ import type { TaskCounts } from '@/components/tasks/TasksPanel';
 import { useOnline, useSync } from '@/offline';
 import { getMappedId } from '@/offline/idRemap';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { fetchJobs } from '@/store/jobsSlice';
+import { fetchJobs, fetchMoreJobs } from '@/store/jobsSlice';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { useCollapsibleOnScroll } from '@/utils/useCollapsibleOnScroll';
@@ -84,6 +88,7 @@ const JobsScreen = () => {
     return [...visiblePending, ...serverItems];
   }, [serverItems, pendingItems]);
   const status = useAppSelector(state => state.jobs.status);
+  const loadingMore = useAppSelector(state => state.jobs.loadingMore);
   const user = useAppSelector(state => state.auth.user);
   const isOwner = useAppSelector(state => state.auth.isOwner);
   const { pending, flushNow } = useSync();
@@ -456,6 +461,11 @@ const JobsScreen = () => {
           ) : undefined
         }
         stickySectionHeadersEnabled={false}
+        onEndReached={() => {
+          if (online) dispatch(fetchMoreJobs());
+        }}
+        onEndReachedThreshold={0.4}
+        ListFooterComponent={<ListFooterLoader visible={loadingMore} />}
         contentContainerStyle={[styles.content, { paddingBottom: navHeight + 24 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
