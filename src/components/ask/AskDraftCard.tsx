@@ -15,6 +15,8 @@ import { useThemedStyles } from '@/utils/useThemedStyles';
 import { fmtDateFull } from '@/utils/datetime';
 import { makeAskTraydStyles } from '@/styles/askTrayd.styles';
 import type { AskCommitResult, AskField, AskProposal } from '@/types';
+import { downloadInvoicePdf } from '@/services/invoicePdf';
+import { toastError } from '@/utils/toast';
 import AskOptionSheet from './AskOptionSheet';
 
 type CardState = 'pending' | 'working' | 'done';
@@ -141,6 +143,19 @@ export const AskDraftCard = ({
   const [picking, setPicking] = useState<Target | null>(null);
   const [dating, setDating] = useState<Target | null>(null);
   const inputRef = useRef<TextInput>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const downloadPdf = async (invoiceId: string) => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      await downloadInvoicePdf(invoiceId);
+    } catch (e) {
+      toastError(e, 'Could not download the PDF.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const editable = state === 'pending';
 
@@ -241,6 +256,8 @@ export const AskDraftCard = ({
 
   if (state === 'done' && result?.ok) {
     const open = onOpen?.(result) ?? null;
+    const invoiceId =
+      result.document?.type === 'invoice' ? result.document.id : null;
     const attached = result.attached
       ? ` · ${result.attached} file${result.attached === 1 ? '' : 's'} attached`
       : '';
@@ -257,6 +274,19 @@ export const AskDraftCard = ({
             </Text>
           </View>
         </View>
+        {invoiceId ? (
+          <Pressable
+            style={styles.draftPrimary}
+            onPress={() => downloadPdf(invoiceId)}
+            disabled={downloading}
+          >
+            {downloading ? (
+              <ActivityIndicator size="small" color={colors.onPrimary} />
+            ) : (
+              <Text style={styles.draftPrimaryText}>Download PDF</Text>
+            )}
+          </Pressable>
+        ) : null}
         {open ? (
           <Pressable style={styles.doneAction} onPress={open.go}>
             <Text style={styles.doneActionText}>{open.label}</Text>
