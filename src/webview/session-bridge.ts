@@ -70,12 +70,16 @@ const LOCK_VIEWPORT_JS = `(function(){try{
  * and reload, BEFORE the web bundle executes. Flags the native shell and seeds
  * the session so the very first `getSession()` finds it.
  */
-export function buildBootstrapScript(session: Session): string {
+export function buildBootstrapScript(session: Session, bottomInset = 0): string {
   const key = asJsString(authStorageKey());
   const value = asJsString(JSON.stringify(session));
+  const bottom = Math.max(0, Math.round(bottomInset));
   return `(function(){try{
     window.__TRAYD_NATIVE__ = true;
     localStorage.setItem(${key}, ${value});
+  }catch(e){}})();
+  (function(){try{
+    document.documentElement.style.setProperty('--native-safe-bottom', '${bottom}px');
   }catch(e){}})();
   ${LOCK_VIEWPORT_JS}
   true;`;

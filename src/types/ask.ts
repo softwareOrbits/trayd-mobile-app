@@ -30,14 +30,22 @@ export type AskProposalDetail = {
   value: string;
 };
 
-export type AskFieldWidget = 'text' | 'date' | 'number' | 'toggle' | 'select';
+export type AskFieldWidget =
+  | 'text'
+  | 'date'
+  | 'number'
+  | 'toggle'
+  | 'select'
+  | 'multiselect'
+  | 'lines';
 
 export type AskFieldSource =
   | 'customers'
   | 'employees'
   | 'team'
   | 'leave_types'
-  | 'roles';
+  | 'roles'
+  | 'jobs';
 
 export type AskField = {
   key: string;
@@ -47,6 +55,7 @@ export type AskField = {
   widget: AskFieldWidget;
   options?: string[];
   source?: AskFieldSource;
+  columns?: AskField[];
 };
 
 export type AskUploadRef = {
@@ -76,7 +85,11 @@ export type AskCommitResult = {
   id?: string;
   entity?: string;
   attached?: number;
+  downloadable?: boolean;
+  document?: AskDocumentRef | null;
 };
+
+export type AskDocumentRef = { type: 'invoice' | 'quotation'; id: string };
 
 export type AskAnswer = {
   conversationId: string | null;

@@ -9,6 +9,7 @@ import type {
   AskBlock,
   AskCommitResult,
   AskConversation,
+  AskDocumentRef,
   AskFieldSource,
   AskMessage,
   AskProposal,
@@ -54,6 +55,8 @@ type CommitResponse = {
   committed?: { op?: string; entity?: string; id?: string };
   message?: string;
   attached?: number;
+  downloadable?: boolean;
+  document?: AskDocumentRef | null;
   error?: string;
 };
 
@@ -167,6 +170,8 @@ export async function commitAskAction(
     id: body.committed?.id,
     entity: body.committed?.entity,
     attached: body.attached ?? 0,
+    downloadable: body.downloadable ?? false,
+    document: body.document ?? null,
   };
 }
 
@@ -231,6 +236,12 @@ const optionQuery = (source: AskFieldSource) => {
       return supabase.from('leave_types').select('name').order('sort_order');
     case 'roles':
       return supabase.from('job_roles').select('name').order('name');
+    case 'jobs':
+      return supabase
+        .from('jobs')
+        .select('name:job_number')
+        .order('job_number', { ascending: false })
+        .limit(200);
   }
 };
 
