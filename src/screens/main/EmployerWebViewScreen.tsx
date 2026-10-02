@@ -94,6 +94,8 @@ const EmployerWebViewScreen = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
+  const bottomInsetRef = useRef(insets.bottom);
+  bottomInsetRef.current = insets.bottom;
   const dispatch = useAppDispatch();
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
@@ -124,7 +126,7 @@ const EmployerWebViewScreen = () => {
     let active = true;
     supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
-      if (data.session) setBootstrap(buildBootstrapScript(data.session));
+      if (data.session) setBootstrap(buildBootstrapScript(data.session, bottomInsetRef.current));
       else dispatch(signOut());
     });
     return () => {
@@ -202,7 +204,7 @@ const EmployerWebViewScreen = () => {
         return;
       }
       reseeded.current = true;
-      setBootstrap(buildBootstrapScript(data.session));
+      setBootstrap(buildBootstrapScript(data.session, bottomInsetRef.current));
       setSeedKey(key => key + 1);
       recovering.current = false;
     });
@@ -231,7 +233,7 @@ const EmployerWebViewScreen = () => {
           recoverWebSession();
           break;
         case NativeMessage.SWITCH_VIEW:
-          dispatch(setSelectedView(null));
+          dispatch(setSelectedView('field'));
           break;
         case NativeMessage.SAVE_PDF:
           savePdfAndShare(msg.filename, msg.base64).catch(() => undefined);

@@ -19,6 +19,9 @@ import AskOptionSheet from './AskOptionSheet';
 
 type CardState = 'pending' | 'working' | 'done';
 type Values = Record<string, unknown>;
+type Row = Record<string, unknown>;
+
+type Target = { field: AskField; parentKey?: string; row?: number };
 
 const APPROVE_LABEL: Record<string, string> = {
   job: 'Add to Jobs',
@@ -29,46 +32,99 @@ const APPROVE_LABEL: Record<string, string> = {
 const entityKey = (entity: string) => entity.toLowerCase().replace(/\s+/g, '_');
 
 const isBlank = (v: unknown) =>
-  v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
+  v === null ||
+  v === undefined ||
+  (typeof v === 'string' && v.trim() === '') ||
+  (Array.isArray(v) && v.length === 0);
+
+const blankFor = (field: AskField): unknown => {
+  if (field.widget === 'toggle') return false;
+  if (field.widget === 'multiselect' || field.widget === 'lines') return [];
+  return '';
+};
+
+const initialValue = (field: AskField): unknown => {
+  if (field.widget === 'lines' || field.widget === 'multiselect') {
+    return Array.isArray(field.value) ? field.value : [];
+  }
+  return field.value ?? blankFor(field);
+};
 
 const initialValues = (fields: AskField[]): Values =>
-  Object.fromEntries(
-    fields.map(f => [
-      f.key,
-      f.value ?? (f.widget === 'toggle' ? false : ''),
-    ]),
-  );
+  Object.fromEntries(fields.map(f => [f.key, initialValue(f)]));
+
+const emptyRow = (columns: AskField[]): Row =>
+  Object.fromEntries(columns.map(c => [c.key, c.value ?? blankFor(c)]));
+
+const rowIsEmpty = (columns: AskField[], row: Row) =>
+  columns.every(c => c.widget === 'toggle' || isBlank(row[c.key]));
 
 const displayValue = (field: AskField, value: unknown): string => {
   if (isBlank(value)) return '';
   if (field.widget === 'toggle') return value ? 'Yes' : 'No';
   if (field.widget === 'date') return fmtDateFull(String(value)) ?? String(value);
+  if (field.widget === 'multiselect' && Array.isArray(value)) return value.join(', ');
   return String(value);
 };
 
-const toInput = (fields: AskField[], values: Values): Values =>
+const cleanValue = (field: AskField, v: unknown): unknown => {
+  if (isBlank(v)) return undefined;
+  if (field.widget === 'number') {
+    const n = Number(String(v).replace(',', '.'));
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return typeof v === 'string' ? v.trim() : v;
+};
+
+const cleanRow = (columns: AskField[], row: Row): Row =>
   Object.fromEntries(
-    fields
-      .map(f => {
-        const v = values[f.key];
-        if (isBlank(v)) return null;
-        if (f.widget === 'number') {
-          const n = Number(String(v).replace(',', '.'));
-          return Number.isFinite(n) ? [f.key, n] : null;
-        }
-        return [f.key, typeof v === 'string' ? v.trim() : v];
-      })
-      .filter((e): e is [string, unknown] => e !== null),
+    columns
+      .map(c => [c.key, cleanValue(c, row[c.key])] as const)
+      .filter(([, v]) => v !== undefined),
   );
+
+const filledRows = (field: AskField, value: unknown): Row[] => {
+  const columns = field.columns ?? [];
+  return (Array.isArray(value) ? (value as Row[]) : []).filter(
+    r => !rowIsEmpty(columns, r),
+  );
+};
+
+const toInput = (fields: AskField[], values: Values): Values => {
+  const out: Values = {};
+  for (const f of fields) {
+    const v = values[f.key];
+    if (f.widget === 'lines') {
+      const rows = filledRows(f, v).map(r => cleanRow(f.columns ?? [], r));
+      if (rows.length) out[f.key] = rows;
+      continue;
+    }
+    const cleaned = cleanValue(f, v);
+    if (cleaned !== undefined) out[f.key] = cleaned;
+  }
+  return out;
+};
+
+const missingLabels = (fields: AskField[], values: Values): string[] =>
+  fields.flatMap(f => {
+    if (f.widget !== 'lines') {
+      return f.required && isBlank(values[f.key]) ? [f.label] : [];
+    }
+    const rows = filledRows(f, values[f.key]);
+    if (f.required && !rows.length) return [f.label];
+    return rows.flatMap((r, i) =>
+      (f.columns ?? [])
+        .filter(c => c.required && isBlank(r[c.key]))
+        .map(c => `${f.label} ${i + 1} ${c.label.toLowerCase()}`),
+    );
+  });
 
 export const AskDraftCard = ({
   proposal,
-  canApprove,
   onApprove,
   onOpen,
 }: {
   proposal: AskProposal;
-  canApprove: boolean;
   onApprove: (
     proposal: AskProposal,
     input?: Record<string, unknown>,
@@ -82,34 +138,85 @@ export const AskDraftCard = ({
   const [state, setState] = useState<CardState>('pending');
   const [result, setResult] = useState<AskCommitResult | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
-  const [picking, setPicking] = useState<AskField | null>(null);
-  const [dating, setDating] = useState<AskField | null>(null);
+  const [picking, setPicking] = useState<Target | null>(null);
+  const [dating, setDating] = useState<Target | null>(null);
   const inputRef = useRef<TextInput>(null);
 
   const editable = state === 'pending';
-  const set = (key: string, value: unknown) =>
-    setValues(prev => ({ ...prev, [key]: value }));
 
-  const missing = fields.filter(f => f.required && isBlank(values[f.key]));
-  const ready = canApprove && missing.length === 0;
+  const rowsOf = (key: string): Row[] =>
+    Array.isArray(values[key]) ? (values[key] as Row[]) : [];
 
-  const openField = (field: AskField) => {
+  const getValue = (t: Target): unknown =>
+    t.parentKey != null && t.row != null
+      ? rowsOf(t.parentKey)[t.row]?.[t.field.key]
+      : values[t.field.key];
+
+  const setValue = (t: Target, value: unknown) =>
+    setValues(prev => {
+      if (t.parentKey == null || t.row == null) {
+        return { ...prev, [t.field.key]: value };
+      }
+      const rows = [...((prev[t.parentKey] as Row[] | undefined) ?? [])];
+      rows[t.row] = { ...rows[t.row], [t.field.key]: value };
+      return { ...prev, [t.parentKey]: rows };
+    });
+
+  const addRow = (field: AskField) =>
+    setValues(prev => ({
+      ...prev,
+      [field.key]: [...rowsOf(field.key), emptyRow(field.columns ?? [])],
+    }));
+
+  const removeRow = (field: AskField, index: number) =>
+    setValues(prev => ({
+      ...prev,
+      [field.key]: rowsOf(field.key).filter((_, i) => i !== index),
+    }));
+
+  const missing = missingLabels(fields, values);
+  const ready = missing.length === 0;
+
+  const multiSelected = (t: Target | null): string[] | undefined => {
+    if (!t || t.field.widget !== 'multiselect') return undefined;
+    const v = getValue(t);
+    return Array.isArray(v) ? (v as string[]) : [];
+  };
+
+  const pick = (t: Target, option: string) => {
+    if (t.field.widget === 'multiselect') {
+      const current = multiSelected(t) ?? [];
+      setValue(
+        t,
+        current.includes(option)
+          ? current.filter(o => o !== option)
+          : [...current, option],
+      );
+      setPicking({ ...t });
+      return;
+    }
+    setValue(t, option);
+    setPicking(null);
+  };
+
+  const openField = (t: Target) => {
     if (!editable) return;
-    if (field.widget === 'toggle') {
-      set(field.key, !values[field.key]);
+    const { widget } = t.field;
+    if (widget === 'toggle') {
+      setValue(t, !getValue(t));
       return;
     }
-    if (field.widget === 'select') {
+    if (widget === 'select' || widget === 'multiselect') {
       setEditing(null);
-      setPicking(field);
+      setPicking(t);
       return;
     }
-    if (field.widget === 'date') {
+    if (widget === 'date') {
       setEditing(null);
-      setDating(field);
+      setDating(t);
       return;
     }
-    setEditing(field.key);
+    setEditing(t.field.key);
     setTimeout(() => inputRef.current?.focus(), 50);
   };
 
@@ -121,13 +228,8 @@ export const AskDraftCard = ({
       proposal,
       fields.length ? toInput(fields, values) : undefined,
     );
-    if (res.ok) {
-      setResult(res);
-      setState('done');
-    } else {
-      setResult(res);
-      setState('pending');
-    }
+    setResult(res);
+    setState(res.ok ? 'done' : 'pending');
   };
 
   const cancel = () => {
@@ -164,7 +266,98 @@ export const AskDraftCard = ({
     );
   }
 
-  const rows = fields.length
+  const renderCell = (column: AskField, parent: AskField, rowIndex: number) => {
+    const t: Target = { field: column, parentKey: parent.key, row: rowIndex };
+    const value = getValue(t);
+    const needed = column.required && isBlank(value);
+    if (column.widget === 'text' || column.widget === 'number') {
+      return (
+        <View key={column.key} style={styles.lineCell}>
+          <Text style={styles.draftLabel}>
+            {column.label}
+            {column.required ? ' *' : ''}
+          </Text>
+          <TextInput
+            style={styles.draftInput}
+            value={String(value ?? '')}
+            onChangeText={text => setValue(t, text)}
+            editable={editable}
+            keyboardType={column.widget === 'number' ? 'decimal-pad' : 'default'}
+            placeholder={needed ? 'Needed' : '—'}
+            placeholderTextColor={needed ? '#B4541A' : colors.placeholder}
+          />
+        </View>
+      );
+    }
+    return (
+      <Pressable
+        key={column.key}
+        style={styles.lineCell}
+        onPress={() => openField(t)}
+        disabled={!editable}
+      >
+        <Text style={styles.draftLabel}>
+          {column.label}
+          {column.required ? ' *' : ''}
+        </Text>
+        {column.widget === 'toggle' ? (
+          <View style={styles.draftSwitchRow}>
+            <Switch
+              value={!!value}
+              onValueChange={v => setValue(t, v)}
+              disabled={!editable}
+              trackColor={{ true: colors.primary, false: '#DDD8CC' }}
+              thumbColor={colors.white}
+            />
+          </View>
+        ) : (
+          <Text
+            style={[styles.draftValue, needed && styles.draftValueMissing]}
+            numberOfLines={1}
+          >
+            {needed ? 'Needed' : displayValue(column, value) || '—'}
+          </Text>
+        )}
+      </Pressable>
+    );
+  };
+
+  const renderLines = (field: AskField) => {
+    const rows = rowsOf(field.key);
+    const columns = field.columns ?? [];
+    return (
+      <View style={styles.lineSection}>
+        <View style={styles.lineHead}>
+          <Text style={styles.draftLabel}>
+            {field.label}
+            {field.required ? ' *' : ''}
+          </Text>
+          <Text style={styles.draftLabel}>{`${rows.length}`}</Text>
+        </View>
+        {rows.map((_, index) => (
+          <View key={`${field.key}-${index}`} style={styles.lineCard}>
+            <View style={styles.lineCardHead}>
+              <Text style={styles.lineCardTitle}>{`LINE ${index + 1}`}</Text>
+              {editable ? (
+                <Pressable onPress={() => removeRow(field, index)} hitSlop={8}>
+                  <Ionicons name="close" size={16} color={colors.textMuted} />
+                </Pressable>
+              ) : null}
+            </View>
+            {columns.map(column => renderCell(column, field, index))}
+          </View>
+        ))}
+        {editable ? (
+          <Pressable style={styles.lineAdd} onPress={() => addRow(field)}>
+            <Ionicons name="add" size={16} color={colors.secondary} />
+            <Text style={styles.lineAddText}>Add line</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    );
+  };
+
+  const items = fields.length
     ? fields.map(f => ({ field: f, label: f.label, value: values[f.key] }))
     : proposal.details.map(d => ({ field: null, label: d.label, value: d.value }));
 
@@ -205,30 +398,40 @@ export const AskDraftCard = ({
           </>
         ) : null}
 
-        {rows.map((row, i) => {
-          const field = row.field;
+        {items.map((item, i) => {
+          const field = item.field;
+          const divider =
+            i < items.length - 1 ? <View style={styles.draftRowLine} /> : null;
+          if (field?.widget === 'lines') {
+            return (
+              <Fragment key={`${item.label}-${i}`}>
+                {renderLines(field)}
+                {divider}
+              </Fragment>
+            );
+          }
           const isEditing = !!field && editing === field.key;
           const shown = field
-            ? displayValue(field, row.value)
-            : String(row.value ?? '');
-          const needed = !!field && field.required && isBlank(row.value);
+            ? displayValue(field, item.value)
+            : String(item.value ?? '');
+          const needed = !!field && field.required && isBlank(item.value);
           return (
-            <Fragment key={`${row.label}-${i}`}>
+            <Fragment key={`${item.label}-${i}`}>
               <Pressable
                 style={[styles.draftRow, isEditing && styles.draftRowEditing]}
-                onPress={() => field && openField(field)}
+                onPress={() => field && openField({ field })}
                 disabled={!editable || !field}
               >
                 <Text style={styles.draftLabel}>
-                  {row.label}
+                  {item.label}
                   {field?.required ? ' *' : ''}
                 </Text>
                 {isEditing && field ? (
                   <TextInput
                     ref={inputRef}
                     style={styles.draftInput}
-                    value={String(row.value ?? '')}
-                    onChangeText={text => set(field.key, text)}
+                    value={String(item.value ?? '')}
+                    onChangeText={text => setValue({ field }, text)}
                     onBlur={() => setEditing(null)}
                     onSubmitEditing={() => setEditing(null)}
                     keyboardType={field.widget === 'number' ? 'decimal-pad' : 'default'}
@@ -239,8 +442,8 @@ export const AskDraftCard = ({
                 ) : field?.widget === 'toggle' ? (
                   <View style={styles.draftSwitchRow}>
                     <Switch
-                      value={!!row.value}
-                      onValueChange={v => set(field.key, v)}
+                      value={!!item.value}
+                      onValueChange={v => setValue({ field }, v)}
                       disabled={!editable}
                       trackColor={{ true: colors.primary, false: '#DDD8CC' }}
                       thumbColor={colors.white}
@@ -249,21 +452,25 @@ export const AskDraftCard = ({
                 ) : (
                   <Text
                     style={[styles.draftValue, needed && styles.draftValueMissing]}
-                    numberOfLines={1}
+                    numberOfLines={field?.widget === 'multiselect' ? 2 : 1}
                   >
                     {needed ? 'Needed' : shown || '—'}
                   </Text>
                 )}
                 {editable && field && field.widget !== 'toggle' ? (
                   <Ionicons
-                    name={field.widget === 'select' ? 'chevron-down' : 'pencil-outline'}
+                    name={
+                      field.widget === 'select' || field.widget === 'multiselect'
+                        ? 'chevron-down'
+                        : 'pencil-outline'
+                    }
                     size={14}
                     color="#A8AEB8"
                     style={styles.draftPencil}
                   />
                 ) : null}
               </Pressable>
-              {i < rows.length - 1 ? <View style={styles.draftRowLine} /> : null}
+              {divider}
             </Fragment>
           );
         })}
@@ -296,26 +503,20 @@ export const AskDraftCard = ({
               {result.message}
             </Text>
           ) : null}
-          {canApprove ? (
-            <Pressable
-              style={[styles.draftPrimary, !ready && styles.draftPrimaryOff]}
-              onPress={approve}
-              disabled={!ready || state === 'working'}
-            >
-              {state === 'working' ? (
-                <ActivityIndicator size="small" color={colors.onPrimary} />
-              ) : (
-                <Text style={styles.draftPrimaryText}>{approveLabel}</Text>
-              )}
-            </Pressable>
-          ) : (
-            <Text style={styles.draftOwnerNote}>
-              Only the business owner can approve this.
-            </Text>
-          )}
+          <Pressable
+            style={[styles.draftPrimary, !ready && styles.draftPrimaryOff]}
+            onPress={approve}
+            disabled={!ready || state === 'working'}
+          >
+            {state === 'working' ? (
+              <ActivityIndicator size="small" color={colors.onPrimary} />
+            ) : (
+              <Text style={styles.draftPrimaryText}>{approveLabel}</Text>
+            )}
+          </Pressable>
           <Text style={styles.draftNote}>
-            {missing.length && canApprove
-              ? `Fill in ${missing.map(f => f.label).join(', ')} to continue.`
+            {missing.length
+              ? `Fill in ${missing.join(', ')} to continue.`
               : 'Nothing is saved until you approve.'}
           </Text>
           <Pressable onPress={cancel} hitSlop={8} style={styles.draftCancelBtn}>
@@ -325,21 +526,21 @@ export const AskDraftCard = ({
       )}
 
       <AskOptionSheet
-        field={picking}
-        value={picking ? String(values[picking.key] ?? '') : ''}
+        field={picking?.field ?? null}
+        value={picking ? String(getValue(picking) ?? '') : ''}
+        selected={multiSelected(picking)}
         onSelect={v => {
-          if (picking) set(picking.key, v);
-          setPicking(null);
+          if (picking) pick(picking, v);
         }}
         onClose={() => setPicking(null)}
       />
 
       <CalendarModal
         visible={!!dating}
-        value={dating ? (values[dating.key] as string | null) || null : null}
-        title={dating?.label}
+        value={dating ? (getValue(dating) as string | null) || null : null}
+        title={dating?.field.label}
         onSelect={d => {
-          if (dating) set(dating.key, d);
+          if (dating) setValue(dating, d);
           setDating(null);
         }}
         onClose={() => setDating(null)}

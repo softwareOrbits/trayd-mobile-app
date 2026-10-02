@@ -505,7 +505,6 @@ const AskTraydScreen = () => {
                   {message.proposal ? (
                     <AskDraftCard
                       proposal={message.proposal}
-                      canApprove={isOwner}
                       onApprove={approve}
                       onOpen={openCreated}
                     />

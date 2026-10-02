@@ -23,11 +23,13 @@ import type { AskField } from '@/types';
 export const AskOptionSheet = ({
   field,
   value,
+  selected,
   onSelect,
   onClose,
 }: {
   field: AskField | null;
   value: string;
+  selected?: string[];
   onSelect: (value: string) => void;
   onClose: () => void;
 }) => {
@@ -115,7 +117,7 @@ export const AskOptionSheet = ({
                     onPress={() => onSelect(o)}
                   >
                     <Text style={styles.optionText}>{o}</Text>
-                    {o === value ? (
+                    {(selected ? selected.includes(o) : o === value) ? (
                       <Ionicons
                         name="checkmark"
                         size={18}
@@ -133,6 +135,13 @@ export const AskOptionSheet = ({
                 ) : null}
               </ScrollView>
             )}
+            {selected ? (
+              <Pressable style={styles.optionDone} onPress={onClose}>
+                <Text style={styles.optionDoneText}>
+                  {selected.length ? `Done · ${selected.length} selected` : 'Done'}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
       </KeyboardAvoidingView>
