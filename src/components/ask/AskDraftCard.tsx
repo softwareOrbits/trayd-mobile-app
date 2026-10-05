@@ -15,9 +15,9 @@ import { useThemedStyles } from '@/utils/useThemedStyles';
 import { fmtDateFull } from '@/utils/datetime';
 import { makeAskTraydStyles } from '@/styles/askTrayd.styles';
 import type { AskCommitResult, AskField, AskProposal } from '@/types';
-import { downloadInvoicePdf } from '@/services/invoicePdf';
 import { toastError } from '@/utils/toast';
 import AskOptionSheet from './AskOptionSheet';
+import InvoicePdfWebView from './InvoicePdfWebView';
 
 type CardState = 'pending' | 'working' | 'done';
 type Values = Record<string, unknown>;
@@ -144,19 +144,6 @@ export const AskDraftCard = ({
   const [dating, setDating] = useState<Target | null>(null);
   const inputRef = useRef<TextInput>(null);
   const [downloading, setDownloading] = useState(false);
-
-  const downloadPdf = async (invoiceId: string) => {
-    if (downloading) return;
-    setDownloading(true);
-    try {
-      await downloadInvoicePdf(invoiceId);
-    } catch (e) {
-      toastError(e, 'Could not download the PDF.');
-    } finally {
-      setDownloading(false);
-    }
-  };
-
   const editable = state === 'pending';
 
   const rowsOf = (key: string): Row[] =>
@@ -277,7 +264,7 @@ export const AskDraftCard = ({
         {invoiceId ? (
           <Pressable
             style={styles.draftPrimary}
-            onPress={() => downloadPdf(invoiceId)}
+            onPress={() => setDownloading(true)}
             disabled={downloading}
           >
             {downloading ? (
@@ -286,6 +273,16 @@ export const AskDraftCard = ({
               <Text style={styles.draftPrimaryText}>Download PDF</Text>
             )}
           </Pressable>
+        ) : null}
+        {invoiceId && downloading ? (
+          <InvoicePdfWebView
+            invoiceId={invoiceId}
+            onDone={() => setDownloading(false)}
+            onError={message => {
+              setDownloading(false);
+              toastError(new Error(message), message);
+            }}
+          />
         ) : null}
         {open ? (
           <Pressable style={styles.doneAction} onPress={open.go}>
@@ -479,10 +476,26 @@ export const AskDraftCard = ({
                       thumbColor={colors.white}
                     />
                   </View>
+                ) : field?.widget === 'multiselect' &&
+                  Array.isArray(item.value) &&
+                  item.value.length ? (
+                  <View style={styles.multiChips}>
+                    {(item.value as string[]).map(name => (
+                      <View key={name} style={styles.multiChip}>
+                        <Text
+                          style={styles.multiChipText}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {name}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
                 ) : (
                   <Text
                     style={[styles.draftValue, needed && styles.draftValueMissing]}
-                    numberOfLines={field?.widget === 'multiselect' ? 2 : 1}
+                    numberOfLines={1}
                   >
                     {needed ? 'Needed' : shown || '—'}
                   </Text>

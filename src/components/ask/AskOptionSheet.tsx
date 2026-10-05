@@ -20,6 +20,14 @@ import { makeAskTraydStyles } from '@/styles/askTrayd.styles';
 import { fetchAskFieldOptions } from '@/services/askTrayd';
 import type { AskField } from '@/types';
 
+const initialsOf = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(p => p[0]?.toUpperCase() ?? '')
+    .join('') || '?';
+
 export const AskOptionSheet = ({
   field,
   value,
@@ -78,7 +86,7 @@ export const AskOptionSheet = ({
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView
-        style={styles.flex}
+        style={styles.optionKav}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.optionBackdrop}>
@@ -86,16 +94,50 @@ export const AskOptionSheet = ({
           <View
             style={[styles.optionSheet, { paddingBottom: insets.bottom + 16 }]}
           >
-            <Text style={styles.optionTitle}>{field?.label}</Text>
+            <View style={styles.optionHandle} />
+            <View style={styles.optionHeadRow}>
+              <Text style={styles.optionTitle}>{field?.label}</Text>
+              {selected?.length ? (
+                <Text style={styles.optionCount}>{`${selected.length} selected`}</Text>
+              ) : null}
+            </View>
             {searchable ? (
-              <TextInput
-                style={styles.optionSearch}
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Type or pick…"
-                placeholderTextColor={colors.placeholder}
-                autoCorrect={false}
-              />
+              <View style={styles.optionSearchWrap}>
+                <Ionicons name="search" size={18} color="#A8AEB8" />
+                <TextInput
+                  style={styles.optionSearchInput}
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder="Search or type a name…"
+                  placeholderTextColor={colors.placeholder}
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  onSubmitEditing={() => {
+                    if (!typed) return;
+                    onSelect(
+                      visible.find(o => o.toLowerCase() === typed.toLowerCase()) ??
+                        typed,
+                    );
+                    setQuery('');
+                  }}
+                />
+              </View>
+            ) : null}
+            {selected?.length ? (
+              <View style={styles.optionChips}>
+                {selected.map(name => (
+                  <Pressable
+                    key={name}
+                    style={styles.optionChip}
+                    onPress={() => onSelect(name)}
+                  >
+                    <Text style={styles.optionChipText} numberOfLines={1}>
+                      {name}
+                    </Text>
+                    <Ionicons name="close" size={13} color={colors.white} />
+                  </Pressable>
+                ))}
+              </View>
             ) : null}
             {options === null ? (
               <ActivityIndicator color={colors.secondary} />
@@ -104,28 +146,49 @@ export const AskOptionSheet = ({
                 {searchable && typed && !exact ? (
                   <Pressable
                     style={styles.optionRow}
-                    onPress={() => onSelect(typed)}
+                    onPress={() => {
+                      onSelect(typed);
+                      setQuery('');
+                    }}
                   >
-                    <Text style={styles.optionText}>{`Use “${typed}”`}</Text>
-                    <Ionicons name="add" size={18} color={colors.secondary} />
+                    <View style={styles.optionAvatar}>
+                      <Ionicons name="add" size={18} color={colors.secondary} />
+                    </View>
+                    <View style={styles.optionTextCol}>
+                      <Text style={styles.optionText}>{`Use “${typed}”`}</Text>
+                      <Text style={styles.optionSub}>Not in your list</Text>
+                    </View>
                   </Pressable>
                 ) : null}
-                {visible.map(o => (
-                  <Pressable
-                    key={o}
-                    style={styles.optionRow}
-                    onPress={() => onSelect(o)}
-                  >
-                    <Text style={styles.optionText}>{o}</Text>
-                    {(selected ? selected.includes(o) : o === value) ? (
-                      <Ionicons
-                        name="checkmark"
-                        size={18}
-                        color={colors.primary}
-                      />
-                    ) : null}
-                  </Pressable>
-                ))}
+                {visible.map(o => {
+                  const on = selected ? selected.includes(o) : o === value;
+                  return (
+                    <Pressable
+                      key={o}
+                      style={[styles.optionRow, on && styles.optionRowOn]}
+                      onPress={() => {
+                        onSelect(o);
+                        setQuery('');
+                      }}
+                    >
+                      <View style={[styles.optionAvatar, on && styles.optionAvatarOn]}>
+                        <Text style={styles.optionAvatarText}>{initialsOf(o)}</Text>
+                      </View>
+                      <View style={styles.optionTextCol}>
+                        <Text style={styles.optionText} numberOfLines={1}>
+                          {o}
+                        </Text>
+                      </View>
+                      {on ? (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={22}
+                          color={colors.primary}
+                        />
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
                 {!visible.length && !typed ? (
                   <Text style={styles.optionEmpty}>
                     {searchable
