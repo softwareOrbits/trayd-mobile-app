@@ -10,6 +10,7 @@ import {
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { CalendarModal } from '@/components/ui';
+import { useAppSelector } from '@/store/hooks';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { fmtDateFull } from '@/utils/datetime';
@@ -17,7 +18,7 @@ import { makeAskTraydStyles } from '@/styles/askTrayd.styles';
 import type { AskCommitResult, AskField, AskProposal } from '@/types';
 import { toastError } from '@/utils/toast';
 import AskOptionSheet from './AskOptionSheet';
-import InvoicePdfWebView from './InvoicePdfWebView';
+import AskPdfWebView from './AskPdfWebView';
 
 type CardState = 'pending' | 'working' | 'done';
 type Values = Record<string, unknown>;
@@ -144,6 +145,7 @@ export const AskDraftCard = ({
   const [dating, setDating] = useState<Target | null>(null);
   const inputRef = useRef<TextInput>(null);
   const [downloading, setDownloading] = useState(false);
+  const isOwner = useAppSelector(s => s.auth.isOwner);
   const editable = state === 'pending';
 
   const rowsOf = (key: string): Row[] =>
@@ -243,8 +245,7 @@ export const AskDraftCard = ({
 
   if (state === 'done' && result?.ok) {
     const open = onOpen?.(result) ?? null;
-    const invoiceId =
-      result.document?.type === 'invoice' ? result.document.id : null;
+    const pdfDocument = isOwner && result.document?.id ? result.document : null;
     const attached = result.attached
       ? ` · ${result.attached} file${result.attached === 1 ? '' : 's'} attached`
       : '';
@@ -261,7 +262,7 @@ export const AskDraftCard = ({
             </Text>
           </View>
         </View>
-        {invoiceId ? (
+        {pdfDocument ? (
           <Pressable
             style={styles.draftPrimary}
             onPress={() => setDownloading(true)}
@@ -274,9 +275,9 @@ export const AskDraftCard = ({
             )}
           </Pressable>
         ) : null}
-        {invoiceId && downloading ? (
-          <InvoicePdfWebView
-            invoiceId={invoiceId}
+        {pdfDocument && downloading ? (
+          <AskPdfWebView
+            document={pdfDocument}
             onDone={() => setDownloading(false)}
             onError={message => {
               setDownloading(false);

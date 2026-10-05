@@ -14,6 +14,7 @@ import {
   NativeMessage,
   type NativeInboundMessage,
 } from '@/webview/session-bridge';
+import type { AskDocumentRef } from '@/types';
 
 const TypedWebView = WebView as unknown as ComponentType<
   WebViewProps & { ref?: Ref<WebView> }
@@ -21,17 +22,28 @@ const TypedWebView = WebView as unknown as ComponentType<
 
 const TIMEOUT_MS = 45000;
 
-export const InvoicePdfWebView = ({
-  invoiceId,
+const DOCUMENT_LABEL: Record<AskDocumentRef['type'], string> = {
+  invoice: 'invoice',
+  quotation: 'quotation',
+};
+
+const documentPath = (document: AskDocumentRef) =>
+  document.type === 'quotation'
+    ? `/app/quotes/job/${document.id}/pdf`
+    : `/app/invoices/${document.id}?download=1`;
+
+export const AskPdfWebView = ({
+  document,
   onDone,
   onError,
 }: {
-  invoiceId: string;
+  document: AskDocumentRef;
   onDone: () => void;
   onError: (message: string) => void;
 }) => {
   const [bootstrap, setBootstrap] = useState<string | null>(null);
   const finished = useRef(false);
+  const label = DOCUMENT_LABEL[document.type];
 
   const finish = (error?: string) => {
     if (finished.current) return;
@@ -42,7 +54,7 @@ export const InvoicePdfWebView = ({
 
   useEffect(() => {
     if (!BASE_URL) {
-      finish('The invoice service isn’t configured.');
+      finish(`The ${label} service isn’t configured.`);
       return undefined;
     }
     let active = true;
@@ -81,13 +93,13 @@ export const InvoicePdfWebView = ({
     <View style={styles.hidden} pointerEvents="none">
       <TypedWebView
         source={{
-          uri: `${BASE_URL.replace(/\/+$/, '')}/app/invoices/${invoiceId}?download=1`,
+          uri: `${BASE_URL.replace(/\/+$/, '')}${documentPath(document)}`,
         }}
         originWhitelist={['*']}
         injectedJavaScriptBeforeContentLoaded={bootstrap}
         onMessage={onMessage}
-        onError={() => finish('Could not load the invoice.')}
-        onHttpError={() => finish('Could not load the invoice.')}
+        onError={() => finish(`Could not load the ${label}.`)}
+        onHttpError={() => finish(`Could not load the ${label}.`)}
         domStorageEnabled
         javaScriptEnabled
         style={styles.web}
@@ -108,4 +120,4 @@ const styles = StyleSheet.create({
   web: { width: 390, height: 760 },
 });
 
-export default InvoicePdfWebView;
+export default AskPdfWebView;
