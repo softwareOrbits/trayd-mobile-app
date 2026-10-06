@@ -31,6 +31,8 @@ export const AskComposer = ({
   onAttach,
   onRemoveAttachment,
   onPreviewAttachment,
+  onFocusChange,
+  keyboardOpen = false,
 }: {
   onSend: (text: string) => void;
   value?: string;
@@ -40,6 +42,8 @@ export const AskComposer = ({
   onAttach?: () => void;
   onRemoveAttachment?: (id: string) => void;
   onPreviewAttachment?: (id: string) => void;
+  onFocusChange?: (focused: boolean) => void;
+  keyboardOpen?: boolean;
 }) => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeAskTraydStyles);
@@ -64,7 +68,12 @@ export const AskComposer = ({
 
   return (
     <View
-      style={[styles.composerBar, { paddingBottom: Math.max(insets.bottom, 12) }]}
+      style={[
+        styles.composerBar,
+        keyboardOpen
+          ? styles.composerBarKeyboard
+          : { paddingBottom: Math.max(insets.bottom, 12) },
+      ]}
     >
       {attachments.length ? (
         <View style={styles.attachRow}>
@@ -123,6 +132,8 @@ export const AskComposer = ({
           style={styles.composerInput}
           value={text}
           onChangeText={setText}
+          onFocus={() => onFocusChange?.(true)}
+          onBlur={() => onFocusChange?.(false)}
           placeholder="Ask Trayd…"
           placeholderTextColor={colors.placeholder}
           multiline
