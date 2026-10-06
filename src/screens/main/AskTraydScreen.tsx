@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -344,6 +345,29 @@ const AskTraydScreen = () => {
 
   const scrollToEnd = () => scrollRef.current?.scrollToEnd({ animated: true });
 
+  useEffect(() => {
+    const t = setTimeout(scrollToEnd, 80);
+    return () => clearTimeout(t);
+  }, [messages.length, asking]);
+
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [composerFocused, setComposerFocused] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardOpen(true),
+    );
+    const hide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardOpen(false),
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  const editingCard = keyboardOpen && !composerFocused;
+
   return (
     <KeyboardAvoidingView
       style={styles.flex}
@@ -405,7 +429,7 @@ const AskTraydScreen = () => {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        onContentSizeChange={scrollToEnd}
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
         {messages.length === 0 && !openingThread ? (
           <View>
@@ -518,16 +542,20 @@ const AskTraydScreen = () => {
         {asking ? <AskTypingBubble /> : null}
       </ScrollView>
 
-      <AskComposer
-        value={draft}
-        onChangeText={setDraft}
-        onSend={send}
-        disabled={asking}
-        attachments={pending}
-        onAttach={attach}
-        onRemoveAttachment={removeAttachment}
-        onPreviewAttachment={previewPending}
-      />
+      {editingCard ? null : (
+        <AskComposer
+          value={draft}
+          onChangeText={setDraft}
+          onSend={send}
+          disabled={asking}
+          attachments={pending}
+          onAttach={attach}
+          onRemoveAttachment={removeAttachment}
+          onPreviewAttachment={previewPending}
+          onFocusChange={setComposerFocused}
+          keyboardOpen={keyboardOpen}
+        />
+      )}
 
       <FilePreview {...preview.props} />
 

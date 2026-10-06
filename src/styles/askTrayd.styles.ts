@@ -593,6 +593,7 @@ export const makeAskTraydStyles = (theme: Theme) =>
       borderTopColor: '#DDD8CC',
       backgroundColor: theme.colors.background,
     },
+    composerBarKeyboard: { paddingTop: 10, paddingBottom: 8 },
     composer: {
       flexDirection: 'row',
       alignItems: 'center',
