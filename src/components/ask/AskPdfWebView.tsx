@@ -5,7 +5,7 @@ import {
   type WebViewMessageEvent,
   type WebViewProps,
 } from 'react-native-webview';
-import { BASE_URL } from '@env';
+import { WEB_APP_URL } from '@/config/environment';
 
 import { supabase } from '@/services/supabase';
 import { savePdfAndShare } from '@/services/pdf';
@@ -53,7 +53,7 @@ export const AskPdfWebView = ({
   };
 
   useEffect(() => {
-    if (!BASE_URL) {
+    if (!WEB_APP_URL) {
       finish(`The ${label} service isn’t configured.`);
       return undefined;
     }
@@ -93,7 +93,7 @@ export const AskPdfWebView = ({
     <View style={styles.hidden} pointerEvents="none">
       <TypedWebView
         source={{
-          uri: `${BASE_URL.replace(/\/+$/, '')}${documentPath(document)}`,
+          uri: `${WEB_APP_URL}${documentPath(document)}`,
         }}
         originWhitelist={['*']}
         injectedJavaScriptBeforeContentLoaded={bootstrap}

@@ -1,4 +1,4 @@
-import { GOOGLE_MAPS_API_KEY } from '@env';
+import { GOOGLE_MAPS_API_KEY } from '@/config/environment';
 
 const BASE = 'https://maps.googleapis.com/maps/api/place';
 const STATIC_MAP = 'https://maps.googleapis.com/maps/api/staticmap';

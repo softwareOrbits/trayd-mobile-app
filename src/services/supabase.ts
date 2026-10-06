@@ -1,7 +1,7 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@env';
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from '@/config/environment';
 
 import { reportRequestOutcome } from '@/offline/connectivity';
 
@@ -15,6 +15,12 @@ const trackedFetch: typeof fetch = async (input, init) => {
     throw e;
   }
 };
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error(
+    `Supabase is not configured: ${!SUPABASE_URL ? 'supabase.url' : 'supabase.anonKey'} is empty in src/config/environments for this APP_ENV.`,
+  );
+}
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {

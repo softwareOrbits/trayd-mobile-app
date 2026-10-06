@@ -1,9 +1,12 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
-if (file("google-services.json").exists()) {
+if (file("src/dev/google-services.json").exists() || file("src/prod/google-services.json").exists()) {
     apply plugin: "com.google.gms.google-services"
 }
+
+def devFirebaseFile = file("src/dev/google-services.json")
+def devHasOwnAppId = devFirebaseFile.exists() && devFirebaseFile.text.contains('"com.trayd.app.dev"')
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -24,7 +27,7 @@ react {
     //   The list of variants to that are debuggable. For those we're going to
     //   skip the bundling of the JS bundle and the assets. Default is "debug", "debugOptimized".
     //   If you add flavors like lite, prod, etc. you'll have to list your debuggableVariants.
-    // debuggableVariants = ["liteDebug", "liteDebugOptimized", "prodDebug", "prodDebugOptimized"]
+    debuggableVariants = ["devDebug", "devDebugOptimized", "prodDebug", "prodDebugOptimized"]
 
     /* Bundling */
     //   A list containing the node command and its flags. Default is just 'node'.
@@ -93,6 +96,18 @@ android {
             }
         }
     }
+    flavorDimensions "env"
+    productFlavors {
+        dev {
+            dimension "env"
+            if (devHasOwnAppId) {
+                applicationIdSuffix ".dev"
+            }
+        }
+        prod {
+            dimension "env"
+        }
+    }
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -111,6 +126,40 @@ android {
             signingConfig signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+}
+
+def expectedFirebaseProject = { String env ->
+    def configFile = rootProject.file("../src/config/environments/${env}.ts")
+    if (!configFile.exists()) return null
+    def match = configFile.text =~ /firebaseProjectId:\s*'([^']*)'/
+    return match.find() ? match.group(1) : null
+}
+
+def firebaseFiles = [
+    dev : [file: file("src/dev/google-services.json"), project: expectedFirebaseProject("development"), env: "development"],
+    prod: [file: file("src/prod/google-services.json"), project: expectedFirebaseProject("production"), env: "production"],
+]
+
+tasks.configureEach { task ->
+    def match = task.name =~ /^process(Dev|Prod)\w*GoogleServices$/
+    if (!match.matches()) return
+    def flavor = match.group(1).toLowerCase()
+    def expected = firebaseFiles[flavor]
+    task.doFirst {
+        if (!expected.file.exists()) {
+            throw new GradleException(
+                "[env] Firebase config missing for the '${flavor}' (${expected.env}) build. " +
+                "Put the google-services.json for Firebase project '${expected.project}' at android/app/src/${flavor}/google-services.json."
+            )
+        }
+        def projectId = new groovy.json.JsonSlurper().parse(expected.file)?.project_info?.project_id
+        if (expected.project && projectId != expected.project) {
+            throw new GradleException(
+                "[env] android/app/src/${flavor}/google-services.json belongs to Firebase project '${projectId}', " +
+                "but the ${expected.env} build needs '${expected.project}'. Replace the file with the right one."
+            )
         }
     }
 }

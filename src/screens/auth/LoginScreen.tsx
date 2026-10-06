@@ -22,9 +22,8 @@ import { useThemedStyles } from '@/utils/useThemedStyles';
 import { toastError } from '@/utils/toast';
 import type { AuthStackParamList } from '@/types';
 import { makeLoginStyles } from '@/styles/login.styles';
+import { SIGNUP_URL, WEB_LOGIN_URL } from '@/config/environment';
 
-const SIGNUP_URL = 'https://app.trayd.ie/signup';
-const WEB_LOGIN_URL = 'https://app.trayd.ie/login';
 
 const schema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email'),
@@ -236,9 +235,10 @@ const LoginScreen = () => {
                 <Ionicons name="business-outline" size={18} color={colors.white} />
               </View>
               <Text style={styles.tileTitle}>I run a business</Text>
-              <Text style={styles.tileText}>
-                Set up your team · 30 days free
-              </Text>
+              <Text style={styles.tileText}>Set up your team</Text>
+              <View style={styles.trialBadge}>
+                <Text style={styles.trialBadgeText}>60 day free trial</Text>
+              </View>
               <View style={styles.tileGo}>
                 <Text style={styles.tileGoText}>Sign up</Text>
                 <Ionicons

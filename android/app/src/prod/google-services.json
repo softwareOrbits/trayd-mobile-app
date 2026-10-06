@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "491768298335",
+    "project_id": "trayd-prod",
+    "storage_bucket": "trayd-prod.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:491768298335:android:b17eb1777dccb58bba14ea",
+        "android_client_info": {
+          "package_name": "com.trayd.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJdojLu-8dY_ZA1zJABy_Hj9VzOzFaLZQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
