@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyACjR6L3DN8H30Y6GYPJg7sbXCQF9WUJws</string>
+	<string>AIzaSyBeiwq60_4uC0gCqghdlxZurOB4I0dEmBI</string>
 	<key>GCM_SENDER_ID</key>
-	<string>189209945699</string>
+	<string>491768298335</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>com.trayd.iosapp</string>
 	<key>PROJECT_ID</key>
-	<string>trayd-8ce90</string>
+	<string>trayd-prod</string>
 	<key>STORAGE_BUCKET</key>
-	<string>trayd-8ce90.firebasestorage.app</string>
+	<string>trayd-prod.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:189209945699:ios:ba6649a7f07270a5a17a56</string>
+	<string>1:491768298335:ios:70901d3485903cb4ba14ea</string>
 </dict>
 </plist>

@@ -25,7 +25,7 @@ import {
   type WebViewProps,
 } from 'react-native-webview';
 import Ionicons from '@react-native-vector-icons/ionicons';
-import { BASE_URL } from '@env';
+import { WEB_APP_URL } from '@/config/environment';
 
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -113,7 +113,7 @@ const EmployerWebViewScreen = () => {
   const reseeded = useRef(false);
   const signingOut = useRef(false);
 
-  const configured = !!BASE_URL;
+  const configured = !!WEB_APP_URL;
 
   const retry = useCallback(() => {
     setLoadError(null);
@@ -238,6 +238,12 @@ const EmployerWebViewScreen = () => {
         case NativeMessage.SAVE_PDF:
           savePdfAndShare(msg.filename, msg.base64).catch(() => undefined);
           break;
+        case NativeMessage.WEB_ERROR:
+          console.warn(
+            `[web error] ${msg.source ?? 'unknown'}${msg.where ? ` · ${msg.where}` : ''} — ${msg.message ?? ''}`,
+            { route: msg.route, code: msg.code, stack: msg.stack },
+          );
+          break;
         case NativeMessage.HAPTIC:
           if (msg.style === 'medium') haptics.press();
           else if (msg.style === 'success') haptics.success();
@@ -257,7 +263,7 @@ const EmployerWebViewScreen = () => {
       const url = req.url;
       if (!url.startsWith('http')) return true;
       const host = hostOf(url);
-      const appHost = hostOf(BASE_URL);
+      const appHost = hostOf(WEB_APP_URL);
       const isExternal =
         host !== appHost && !host.endsWith('supabase.co');
       if (isExternal) {
@@ -307,7 +313,7 @@ const EmployerWebViewScreen = () => {
             // refreshed session instead of replaying the stale one on reload.
             key={seedKey}
             ref={webRef}
-            source={{ uri: BASE_URL }}
+            source={{ uri: WEB_APP_URL }}
             originWhitelist={['*']}
             injectedJavaScriptBeforeContentLoaded={bootstrap}
             onMessage={onMessage}
@@ -320,6 +326,7 @@ const EmployerWebViewScreen = () => {
             domStorageEnabled
             javaScriptEnabled
             allowsInlineMediaPlayback
+            hideKeyboardAccessoryView
             pullToRefreshEnabled={false}
             bounces={false}
             overScrollMode="never"
@@ -338,7 +345,7 @@ const EmployerWebViewScreen = () => {
             <Text style={styles.errorText}>
               {configured
                 ? loadError
-                : 'The employer dashboard address (BASE_URL) isn’t configured.'}
+                : 'The employer dashboard address isn’t configured.'}
             </Text>
             {configured ? (
               <Pressable onPress={retry} style={styles.retryBtn} hitSlop={8}>

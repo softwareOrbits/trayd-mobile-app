@@ -137,6 +137,19 @@ export const makeLoginStyles = (theme: Theme) =>
       color: MUTED_TEXT,
       lineHeight: 17,
     },
+    trialBadge: {
+      alignSelf: 'flex-start',
+      marginTop: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      backgroundColor: theme.colors.primary,
+    },
+    trialBadgeText: {
+      color: theme.colors.onPrimary,
+      fontSize: 11,
+      fontFamily: theme.fonts.bold,
+    },
     tileGo: {
       marginTop: 'auto',
       flexDirection: 'row',

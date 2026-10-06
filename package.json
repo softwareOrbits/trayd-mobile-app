@@ -3,10 +3,16 @@
   "version": "0.1.6",
   "private": true,
   "scripts": {
-    "android": "react-native run-android",
-    "ios": "react-native run-ios",
+    "start": "node scripts/with-env.js development react-native start --reset-cache",
+    "start:prod": "node scripts/with-env.js production react-native start --reset-cache",
+    "android": "node scripts/with-env.js development react-native run-android --mode devDebug",
+    "android:prod": "node scripts/with-env.js production react-native run-android --mode prodDebug",
+    "ios": "node scripts/with-env.js development react-native run-ios",
+    "ios:prod": "node scripts/with-env.js production react-native run-ios",
+    "build:android:dev": "node scripts/with-env.js development react-native build-android --mode devRelease --tasks assembleDevRelease",
+    "build:android:prod": "node scripts/with-env.js production react-native build-android --mode prodRelease --tasks bundleProdRelease",
+    "build:android:prod:apk": "node scripts/with-env.js production react-native build-android --mode prodRelease --tasks assembleProdRelease",
     "lint": "eslint .",
-    "start": "react-native start",
     "test": "jest"
   },
   "dependencies": {

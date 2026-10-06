@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js';
-import { SUPABASE_URL } from '@env';
+import { SUPABASE_URL } from '@/config/environment';
 
 /**
  * Bridge between the native app and the employer dashboard rendered in a WebView.
@@ -25,6 +25,7 @@ export const NativeMessage = {
   /** Web wants the native share sheet for a generated PDF. */
   SAVE_PDF: 'SAVE_PDF',
   HAPTIC: 'HAPTIC',
+  WEB_ERROR: 'WEB_ERROR',
 } as const;
 
 export type NativeInboundMessage =
@@ -33,7 +34,16 @@ export type NativeInboundMessage =
   | { type: typeof NativeMessage.AUTH_LOST }
   | { type: typeof NativeMessage.SWITCH_VIEW }
   | { type: typeof NativeMessage.SAVE_PDF; filename: string; base64: string }
-  | { type: typeof NativeMessage.HAPTIC; style?: 'light' | 'medium' | 'success' | 'warning' };
+  | { type: typeof NativeMessage.HAPTIC; style?: 'light' | 'medium' | 'success' | 'warning' }
+  | {
+      type: typeof NativeMessage.WEB_ERROR;
+      source?: string;
+      where?: string;
+      message?: string;
+      code?: string;
+      route?: string;
+      stack?: string;
+    };
 
 /**
  * Supabase derives its auth storage key from the project ref (the first label of
