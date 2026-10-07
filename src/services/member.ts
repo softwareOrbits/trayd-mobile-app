@@ -5,6 +5,7 @@ import { num, pickOne } from './rows';
 import { isOnline } from '@/offline/connectivity';
 import { base64ToUint8Array } from '@/utils/base64';
 import { imageExtFromType, imageMimeFromType } from '@/utils/image';
+import { invalidateMemberPhotos, resolvePhotoUrl } from './memberPhotos';
 
 const PROFILE_BUCKET = 'profile-photos';
 const MEMBER_REF_KEY = 'memberref:v1';
@@ -176,6 +177,7 @@ export async function uploadProfilePhoto(asset: {
   });
   if (rpcError) throw new Error(rpcError.message);
 
+  invalidateMemberPhotos();
   return path;
 }
 
@@ -183,12 +185,7 @@ export async function uploadProfilePhoto(asset: {
 export async function profilePhotoUrl(
   path: string | null,
 ): Promise<string | null> {
-  if (!path) return null;
-  const { data, error } = await supabase.storage
-    .from(PROFILE_BUCKET)
-    .createSignedUrl(path, 3600);
-  if (error) return null;
-  return data?.signedUrl ?? null;
+  return resolvePhotoUrl(path);
 }
 
 export type RosterEntry = {

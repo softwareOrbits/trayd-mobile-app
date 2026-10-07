@@ -555,7 +555,7 @@ const EditJobScreen = () => {
                     style={styles.memberOption}
                     onPress={() => addMember(m.id)}
                   >
-                    <Avatar name={m.fullName ?? 'U'} size={34} />
+                    <Avatar name={m.fullName ?? 'U'} size={34} person memberId={m.id} />
                     <View style={styles.memberInfo}>
                       <Text style={styles.itemName}>
                         {m.fullName ?? 'Member'}

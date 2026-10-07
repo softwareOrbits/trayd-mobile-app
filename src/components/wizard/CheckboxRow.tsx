@@ -10,6 +10,8 @@ type CheckboxRowProps = {
   role?: string;
   selected: boolean;
   onPress: () => void;
+  person?: boolean;
+  memberId?: string | null;
 };
 
 export const CheckboxRow = ({
@@ -17,6 +19,8 @@ export const CheckboxRow = ({
   role,
   selected,
   onPress,
+  person = false,
+  memberId,
 }: CheckboxRowProps) => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -26,7 +30,7 @@ export const CheckboxRow = ({
       onPress={onPress}
       style={[styles.row, selected ? styles.rowOn : styles.rowOff]}
     >
-      <Avatar name={name} size={36} />
+      <Avatar name={name} size={36} person={person} memberId={memberId} />
       <View style={styles.textCol}>
         <Text style={[styles.name, selected && styles.nameOn]}>{name}</Text>
         {role ? (

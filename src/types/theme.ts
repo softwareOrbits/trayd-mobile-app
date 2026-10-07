@@ -60,6 +60,9 @@ export type AvatarProps = {
   name?: string;
   size?: number;
   style?: StyleProp<ViewStyle>;
+  person?: boolean;
+  memberId?: string | null;
+  photo?: string | null;
 };
 
 export type DividerProps = {

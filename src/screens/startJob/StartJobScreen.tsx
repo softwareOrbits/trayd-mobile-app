@@ -748,6 +748,8 @@ const StartJobScreen = () => {
           roster.map(m => (
             <CheckboxRow
               key={m.id}
+              person
+              memberId={m.id}
               name={m.fullName ?? m.email ?? 'Member'}
               role={
                 m.isSelf

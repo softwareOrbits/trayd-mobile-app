@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 import { fetchMyMember, type MemberProfile } from '@/services/member';
+import { useMemberPhoto } from '@/services/memberPhotos';
 import { fetchMyVan } from '@/services/fleet';
 import { fetchTasks } from '@/services/tasks';
 import { useCertCompliance } from '@/compliance';
@@ -82,6 +83,7 @@ export const DashboardHeader = ({
 
   const now = new Date();
   const firstName = firstNameOf(member?.fullName);
+  const myPhotoUrl = useMemberPhoto({ stored: member?.photoPath ?? null, lookup: false });
   const isActive = variant === 'active';
 
   const greeting = isActive
@@ -138,9 +140,13 @@ export const DashboardHeader = ({
                 : 'Profile'
             }
           >
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initialsOf(member?.fullName)}</Text>
-            </View>
+            {myPhotoUrl ? (
+              <Image source={{ uri: myPhotoUrl }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initialsOf(member?.fullName)}</Text>
+              </View>
+            )}
             {certAlert ? (
               <View style={styles.avatarAlert}>
                 <Text style={styles.avatarAlertText}>!</Text>
