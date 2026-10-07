@@ -38,6 +38,7 @@ import { pickAttachments } from '@/utils/pickAttachments';
 import { FilePreview, useFilePreview } from '@/components/ui';
 import { PAGE_SIZE } from '@/utils/pagination';
 import { fetchMyMember } from '@/services/member';
+import { useMemberPhoto } from '@/services/memberPhotos';
 import { useAppSelector } from '@/store/hooks';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
@@ -102,6 +103,18 @@ const AskTraydScreen = () => {
 
   const [firstName, setFirstName] = useState(() => firstNameOf(storedName));
   const initials = (firstName || 'You').slice(0, 2).toUpperCase();
+  const [myPhotoPath, setMyPhotoPath] = useState<string | null>(null);
+  const myPhotoUrl = useMemberPhoto({ stored: myPhotoPath, lookup: false });
+
+  useEffect(() => {
+    let active = true;
+    fetchMyMember()
+      .then(me => active && setMyPhotoPath(me.photoPath ?? null))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
   const [messages, setMessages] = useState<AskMessage[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
@@ -510,9 +523,13 @@ const AskTraydScreen = () => {
                     </View>
                   ) : null}
                 </View>
-                <View style={styles.userAvatar}>
-                  <Text style={styles.userAvatarText}>{initials}</Text>
-                </View>
+                {myPhotoUrl ? (
+                  <Image source={{ uri: myPhotoUrl }} style={styles.userAvatar} />
+                ) : (
+                  <View style={styles.userAvatar}>
+                    <Text style={styles.userAvatarText}>{initials}</Text>
+                  </View>
+                )}
               </View>
             ) : (
               <View key={message.id} style={styles.botRow}>
