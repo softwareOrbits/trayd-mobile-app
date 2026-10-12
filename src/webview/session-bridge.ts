@@ -24,6 +24,8 @@ export const NativeMessage = {
   SWITCH_VIEW: 'SWITCH_VIEW',
   /** Web wants the native share sheet for a generated PDF. */
   SAVE_PDF: 'SAVE_PDF',
+  SAVE_FILE: 'SAVE_FILE',
+  PREVIEW_FILE: 'PREVIEW_FILE',
   HAPTIC: 'HAPTIC',
   WEB_ERROR: 'WEB_ERROR',
 } as const;
@@ -34,6 +36,18 @@ export type NativeInboundMessage =
   | { type: typeof NativeMessage.AUTH_LOST }
   | { type: typeof NativeMessage.SWITCH_VIEW }
   | { type: typeof NativeMessage.SAVE_PDF; filename: string; base64: string }
+  | {
+      type: typeof NativeMessage.SAVE_FILE;
+      filename: string;
+      base64: string;
+      mimeType?: string;
+    }
+  | {
+      type: typeof NativeMessage.PREVIEW_FILE;
+      filename: string;
+      base64: string;
+      mimeType?: string;
+    }
   | { type: typeof NativeMessage.HAPTIC; style?: 'light' | 'medium' | 'success' | 'warning' }
   | {
       type: typeof NativeMessage.WEB_ERROR;
@@ -75,6 +89,53 @@ const LOCK_VIEWPORT_JS = `(function(){try{
   document.addEventListener('DOMContentLoaded', apply);
 }catch(e){}})();`;
 
+const CAPTURE_DOWNLOADS_JS = `(function(){try{
+  if (window.__traydDownloads) return;
+  window.__traydDownloads = true;
+  var blobs = {};
+  var create = URL.createObjectURL.bind(URL);
+  var revoke = URL.revokeObjectURL.bind(URL);
+  URL.createObjectURL = function(obj){
+    var url = create(obj);
+    if (obj instanceof Blob) blobs[url] = obj;
+    return url;
+  };
+  URL.revokeObjectURL = function(url){
+    setTimeout(function(){ delete blobs[url]; }, 60000);
+    revoke(url);
+  };
+  function send(blob, filename){
+    var reader = new FileReader();
+    reader.onloadend = function(){
+      var result = typeof reader.result === 'string' ? reader.result : '';
+      var comma = result.indexOf(',');
+      if (comma < 0) return;
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'SAVE_FILE',
+        filename: filename,
+        base64: result.slice(comma + 1),
+        mimeType: blob.type || 'application/octet-stream'
+      }));
+    };
+    reader.readAsDataURL(blob);
+  }
+  var click = HTMLAnchorElement.prototype.click;
+  HTMLAnchorElement.prototype.click = function(){
+    var href = this.href || '';
+    var name = this.getAttribute('download');
+    if (name !== null && href.indexOf('blob:') === 0 && blobs[href]) {
+      send(blobs[href], name || 'download');
+      return;
+    }
+    if (name !== null && href.indexOf('data:') === 0) {
+      var anchor = this;
+      fetch(href).then(function(r){ return r.blob(); }).then(function(b){ send(b, anchor.getAttribute('download') || 'download'); });
+      return;
+    }
+    return click.apply(this, arguments);
+  };
+}catch(e){}})();`;
+
 /**
  * Runs at document-start (`injectedJavaScriptBeforeContentLoaded`) on every load
  * and reload, BEFORE the web bundle executes. Flags the native shell and seeds
@@ -92,6 +153,7 @@ export function buildBootstrapScript(session: Session, bottomInset = 0): string 
     document.documentElement.style.setProperty('--native-safe-bottom', '${bottom}px');
   }catch(e){}})();
   ${LOCK_VIEWPORT_JS}
+  ${CAPTURE_DOWNLOADS_JS}
   true;`;
 }
 
