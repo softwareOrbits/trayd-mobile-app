@@ -34,7 +34,7 @@ import { useAppDispatch } from '@/store/hooks';
 import { setSelectedView, signOut } from '@/store/authSlice';
 import type { MainStackParamList } from '@/types';
 import { supabase } from '@/services/supabase';
-import { savePdfAndShare } from '@/services/pdf';
+import { previewFile, saveFileAndShare, savePdfAndShare } from '@/services/pdf';
 import { haptics } from '@/utils/haptics';
 import {
   buildBootstrapScript,
@@ -238,6 +238,20 @@ const EmployerWebViewScreen = () => {
         case NativeMessage.SAVE_PDF:
           savePdfAndShare(msg.filename, msg.base64).catch(() => undefined);
           break;
+        case NativeMessage.SAVE_FILE:
+          saveFileAndShare(
+            msg.filename,
+            msg.base64,
+            msg.mimeType ?? 'application/octet-stream',
+          ).catch(() => undefined);
+          break;
+        case NativeMessage.PREVIEW_FILE:
+          previewFile(
+            msg.filename,
+            msg.base64,
+            msg.mimeType ?? 'application/pdf',
+          ).catch(() => undefined);
+          break;
         case NativeMessage.WEB_ERROR:
           console.warn(
             `[web error] ${msg.source ?? 'unknown'}${msg.where ? ` · ${msg.where}` : ''} — ${msg.message ?? ''}`,
@@ -261,6 +275,7 @@ const EmployerWebViewScreen = () => {
     req => {
       if (req.isTopFrame === false) return true;
       const url = req.url;
+      if (url.startsWith('blob:') || url.startsWith('data:')) return false;
       if (!url.startsWith('http')) return true;
       const host = hostOf(url);
       const appHost = hostOf(WEB_APP_URL);
