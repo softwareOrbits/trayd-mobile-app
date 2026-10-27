@@ -3,8 +3,8 @@
   "version": "0.1.6",
   "private": true,
   "scripts": {
-    "start": "node api.js && node scripts/with-env.js development react-native start --reset-cache",
-    "start:prod": "node api.js && node scripts/with-env.js production react-native start --reset-cache",
+    "start": "node scripts/with-env.js development react-native start --reset-cache",
+    "start:prod": "node scripts/with-env.js production react-native start --reset-cache",
     "android": "node scripts/with-env.js development react-native run-android --mode devDebug",
     "android:prod": "node scripts/with-env.js production react-native run-android --mode prodDebug",
     "ios": "node scripts/with-env.js development react-native run-ios",
