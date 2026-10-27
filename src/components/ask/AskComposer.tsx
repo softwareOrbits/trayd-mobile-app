@@ -132,6 +132,7 @@ export const AskComposer = ({
           style={styles.composerInput}
           value={text}
           onChangeText={setText}
+          onPressIn={() => onFocusChange?.(true)}
           onFocus={() => onFocusChange?.(true)}
           onBlur={() => onFocusChange?.(false)}
           placeholder="Ask Trayd…"
