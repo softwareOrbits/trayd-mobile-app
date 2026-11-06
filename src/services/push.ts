@@ -89,6 +89,21 @@ export async function requestNotificationPermission(): Promise<boolean> {
   }
 }
 
+/**
+ * iOS mints an FCM token only after APNs registration completes. Calling
+ * getToken() before then yields a token with no APNs binding, which Firebase
+ * caches forever — FCM accepts sends to it and silently delivers nothing.
+ * Wait for the APNs token before asking for an FCM one.
+ */
+async function waitForApnsToken(): Promise<string | null> {
+  for (let i = 0; i < 20; i++) {
+    const t = await messaging().getAPNSToken();
+    if (t) return t;
+    await new Promise<void>(r => setTimeout(r, 250));
+  }
+  return null;
+}
+
 async function upsertToken(token: string): Promise<void> {
   const {
     data: { user },
@@ -167,6 +182,17 @@ export async function registerPush(): Promise<void> {
           openNotificationTarget(targetFrom(msg));
         })
         .catch(() => {});
+    }
+
+    if (Platform.OS === 'ios') {
+      const apns = await waitForApnsToken();
+      if (!apns) {
+        console.warn('push: no APNs token; skipping FCM registration');
+        return;
+      }
+      // Discard any FCM token cached from a launch where APNs wasn't ready —
+      // such a token has no APNs binding and can never be delivered to.
+      await messaging().deleteToken();
     }
 
     const token = await messaging().getToken();
