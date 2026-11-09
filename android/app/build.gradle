@@ -78,6 +78,8 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+def hasUploadKey = ['TRAYD_UPLOAD_STORE_FILE', 'TRAYD_UPLOAD_STORE_PASSWORD', 'TRAYD_UPLOAD_KEY_ALIAS', 'TRAYD_UPLOAD_KEY_PASSWORD'].every { project.hasProperty(it) }
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -115,15 +117,21 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        if (hasUploadKey) {
+            release {
+                storeFile rootProject.file(project.property('TRAYD_UPLOAD_STORE_FILE'))
+                storePassword project.property('TRAYD_UPLOAD_STORE_PASSWORD')
+                keyAlias project.property('TRAYD_UPLOAD_KEY_ALIAS')
+                keyPassword project.property('TRAYD_UPLOAD_KEY_PASSWORD')
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig hasUploadKey ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }

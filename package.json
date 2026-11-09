@@ -10,6 +10,7 @@
     "ios": "node scripts/with-env.js development react-native run-ios",
     "ios:prod": "node scripts/with-env.js production react-native run-ios",
     "build:android:dev": "node scripts/with-env.js development react-native build-android --mode devRelease --tasks assembleDevRelease",
+    "bundle:android:dev": "node scripts/with-env.js development react-native build-android --mode devRelease --tasks bundleDevRelease",
     "build:android:prod": "node scripts/with-env.js production react-native build-android --mode prodRelease --tasks bundleProdRelease",
     "build:android:prod:apk": "node scripts/with-env.js production react-native build-android --mode prodRelease --tasks assembleProdRelease",
     "lint": "eslint .",
