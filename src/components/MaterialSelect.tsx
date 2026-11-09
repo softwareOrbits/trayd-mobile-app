@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { Input } from '@/components/ui';
+import { Button, Input, Tabs } from '@/components/ui';
 import {
   peekMaterials,
   searchMaterials,
@@ -25,6 +25,13 @@ export type SelectedMaterial = {
   unit: string | null;
   sellPrice: number | null;
 };
+
+type PickMode = 'catalog' | 'custom';
+
+const PICK_TABS = [
+  { key: 'catalog', label: 'Van stock', icon: 'cube-outline' as const },
+  { key: 'custom', label: 'Custom item', icon: 'create-outline' as const },
+];
 
 type Props = {
   value: SelectedMaterial | null;
@@ -53,9 +60,11 @@ export const MaterialSelect = ({
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<CatalogMaterial[]>([]);
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<PickMode>('catalog');
+  const [customName, setCustomName] = useState('');
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || mode !== 'catalog') return;
     // Non-empty cache hit → show instantly, no spinner, no debounce. An empty
     // entry is treated as a miss so the catalog still loads on open.
     const cached = peekMaterials(query);
@@ -76,7 +85,7 @@ export const MaterialSelect = ({
       active = false;
       clearTimeout(t);
     };
-  }, [open, query]);
+  }, [open, query, mode]);
 
   const trimmed = query.trim();
   const exactMatch = results.some(
@@ -87,6 +96,8 @@ export const MaterialSelect = ({
   const close = () => {
     setOpen(false);
     setQuery('');
+    setCustomName('');
+    setMode('catalog');
   };
 
   const pick = (m: CatalogMaterial) => {
@@ -99,9 +110,19 @@ export const MaterialSelect = ({
     close();
   };
 
-  const addCustom = () => {
-    onChange({ materialId: null, name: trimmed, unit: null, sellPrice: null });
+  const addCustom = (name: string) => {
+    const clean = name.trim();
+    if (!clean) return;
+    onChange({ materialId: null, name: clean, unit: null, sellPrice: null });
     close();
+  };
+
+  const switchMode = (next: string) => {
+    const nextMode = next as PickMode;
+    if (nextMode === 'custom' && !customName && trimmed && !exactMatch) {
+      setCustomName(trimmed);
+    }
+    setMode(nextMode);
   };
 
   return (
@@ -123,53 +144,81 @@ export const MaterialSelect = ({
 
       {open ? (
         <View style={styles.dropdown}>
-          <Input
-            placeholder="Search materials…"
-            value={query}
-            onChangeText={setQuery}
-            autoCapitalize="none"
-            autoFocus
-          />
-          <ScrollView
-            style={styles.list}
-            keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled
-          >
-            {showAdd ? (
-              <Pressable style={styles.addOption} onPress={addCustom}>
-                <Ionicons
-                  name="add-circle-outline"
-                  size={18}
-                  color={colors.primary}
-                />
-                <Text style={styles.addText} numberOfLines={1}>
-                  Add “{trimmed}”
-                </Text>
-              </Pressable>
-            ) : null}
+          <Tabs tabs={PICK_TABS} activeKey={mode} onChange={switchMode} />
+          {mode === 'custom' ? (
+            <View style={styles.customBox}>
+              <Input
+                label="Item name"
+                placeholder="e.g. Pipe, fittings, sealant"
+                value={customName}
+                onChangeText={setCustomName}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={() => addCustom(customName)}
+              />
+              <Text style={styles.customHint}>
+                Not in the van? Add it here, then set the qty and price.
+              </Text>
+              <Button
+                label="Use this item"
+                fullWidth
+                disabled={!customName.trim()}
+                onPress={() => addCustom(customName)}
+              />
+            </View>
+          ) : (
+            <>
+              <Input
+                placeholder="Search van stock…"
+                value={query}
+                onChangeText={setQuery}
+                autoCapitalize="none"
+                autoFocus
+              />
+              <ScrollView
+                style={styles.list}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled
+              >
+                {showAdd ? (
+                  <Pressable style={styles.addOption} onPress={() => addCustom(trimmed)}>
+                    <Ionicons
+                      name="add-circle-outline"
+                      size={18}
+                      color={colors.primary}
+                    />
+                    <Text style={styles.addText} numberOfLines={1}>
+                      Add “{trimmed}” as a custom item
+                    </Text>
+                  </Pressable>
+                ) : null}
 
-            {loading ? (
-              <ActivityIndicator color={colors.secondary} style={styles.loading} />
-            ) : results.length ? (
-              results.map(m => (
-                <Pressable
-                  key={m.id}
-                  style={styles.option}
-                  onPress={() => pick(m)}
-                >
-                  <Text style={styles.optionName} numberOfLines={1}>
-                    {m.name}
+                {loading ? (
+                  <ActivityIndicator color={colors.secondary} style={styles.loading} />
+                ) : results.length ? (
+                  results.map(m => (
+                    <Pressable
+                      key={m.id}
+                      style={styles.option}
+                      onPress={() => pick(m)}
+                    >
+                      <Text style={styles.optionName} numberOfLines={1}>
+                        {m.name}
+                      </Text>
+                      <Text style={styles.optionMeta}>
+                        {money(m.sellPrice)}
+                        {m.unit ? ` / ${m.unit}` : ''}
+                      </Text>
+                    </Pressable>
+                  ))
+                ) : !showAdd ? (
+                  <Text style={styles.empty}>
+                    Nothing in van stock yet. Use “Custom item” to add anything else.
                   </Text>
-                  <Text style={styles.optionMeta}>
-                    {money(m.sellPrice)}
-                    {m.unit ? ` / ${m.unit}` : ''}
-                  </Text>
-                </Pressable>
-              ))
-            ) : !showAdd ? (
-              <Text style={styles.empty}>Type to search or add a material.</Text>
-            ) : null}
-          </ScrollView>
+                ) : null}
+              </ScrollView>
+            </>
+          )}
         </View>
       ) : null}
     </View>
@@ -213,6 +262,12 @@ export const makeStyles = (theme: Theme) =>
       padding: 10,
     },
     list: { maxHeight: 200 },
+    customBox: { gap: 10, paddingTop: 4 },
+    customHint: {
+      fontSize: theme.typography.size.xs,
+      fontFamily: theme.fonts.regular,
+      color: theme.colors.textMuted,
+    },
     addOption: {
       flexDirection: 'row',
       alignItems: 'center',

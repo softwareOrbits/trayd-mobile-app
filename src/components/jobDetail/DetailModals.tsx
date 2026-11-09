@@ -64,7 +64,7 @@ export const MaterialSheet = ({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={[styles.modalCard, { paddingBottom: insets.bottom + 20 }]}>
           <Text style={styles.modalTitle}>
-            {mode === 'new' ? 'Log van stock' : 'Edit item'}
+            {mode === 'new' ? 'Add item' : 'Edit item'}
           </Text>
           <MaterialSelect
             value={

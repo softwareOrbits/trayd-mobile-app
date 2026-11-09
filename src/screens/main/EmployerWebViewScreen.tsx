@@ -60,6 +60,8 @@ const TypedWebView = WebView as unknown as ComponentType<
 
 type ShouldStartLoad = NonNullable<WebViewProps['onShouldStartLoadWithRequest']>;
 
+const TAP_HAPTIC_GAP_MS = 120;
+
 /** Host of a URL without pulling in a URL polyfill: `https://a.b/c` → `a.b`. */
 const hostOf = (url: string): string => url.split('/')[2] ?? '';
 
@@ -103,6 +105,7 @@ const EmployerWebViewScreen = () => {
   const webRef = useRef<WebView>(null);
   const canGoBackRef = useRef(false);
   const openedExternal = useRef(false);
+  const lastTapHaptic = useRef(0);
 
   const [bootstrap, setBootstrap] = useState<string | null>(null);
   const [seedKey, setSeedKey] = useState(0);
@@ -258,12 +261,22 @@ const EmployerWebViewScreen = () => {
             { route: msg.route, code: msg.code, stack: msg.stack },
           );
           break;
-        case NativeMessage.HAPTIC:
+        case NativeMessage.HAPTIC: {
+          if (msg.style === 'success') {
+            haptics.success();
+            break;
+          }
+          if (msg.style === 'warning') {
+            haptics.warning();
+            break;
+          }
+          const now = Date.now();
+          if (now - lastTapHaptic.current < TAP_HAPTIC_GAP_MS) break;
+          lastTapHaptic.current = now;
           if (msg.style === 'medium') haptics.press();
-          else if (msg.style === 'success') haptics.success();
-          else if (msg.style === 'warning') haptics.warning();
           else haptics.tap();
           break;
+        }
       }
     },
     [dispatch, recoverWebSession],
@@ -346,6 +359,7 @@ const EmployerWebViewScreen = () => {
             bounces={false}
             overScrollMode="never"
             setSupportMultipleWindows={false}
+            textZoom={100}
             style={styles.flex}
           />
         ) : null}

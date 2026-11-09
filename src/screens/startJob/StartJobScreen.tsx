@@ -774,7 +774,7 @@ const StartJobScreen = () => {
   } else if (step === 4) {
     title = 'Anything off the van?';
     subtitle =
-      'Tap to add van stock — you can adjust or add more during the job.';
+      'Tap to add van stock or a custom item — you can adjust or add more during the job.';
     bodyContent = (
       <View style={styles.gap12}>
         <Input

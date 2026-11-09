@@ -70,6 +70,44 @@ export async function fetchMyVan(): Promise<Vehicle | null> {
   });
 }
 
+type ReportableVanRow = {
+  id: string;
+  registration: string;
+  make: string | null;
+  model: string | null;
+};
+
+export async function fetchReportableVans(): Promise<Vehicle[]> {
+  return offlineRead('reportablevans', async () => {
+    const listed = await supabase.rpc('fleet_list_vans');
+    if (!listed.error && Array.isArray(listed.data)) {
+      return (listed.data as ReportableVanRow[]).map(r =>
+        mapVehicle({
+          id: r.id,
+          registration: r.registration,
+          year: null,
+          make: r.make,
+          model: r.model,
+          colour: null,
+          status: 'active',
+          odometer_km: null,
+          nct_expiry: null,
+          motor_tax_expiry: null,
+          last_service_on: null,
+          next_service_due: null,
+        } as VehicleRow),
+      );
+    }
+    const { data, error } = await supabase
+      .from('vehicles')
+      .select(VEHICLE_SELECT)
+      .eq('status', 'active')
+      .order('registration', { ascending: true });
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as VehicleRow[]).map(mapVehicle);
+  });
+}
+
 export async function fetchOwnerFirstName(): Promise<string | null> {
   return offlineRead('ownerfirstname', async () => {
     const { data, error } = await supabase

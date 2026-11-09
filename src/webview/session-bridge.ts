@@ -89,6 +89,36 @@ const LOCK_VIEWPORT_JS = `(function(){try{
   document.addEventListener('DOMContentLoaded', apply);
 }catch(e){}})();`;
 
+const TAP_HAPTICS_JS = `(function(){try{
+  if (window.__traydTapHaptics) return;
+  window.__traydTapHaptics = true;
+  var TAPPABLE = 'button, a[href], summary, label[for], select, input[type="checkbox"], input[type="radio"], input[type="submit"], input[type="button"], [role="button"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"], [role="menuitem"], [role="option"], [role="combobox"], [role="link"], [role="slider"], [onclick], [tabindex]:not([tabindex="-1"]), .MuiButtonBase-root, .MuiChip-clickable, .MuiCardActionArea-root, .MuiListItemButton-root, [data-haptic]';
+  var DISABLED = ':disabled, [aria-disabled="true"], .Mui-disabled, [data-haptic="off"]';
+  var MEDIUM = '.MuiButton-contained, .MuiFab-root, [type="submit"], [data-haptic="medium"]';
+  var TEXT = 'input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]), textarea, [contenteditable="true"]';
+  function pointerTarget(start){
+    var node = start;
+    for (var depth = 0; node && node !== document.body && depth < 8; depth++) {
+      try { if (window.getComputedStyle(node).cursor === 'pointer') return node; } catch(e) { return null; }
+      node = node.parentElement;
+    }
+    return null;
+  }
+  document.addEventListener('click', function(event){
+    try {
+      var target = event.target;
+      if (!(target instanceof Element) || !window.ReactNativeWebView) return;
+      if (target.closest(TEXT)) return;
+      var el = target.closest(TAPPABLE) || pointerTarget(target);
+      if (!el || el.closest(DISABLED)) return;
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'HAPTIC',
+        style: el.matches(MEDIUM) ? 'medium' : 'light'
+      }));
+    } catch(e) {}
+  }, { capture: true, passive: true });
+}catch(e){}})();`;
+
 const CAPTURE_DOWNLOADS_JS = `(function(){try{
   if (window.__traydDownloads) return;
   window.__traydDownloads = true;
@@ -154,6 +184,7 @@ export function buildBootstrapScript(session: Session, bottomInset = 0): string 
   }catch(e){}})();
   ${LOCK_VIEWPORT_JS}
   ${CAPTURE_DOWNLOADS_JS}
+  ${TAP_HAPTICS_JS}
   true;`;
 }
 

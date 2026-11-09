@@ -5,9 +5,14 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { AskTraydFab, InfoCard, useBottomNavHeight } from '@/components/ui';
+import { AskTraydFab, Button, InfoCard, useBottomNavHeight } from '@/components/ui';
 import { VanLogPanel } from '@/components/fleet/VanLogPanel';
-import { fetchMyVan, fetchOwnerFirstName, fetchVanLog } from '@/services/fleet';
+import {
+  fetchMyVan,
+  fetchOwnerFirstName,
+  fetchReportableVans,
+  fetchVanLog,
+} from '@/services/fleet';
 import { getMyMemberRef } from '@/services/member';
 import { useAppSelector } from '@/store/hooks';
 import { useTheme } from '@/theme';
@@ -32,19 +37,22 @@ const FleetScreen = () => {
   const [log, setLog] = useState<VanLog | null>(null);
   const [ownerName, setOwnerName] = useState<string | null>(null);
   const [myMemberId, setMyMemberId] = useState<string | null>(null);
+  const [reportableCount, setReportableCount] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
       (async () => {
         try {
-          const [vehicle, owner, me] = await Promise.all([
+          const [vehicle, owner, me, reportable] = await Promise.all([
             fetchMyVan(),
             fetchOwnerFirstName().catch(() => null),
             getMyMemberRef().catch(() => null),
+            fetchReportableVans().catch(() => [] as Vehicle[]),
           ]);
           if (!active) return;
           setVan(vehicle);
+          setReportableCount(reportable.length);
           setOwnerName(owner);
           setMyMemberId(me?.id ?? null);
           if (vehicle) {
@@ -118,6 +126,14 @@ const FleetScreen = () => {
               {`Once ${owner} assigns you a van, you'll see its NCT, tax and service status here — and be able to report any issue straight from your phone.`}
             </Text>
           </View>
+          {reportableCount > 0 ? (
+            <Button
+              label="Report a van issue"
+              leftIcon="warning-outline"
+              fullWidth
+              onPress={() => navigation.navigate('ReportVanIssue', {})}
+            />
+          ) : null}
           <InfoCard
             icon="bus-outline"
             title="Driving a shared van today?"

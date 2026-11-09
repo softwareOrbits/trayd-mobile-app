@@ -1503,7 +1503,7 @@ const JobDetailScreen = () => {
                   { icon: 'receipt-outline', label: 'Add receipt', onPress: goAddReceipt },
                   {
                     icon: 'cube-outline',
-                    label: 'Van stock',
+                    label: 'Add item',
                     onPress: openNewMaterial,
                   },
                   { icon: 'create-outline', label: 'Add note', onPress: goAddNote },

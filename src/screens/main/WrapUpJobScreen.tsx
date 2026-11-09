@@ -1244,7 +1244,7 @@ const WrapUpJobScreen = () => {
           )}
           <Pressable style={styles.addItemBtn} onPress={openNewMaterial}>
             <Ionicons name="add" size={16} color={colors.secondary} />
-            <Text style={styles.addItemText}>Add van stock</Text>
+            <Text style={styles.addItemText}>Add item</Text>
           </Pressable>
         </View>
 

@@ -492,7 +492,7 @@ const EditJobScreen = () => {
             onPress={() => setMatModal(false)}
           />
           <View style={styles.sheetCard}>
-            <Text style={styles.sheetTitle}>Add van stock</Text>
+            <Text style={styles.sheetTitle}>Add item</Text>
             <MaterialSelect
               value={
                 matName

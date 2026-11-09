@@ -25,6 +25,7 @@ import {
 import {
   fetchMyVan,
   fetchOwnerFirstName,
+  fetchReportableVans,
   reportVanIssue,
 } from '@/services/fleet';
 import { navigationRef } from '@/navigation/navigationRef';
@@ -55,6 +56,11 @@ const ReportVanIssueScreen = () => {
     useRoute<RouteProp<MainStackParamList, 'ReportVanIssue'>>();
 
   const [van, setVan] = useState<Vehicle | null>(null);
+  const [vans, setVans] = useState<Vehicle[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    params?.vehicleId ?? null,
+  );
+  const [vanSheet, setVanSheet] = useState(false);
   const [vanLoaded, setVanLoaded] = useState(false);
   const [ownerName, setOwnerName] = useState<string | null>(null);
   const [kind, setKind] = useState<VanIssueKind>('issue');
@@ -67,9 +73,22 @@ const ReportVanIssueScreen = () => {
 
   useEffect(() => {
     let active = true;
-    fetchMyVan()
-      .then(v => active && setVan(v))
-      .catch(() => {})
+    Promise.all([
+      fetchMyVan().catch(() => null),
+      fetchReportableVans().catch(() => [] as Vehicle[]),
+    ])
+      .then(([mine, list]) => {
+        if (!active) return;
+        setVan(mine);
+        setVans(list);
+        setSelectedId(
+          current =>
+            current ??
+            params?.vehicleId ??
+            mine?.id ??
+            (list.length === 1 ? list[0].id : null),
+        );
+      })
       .finally(() => active && setVanLoaded(true));
     fetchOwnerFirstName()
       .then(name => active && setOwnerName(name))
@@ -80,7 +99,10 @@ const ReportVanIssueScreen = () => {
   }, [params?.vehicleId]);
 
   const owner = ownerName ?? 'the office';
-  const vehicleId = params?.vehicleId ?? van?.id ?? null;
+  const vehicleId = selectedId;
+  const selectedVan =
+    vans.find(v => v.id === vehicleId) ?? (van && van.id === vehicleId ? van : null);
+  const canChooseVan = vans.length > 1;
   const canSend =
     !!vehicleId && !!description.trim() && drivable !== null && !sending;
 
@@ -129,7 +151,12 @@ const ReportVanIssueScreen = () => {
   };
 
   const kindLabel = KINDS.find(k => k.key === kind)?.label ?? 'Issue';
-  const registration = van && van.id === vehicleId ? van.registration : null;
+  const registration = selectedVan?.registration ?? null;
+  const vanMeta = selectedVan
+    ? van && van.id === selectedVan.id
+      ? 'your van'
+      : [selectedVan.make, selectedVan.model].filter(Boolean).join(' ') || null
+    : null;
 
   const header = (
     <View style={[styles.headerBar, { paddingTop: insets.top + 8 }]}>
@@ -150,7 +177,7 @@ const ReportVanIssueScreen = () => {
     </View>
   );
 
-  if (vanLoaded && !vehicleId) {
+  if (vanLoaded && !vehicleId && !vans.length) {
     return (
       <View style={styles.flex}>
         {header}
@@ -175,17 +202,26 @@ const ReportVanIssueScreen = () => {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.label}>VEHICLE</Text>
-        <View style={styles.pill}>
+        <Pressable
+          style={styles.pill}
+          disabled={!canChooseVan}
+          onPress={() => setVanSheet(true)}
+        >
           <Ionicons name="bus-outline" size={17} color={colors.secondary} />
           {registration ? (
             <>
               <Text style={styles.pillValue}>{registration}</Text>
-              <Text style={styles.pillMeta}>your van</Text>
+              {vanMeta ? <Text style={styles.pillMeta}>{vanMeta}</Text> : null}
             </>
+          ) : vanLoaded ? (
+            <Text style={styles.pillMeta}>Choose a van</Text>
           ) : (
             <ActivityIndicator size="small" color={colors.secondary} />
           )}
-        </View>
+          {canChooseVan ? (
+            <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+          ) : null}
+        </Pressable>
 
         <Text style={styles.label}>WHAT IS IT?</Text>
         <Pressable style={styles.pill} onPress={() => setKindSheet(true)}>
@@ -319,6 +355,49 @@ const ReportVanIssueScreen = () => {
                 ) : null}
               </Pressable>
             ))}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={vanSheet}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVanSheet(false)}
+      >
+        <View style={styles.sheetBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setVanSheet(false)}
+          />
+          <View style={styles.sheetCard}>
+            <Text style={styles.sheetTitle}>Which van?</Text>
+            <ScrollView style={styles.vanList}>
+              {vans.map(v => {
+                const on = v.id === vehicleId;
+                const detail =
+                  van && van.id === v.id
+                    ? 'your van'
+                    : [v.make, v.model].filter(Boolean).join(' ');
+                return (
+                  <Pressable
+                    key={v.id}
+                    style={styles.sheetRow}
+                    onPress={() => {
+                      setSelectedId(v.id);
+                      setVanSheet(false);
+                    }}
+                  >
+                    <Text style={[styles.sheetRowText, on && styles.sheetRowActive]}>
+                      {detail ? `${v.registration} · ${detail}` : v.registration}
+                    </Text>
+                    {on ? (
+                      <Ionicons name="checkmark" size={18} color={colors.primary} />
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </View>
         </View>
       </Modal>

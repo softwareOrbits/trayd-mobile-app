@@ -169,6 +169,7 @@ export const makeReportVanIssueStyles = (theme: Theme) =>
       padding: 20,
       paddingBottom: 32,
     },
+    vanList: { maxHeight: 360 },
     sheetTitle: {
       fontSize: theme.typography.size.lg,
       fontFamily: theme.fonts.bold,
