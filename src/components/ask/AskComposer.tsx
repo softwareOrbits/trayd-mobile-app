@@ -13,6 +13,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeAskTraydStyles } from '@/styles/askTrayd.styles';
+import { useDictation } from '@/utils/useDictation';
 
 export type ComposerAttachment = {
   id: string;
@@ -59,8 +60,11 @@ export const AskComposer = ({
   const hasReady = attachments.some(a => a.status === 'ready');
   const canSend = !disabled && !uploading && (!!text.trim() || hasReady);
 
+  const dictation = useDictation(text, setText);
+
   const submit = () => {
     if (!canSend) return;
+    dictation.stop();
     const trimmed = text.trim();
     setText('');
     onSend(trimmed);
@@ -131,17 +135,39 @@ export const AskComposer = ({
         <TextInput
           style={styles.composerInput}
           value={text}
-          onChangeText={setText}
+          onChangeText={next => {
+            dictation.sync(next);
+            setText(next);
+          }}
           onPressIn={() => onFocusChange?.(true)}
           onFocus={() => onFocusChange?.(true)}
           onBlur={() => onFocusChange?.(false)}
-          placeholder="Ask Trayd…"
+          placeholder={dictation.listening ? 'Listening…' : 'Ask Trayd…'}
           placeholderTextColor={colors.placeholder}
           multiline
           onSubmitEditing={submit}
           returnKeyType="send"
           blurOnSubmit
         />
+
+        <Pressable
+          style={[styles.composerMic, dictation.listening && styles.composerMicOn]}
+          onPress={dictation.toggle}
+          disabled={disabled || dictation.starting}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={dictation.listening ? 'Stop dictation' : 'Dictate'}
+        >
+          {dictation.starting ? (
+            <ActivityIndicator size="small" color={colors.secondary} />
+          ) : (
+            <Ionicons
+              name={dictation.listening ? 'stop' : 'mic-outline'}
+              size={dictation.listening ? 16 : 22}
+              color={dictation.listening ? colors.onSecondary : colors.secondary}
+            />
+          )}
+        </Pressable>
 
         <Pressable
           style={[styles.composerSend, !canSend && styles.composerSendOff]}

@@ -56,6 +56,9 @@ import type {
 
 const MAX_ATTACHMENTS = 10;
 
+const keyboardAvoidBehavior =
+  Platform.OS === 'ios' || Number(Platform.Version) >= 35 ? 'padding' : undefined;
+
 type TileTone = 'amber' | 'navy' | 'green';
 
 const TILE_TONE: Record<TileTone, { bg: string; fg: string }> = {
@@ -384,7 +387,7 @@ const AskTraydScreen = () => {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={keyboardAvoidBehavior}
     >
       <StatusBar barStyle="light-content" />
 

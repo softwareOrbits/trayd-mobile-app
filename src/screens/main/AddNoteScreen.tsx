@@ -7,7 +7,7 @@ import {
   type RouteProp,
 } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AppToast, Button, Input } from '@/components/ui';
+import { AppToast, Button, DictateButton, Input } from '@/components/ui';
 import { TagChip } from '@/components/jobDetail';
 import { addJobNote, type JobNote, type NoteVisibility } from '@/services/jobs';
 import { loadJobCache, saveJobCache } from '@/services/jobCache';
@@ -18,6 +18,7 @@ import { goBackSafe } from '@/utils/navigation';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeAddNoteStyles } from '@/styles/addNote.styles';
 import { toastError, toastSuccess } from '@/utils/toast';
+import { useDictation } from '@/utils/useDictation';
 import type { MainStackParamList } from '@/types';
 
 const NOTE_SAVE_TIMEOUT_MS = 12_000;
@@ -59,6 +60,7 @@ const AddNoteScreen = () => {
   const [text, setText] = useState('');
   const [visibility, setVisibility] = useState<NoteVisibility>('employer_only');
   const [saving, setSaving] = useState(false);
+  const dictation = useDictation(text, setText);
 
   const quickAdd = (phrase: string) =>
     setText(prev =>
@@ -68,6 +70,7 @@ const AddNoteScreen = () => {
   const save = async () => {
     const body = text.trim();
     if (!body || saving) return;
+    dictation.stop();
     if (offlineActionBlocked()) return;
     setSaving(true);
     const queueOffline = async () => {
@@ -136,10 +139,19 @@ const AddNoteScreen = () => {
         <Input
           placeholder="e.g. Secondary leak found behind boiler — may need follow-up."
           value={text}
-          onChangeText={setText}
+          onChangeText={next => {
+            dictation.sync(next);
+            setText(next);
+          }}
           multiline
           numberOfLines={5}
           style={styles.noteInput}
+        />
+        <DictateButton
+          listening={dictation.listening}
+          starting={dictation.starting}
+          disabled={saving}
+          onPress={dictation.toggle}
         />
 
         <Text style={styles.sectionLabel}>VISIBILITY</Text>

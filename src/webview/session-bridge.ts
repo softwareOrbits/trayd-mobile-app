@@ -28,6 +28,8 @@ export const NativeMessage = {
   PREVIEW_FILE: 'PREVIEW_FILE',
   HAPTIC: 'HAPTIC',
   WEB_ERROR: 'WEB_ERROR',
+  FIELD_FOCUS: 'FIELD_FOCUS',
+  DICTATE: 'DICTATE',
 } as const;
 
 export type NativeInboundMessage =
@@ -49,6 +51,8 @@ export type NativeInboundMessage =
       mimeType?: string;
     }
   | { type: typeof NativeMessage.HAPTIC; style?: 'light' | 'medium' | 'success' | 'warning' }
+  | { type: typeof NativeMessage.FIELD_FOCUS; focused: boolean }
+  | { type: typeof NativeMessage.DICTATE; action: 'start' | 'stop' }
   | {
       type: typeof NativeMessage.WEB_ERROR;
       source?: string;
@@ -119,6 +123,64 @@ const TAP_HAPTICS_JS = `(function(){try{
   }, { capture: true, passive: true });
 }catch(e){}})();`;
 
+const DICTATION_JS = `(function(){try{
+  if (window.__traydDictation) return;
+  window.__traydDictation = true;
+  var TEXT_TYPES = ['', 'text', 'search'];
+  var target = null;
+  var base = '';
+  var lastFocused = null;
+  function dictatable(el){
+    if (!el || el.disabled || el.readOnly) return false;
+    if (el.closest && el.closest('[data-dictation="inline"]')) return false;
+    if (el.isContentEditable) return true;
+    var tag = el.tagName;
+    if (tag === 'TEXTAREA') return true;
+    if (tag !== 'INPUT') return false;
+    return TEXT_TYPES.indexOf((el.getAttribute('type') || '').toLowerCase()) >= 0;
+  }
+  function post(focused){
+    if (focused === lastFocused || !window.ReactNativeWebView) return;
+    lastFocused = focused;
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'FIELD_FOCUS', focused: focused }));
+  }
+  function readValue(el){
+    return el.isContentEditable ? (el.textContent || '') : (el.value || '');
+  }
+  function writeValue(el, text){
+    if (el.isContentEditable) {
+      el.textContent = text;
+    } else {
+      var proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+      setter.call(el, text);
+    }
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  document.addEventListener('focusin', function(e){
+    if (dictatable(e.target)) { target = e.target; post(true); }
+  }, true);
+  document.addEventListener('focusout', function(){
+    setTimeout(function(){
+      if (!dictatable(document.activeElement)) { target = null; post(false); }
+    }, 60);
+  }, true);
+  window.__traydDictBegin = function(){
+    base = target ? readValue(target) : '';
+  };
+  window.__traydDictSet = function(spoken){
+    if (!target || !spoken) return;
+    var text = spoken;
+    if (base.trim()) {
+      var startsSentence = /[.!?]\\s*$/.test(base) || /\\n\\s*$/.test(base);
+      if (!startsSentence) text = text.charAt(0).toLowerCase() + text.slice(1);
+      text = base + (/\\s$/.test(base) ? '' : ' ') + text;
+    }
+    writeValue(target, text);
+  };
+}catch(e){}})();`;
+
 const CAPTURE_DOWNLOADS_JS = `(function(){try{
   if (window.__traydDownloads) return;
   window.__traydDownloads = true;
@@ -185,6 +247,7 @@ export function buildBootstrapScript(session: Session, bottomInset = 0): string 
   ${LOCK_VIEWPORT_JS}
   ${CAPTURE_DOWNLOADS_JS}
   ${TAP_HAPTICS_JS}
+  ${DICTATION_JS}
   true;`;
 }
 

@@ -47,6 +47,8 @@ import {
   reloadWebView,
   unregisterEmployerWebView,
 } from '@/webview/webviewRegistry';
+import WebDictationMic from '@/webview/WebDictationMic';
+import { useWebDictationBridge } from '@/webview/useWebDictationBridge';
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 
@@ -111,6 +113,12 @@ const EmployerWebViewScreen = () => {
   const [seedKey, setSeedKey] = useState(0);
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [fieldFocused, setFieldFocused] = useState(false);
+  const injectIntoWeb = useCallback(
+    (script: string) => webRef.current?.injectJavaScript(script),
+    [],
+  );
+  const handleWebDictate = useWebDictationBridge(injectIntoWeb);
 
   const recovering = useRef(false);
   const reseeded = useRef(false);
@@ -277,9 +285,15 @@ const EmployerWebViewScreen = () => {
           else haptics.tap();
           break;
         }
+        case NativeMessage.FIELD_FOCUS:
+          setFieldFocused(!!msg.focused);
+          break;
+        case NativeMessage.DICTATE:
+          handleWebDictate(msg.action);
+          break;
       }
     },
-    [dispatch, recoverWebSession],
+    [dispatch, recoverWebSession, handleWebDictate],
   );
 
   // Keep external hosts (Stripe checkout/portal, etc.) out of the WebView — open
@@ -384,6 +398,10 @@ const EmployerWebViewScreen = () => {
           </View>
         ) : null}
       </View>
+
+      {configured && ready && !loadError ? (
+        <WebDictationMic fieldFocused={fieldFocused} inject={injectIntoWeb} />
+      ) : null}
 
       {configured && !loadError && !ready ? (
         <View style={[styles.veil, { backgroundColor: colors.background }]}>

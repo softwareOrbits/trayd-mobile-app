@@ -40,3 +40,4 @@ export { default as InfoCard, type InfoCardTone } from './InfoCard';
 export { AddressAutocomplete } from '@/components/AddressAutocomplete';
 export { LocationMap } from '@/components/jobDetail';
 export { default as ListFooterLoader } from './ListFooterLoader';
+export { default as DictateButton } from './DictateButton';

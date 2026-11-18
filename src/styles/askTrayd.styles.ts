@@ -631,6 +631,14 @@ export const makeAskTraydStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    composerMic: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    composerMicOn: { backgroundColor: theme.colors.secondary },
     attachRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
