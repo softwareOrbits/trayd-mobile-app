@@ -16,6 +16,8 @@ import type { JobTabKey } from './jobs';
 import type { LeaveRequest, LeaveType } from './leave';
 import type { MemberCertification } from './certifications';
 
+export type JobStartIntent = 'start' | 'plan';
+
 export type MainTabParamList = {
   Home: undefined;
   Calendar: undefined;
@@ -38,7 +40,7 @@ export type MainStackParamList = {
   ReportVanIssue: { vehicleId?: string } | undefined;
   AddServiceSchedule: { vehicleId: string; registration?: string };
   AskTrayd: undefined;
-  StartJob: undefined;
+  StartJob: { intent?: JobStartIntent } | undefined;
   AddNote: { jobId: string };
   AddReceipt: { jobId: string };
   AddJobPhoto: { jobId: string; photoCount: number };

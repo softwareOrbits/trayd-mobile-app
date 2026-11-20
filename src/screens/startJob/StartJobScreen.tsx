@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { acquirePhotos } from '@/utils/capturePhoto';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Toast from 'react-native-toast-message';
@@ -54,7 +54,7 @@ import {
 } from '@/services/member';
 import { enqueue, offlineActionBlocked } from '@/offline';
 import { isNetworkError } from '@/offline/errors';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
 import { addPendingJob } from '@/store/pendingJobsSlice';
 import { queueOfflineJob } from '@/offline/jobStartActions';
@@ -77,13 +77,18 @@ import type {
 } from '@/components/startJob/types';
 import type { JobType, MainStackParamList } from '@/types';
 
-const TOTAL = START_JOB_TOTAL;
+const CREW_STEP = 3;
 
 const StartJobScreen = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStartJobStyles);
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
+  const route = useRoute<RouteProp<MainStackParamList, 'StartJob'>>();
+  const isOwner = useAppSelector(s => s.auth.isOwner);
+  const intent = isOwner ? null : route.params?.intent ?? 'start';
+  const selfOnly = !isOwner;
+  const totalSteps = selfOnly ? START_JOB_TOTAL - 1 : START_JOB_TOTAL;
 
   const dispatch = useAppDispatch();
 
@@ -201,8 +206,10 @@ const StartJobScreen = () => {
       if (mode === 'new') return setMode('list');
       return close();
     }
-    setStep(s => s - 1);
+    setStep(s => (selfOnly && s - 1 === CREW_STEP ? s - 2 : s - 1));
   };
+
+  const displayStep = selfOnly && step > CREW_STEP ? step - 1 : step;
 
   const pickExisting = (id: string) => {
     setCustomerId(id);
@@ -315,6 +322,8 @@ const StartJobScreen = () => {
 
   const selfId = roster.find(r => r.isSelf)?.id ?? myMemberId ?? undefined;
   const selfOnCrew = !!selfId && crew.includes(selfId);
+  const crewMemberIds = () =>
+    selfOnly || (crew.length === 1 && crew[0] === selfId) ? [] : crew;
 
   const finish = async () => {
     if (busy) return;
@@ -325,7 +334,7 @@ const StartJobScreen = () => {
     }
     if (offlineActionBlocked()) return;
     setBusy('start');
-    const memberIds = crew.length === 1 && crew[0] === selfId ? [] : crew;
+    const memberIds = crewMemberIds();
     try {
       const jobId = await startJob({
         customerId: customerId ?? undefined,
@@ -451,7 +460,7 @@ const StartJobScreen = () => {
     if (busy) return;
     if (offlineActionBlocked()) return;
     setBusy(scheduledDate ? 'schedule' : 'save');
-    const memberIds = crew.length === 1 && crew[0] === selfId ? [] : crew;
+    const memberIds = crewMemberIds();
     try {
       const jobId = await scheduleJob({
         customerId: customerId ?? undefined,
@@ -468,7 +477,11 @@ const StartJobScreen = () => {
       dispatch(fetchJobs());
       Toast.show({
         type: 'success',
-        text1: scheduledDate ? 'Job saved & scheduled.' : 'Job saved.',
+        text1: scheduledDate
+          ? intent === 'plan'
+            ? 'Job planned.'
+            : 'Job saved & scheduled.'
+          : 'Job saved.',
         text2: scheduledDate ? undefined : 'Find it under Unscheduled.',
       });
       resetToScheduled();
@@ -720,7 +733,7 @@ const StartJobScreen = () => {
         color="secondary"
         fullWidth
         disabled={!jobType}
-        onPress={() => setStep(3)}
+        onPress={() => setStep(selfOnly ? CREW_STEP + 1 : CREW_STEP)}
       />
     );
   } else if (step === 3) {
@@ -850,16 +863,41 @@ const StartJobScreen = () => {
         </Pressable>
       </View>
     );
-    footer = (
+    const addPhotosButton = (
+      <Button
+        label={photos.length ? 'Add another photo' : 'Add photos'}
+        leftIcon="camera"
+        variant="outlined"
+        fullWidth
+        disabled={!!busy}
+        onPress={addPhotos}
+      />
+    );
+    footer = intent ? (
       <View style={styles.gap12}>
-        <Button
-          label={photos.length ? 'Add another photo' : 'Add photos'}
-          leftIcon="camera"
-          variant="outlined"
-          fullWidth
-          disabled={!!busy}
-          onPress={addPhotos}
-        />
+        {addPhotosButton}
+        {intent === 'start' ? (
+          <Button
+            label="Start job now"
+            fullWidth
+            loading={busy === 'start'}
+            disabled={!!busy}
+            onPress={finish}
+          />
+        ) : (
+          <Button
+            label="Plan job"
+            leftIcon="calendar-outline"
+            fullWidth
+            loading={busy === 'schedule'}
+            disabled={!!busy}
+            onPress={openScheduleDate}
+          />
+        )}
+      </View>
+    ) : (
+      <View style={styles.gap12}>
+        {addPhotosButton}
         {selfOnCrew ? (
           <Button
             label="Start job now"
@@ -894,8 +932,8 @@ const StartJobScreen = () => {
   return (
     <>
       <WizardScaffold
-        step={step}
-        total={TOTAL}
+        step={displayStep}
+        total={totalSteps}
         title={title}
         subtitle={subtitle}
         onBack={onBack}
@@ -907,7 +945,7 @@ const StartJobScreen = () => {
       <CalendarModal
         visible={datePicker}
         value={null}
-        title="Schedule this job for"
+        title={intent === 'plan' ? 'Plan this job for' : 'Schedule this job for'}
         onSelect={date => {
           setDatePicker(false);
           scheduleAndClose(date);

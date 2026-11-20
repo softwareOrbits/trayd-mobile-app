@@ -32,11 +32,6 @@ import EditCertificationScreen from '@/screens/main/EditCertificationScreen';
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
 
-/**
- * The existing native field app (crew experience). `StartJob` creates the job
- * and (optionally) the customer, so it is registered only for owners — an
- * employee has no route to reach it even via a stale deep link.
- */
 const FieldStack = ({ isOwner }: { isOwner: boolean }) => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="Tabs" component={MainTabs} />
@@ -50,13 +45,13 @@ const FieldStack = ({ isOwner }: { isOwner: boolean }) => (
     />
     <Stack.Screen name="JobChat" component={ChatScreen} />
     <Stack.Screen name="AskTrayd" component={AskTraydScreen} />
+    <Stack.Screen
+      name="StartJob"
+      component={StartJobScreen}
+      options={{ presentation: 'modal' }}
+    />
     {isOwner ? (
       <>
-        <Stack.Screen
-          name="StartJob"
-          component={StartJobScreen}
-          options={{ presentation: 'modal' }}
-        />
         <Stack.Screen
           name="AssignTask"
           component={AssignTaskScreen}

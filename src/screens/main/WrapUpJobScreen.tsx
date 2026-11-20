@@ -795,12 +795,18 @@ const WrapUpJobScreen = () => {
             fullWidth
             onPress={() => resetToJobsTab('done')}
           />
-          {success && isOwner ? (
+          {success ? (
             <Pressable
               onPress={() =>
                 navigation.reset({
                   index: 1,
-                  routes: [{ name: 'Tabs' }, { name: 'StartJob' }],
+                  routes: [
+                    { name: 'Tabs' },
+                    {
+                      name: 'StartJob',
+                      params: isOwner ? undefined : { intent: 'start' },
+                    },
+                  ],
                 })
               }
               hitSlop={8}

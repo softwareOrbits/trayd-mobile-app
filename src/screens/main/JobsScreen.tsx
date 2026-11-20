@@ -33,6 +33,7 @@ import {
   LiveNowBanner,
 } from '@/components/jobs';
 import { TasksPanel, TaskTabs } from '@/components/tasks';
+import JobStartChoiceSheet from '@/components/startJob/JobStartChoiceSheet';
 import type { TaskCounts } from '@/components/tasks/TasksPanel';
 import { useOnline, useSync } from '@/offline';
 import { getMappedId } from '@/offline/idRemap';
@@ -52,6 +53,7 @@ import { fetchActiveRoster, getMyMemberRef } from '@/services/member';
 import {
   type Job,
   type JobTabItem,
+  type JobStartIntent,
   type JobTabKey,
   type MainStackParamList,
   type MainTabParamList,
@@ -104,6 +106,7 @@ const JobsScreen = () => {
     completed: 0,
   });
   const [refreshing, setRefreshing] = useState(false);
+  const [choiceOpen, setChoiceOpen] = useState(false);
   const [doneFrom, setDoneFrom] = useState<string | null>(null);
   const [doneTo, setDoneTo] = useState<string | null>(null);
   const [myMemberId, setMyMemberId] = useState<string | null>(null);
@@ -313,7 +316,15 @@ const JobsScreen = () => {
   const openChat = (job: Job) =>
     navigation.navigate('JobChat', { jobId: job.id });
 
-  const onCreate = () => navigation.navigate('StartJob');
+  const onCreate = () => {
+    if (isOwner) navigation.navigate('StartJob');
+    else setChoiceOpen(true);
+  };
+
+  const onPickIntent = (intent: JobStartIntent) => {
+    setChoiceOpen(false);
+    navigation.navigate('StartJob', { intent });
+  };
 
   const emptyLabel =
     status === 'loading'
@@ -492,7 +503,7 @@ const JobsScreen = () => {
         />
       )}
 
-      {topTab === 'jobs' && isOwner ? (
+      {topTab === 'jobs' ? (
         <FloatingActionButton
           label="Start a new job"
           icon="add"
@@ -501,6 +512,12 @@ const JobsScreen = () => {
           style={{ bottom: navHeight + 16 }}
         />
       ) : null}
+
+      <JobStartChoiceSheet
+        visible={choiceOpen}
+        onPick={onPickIntent}
+        onClose={() => setChoiceOpen(false)}
+      />
 
       {topTab === 'tasks' && isOwner ? (
         <FloatingActionButton

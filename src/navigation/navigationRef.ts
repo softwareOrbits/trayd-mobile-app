@@ -21,7 +21,7 @@ function openDayStart(): void {
       } else if (store.getState().auth.isOwner) {
         navigationRef.navigate('StartJob');
       } else {
-        openJobsTab();
+        navigationRef.navigate('StartJob', { intent: 'start' });
       }
     })
     .catch(openJobsTab);
