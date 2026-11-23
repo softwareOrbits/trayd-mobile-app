@@ -123,6 +123,7 @@ const StartJobScreen = () => {
 
   const [mode, setMode] = useState<CustomerMode>('list');
   const [search, setSearch] = useState('');
+  const [ddOpen, setDdOpen] = useState(false);
   const [jobType, setJobType] = useState<JobType>('standard');
   const [crew, setCrew] = useState<string[]>([]);
   const [photos, setPhotos] = useState<PhotoAsset[]>([]);
@@ -246,7 +247,7 @@ const StartJobScreen = () => {
     const rows = search.trim()
       ? customers
       : customers.filter(c => c.id !== nearest?.customer.id);
-    return search.trim() ? rows : rows.slice(0, 4);
+    return search.trim() ? rows : rows.slice(0, 30);
   }, [customers, search, nearest]);
 
   const pickExisting = (id: string, name: string, sub: string) => {
@@ -254,6 +255,7 @@ const StartJobScreen = () => {
     setNewCustomer(null);
     setPicked({ name, sub });
     setSearch('');
+    setDdOpen(false);
     setMode('list');
   };
 
@@ -268,13 +270,6 @@ const StartJobScreen = () => {
     });
     setCustomerId(null);
     setPicked({ name: data.fullName, sub: joinParts(data.address, eircode) });
-    setMode('list');
-  };
-
-  const changeCustomer = () => {
-    setCustomerId(null);
-    setNewCustomer(null);
-    setPicked(null);
     setMode('list');
   };
 
@@ -557,26 +552,7 @@ const StartJobScreen = () => {
   );
 
   let customerSection: React.ReactNode;
-  if (picked && hasCustomer) {
-    customerSection = (
-      <View style={styles.gap8}>
-        <View style={[styles.cust, styles.custPicked]}>
-          {initial(picked.name)}
-          <View style={styles.ci}>
-            <Text style={styles.custName} numberOfLines={1}>
-              {picked.name}
-            </Text>
-            <Text style={styles.custSub} numberOfLines={1}>
-              {picked.sub}
-            </Text>
-          </View>
-          <Pressable onPress={changeCustomer} hitSlop={8}>
-            <Text style={styles.link}>Change</Text>
-          </Pressable>
-        </View>
-      </View>
-    );
-  } else if (mode === 'dedup' && candidate) {
+  if (mode === 'dedup' && candidate) {
     customerSection = (
       <View style={styles.gap8}>
         <View style={styles.matchCard}>
@@ -703,84 +679,155 @@ const StartJobScreen = () => {
       </View>
     );
   } else {
+    const rows: {
+      id: string;
+      name: string;
+      sub: string;
+      pickSub: string;
+      near?: string;
+    }[] = [];
+    if (nearest && !search.trim()) {
+      rows.push({
+        id: nearest.customer.id,
+        name: nearest.customer.name,
+        sub: joinParts(nearest.customer.eircode, nearest.customer.phone),
+        pickSub: joinParts(nearest.customer.address, nearest.customer.eircode),
+        near: joinParts(
+          `${formatDistance(nearest.distanceM)} away`,
+          `${nearest.priorJobs} prior job${nearest.priorJobs === 1 ? '' : 's'}`,
+        ),
+      });
+    }
+    listedCustomers.forEach(c =>
+      rows.push({
+        id: c.id,
+        name: c.name,
+        sub: joinParts(c.eircode, c.phone),
+        pickSub: joinParts(c.address, c.eircode),
+      }),
+    );
     customerSection = (
       <View style={styles.gap8}>
-        <TextInput
-          style={styles.input}
-          placeholder="Search by name or phone…"
-          placeholderTextColor={colors.placeholder}
-          value={search}
-          onChangeText={setSearch}
-          autoCapitalize="none"
-        />
-        {nearest && !search.trim() ? (
-          <Pressable
-            style={[styles.cust, styles.custHl]}
-            onPress={() =>
-              pickExisting(
-                nearest.customer.id,
-                nearest.customer.name,
-                joinParts(nearest.customer.address, nearest.customer.eircode),
-              )
-            }
-          >
-            {initial(nearest.customer.name)}
-            <View style={styles.ci}>
-              <Text style={styles.custName} numberOfLines={1}>
-                {nearest.customer.name}
-              </Text>
-              <Text style={styles.custSub} numberOfLines={1}>
-                {joinParts(nearest.customer.address, nearest.customer.eircode)}
-              </Text>
-              <Text style={styles.near} numberOfLines={1}>
-                {joinParts(
-                  `${formatDistance(nearest.distanceM)} away`,
-                  `${nearest.priorJobs} prior job${
-                    nearest.priorJobs === 1 ? '' : 's'
-                  }`,
-                )}
-              </Text>
-            </View>
-            <View style={styles.use}>
-              <Text style={styles.useText}>Use</Text>
-            </View>
-          </Pressable>
-        ) : null}
-        {customersLoading && !customers.length ? (
-          <ActivityIndicator color={colors.secondary} style={styles.loader} />
-        ) : (
-          listedCustomers.map(c => (
-            <Pressable
-              key={c.id}
-              style={styles.cust}
-              onPress={() =>
-                pickExisting(c.id, c.name, joinParts(c.address, c.eircode))
-              }
-            >
-              {initial(c.name)}
+        <Pressable
+          style={[styles.dd, (ddOpen || picked) && styles.ddActive]}
+          onPress={() => {
+            setDdOpen(o => !o);
+            setSearch('');
+          }}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: ddOpen }}
+        >
+          {picked ? (
+            <>
+              {initial(picked.name, 34)}
               <View style={styles.ci}>
                 <Text style={styles.custName} numberOfLines={1}>
-                  {c.name}
+                  {picked.name}
                 </Text>
                 <Text style={styles.custSub} numberOfLines={1}>
-                  {joinParts(c.eircode, c.phone)}
+                  {picked.sub}
                 </Text>
               </View>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={colors.secondary}
-              />
-            </Pressable>
-          ))
-        )}
-        {search.trim() && !customersLoading && !listedCustomers.length ? (
-          <Text style={styles.hint}>No customers found.</Text>
-        ) : null}
-        <Pressable style={styles.addNew} onPress={() => setMode('new')}>
-          <Ionicons name="add" size={18} color={colors.secondary} />
-          <Text style={styles.addNewText}>Add a new customer</Text>
+            </>
+          ) : (
+            <Text style={styles.ddPh}>Select a customer</Text>
+          )}
+          <Ionicons
+            name={ddOpen ? 'chevron-up' : 'chevron-down'}
+            size={18}
+            color={colors.secondary}
+          />
         </Pressable>
+        {ddOpen ? (
+          <View style={styles.ddMenu}>
+            <View style={styles.ddSearch}>
+              <TextInput
+                style={styles.input}
+                placeholder="Search name, phone or Eircode"
+                placeholderTextColor={colors.placeholder}
+                value={search}
+                onChangeText={setSearch}
+                autoCapitalize="none"
+              />
+            </View>
+            {customersLoading && !customers.length ? (
+              <ActivityIndicator
+                color={colors.secondary}
+                style={styles.loader}
+              />
+            ) : rows.length ? (
+              <ScrollView
+                style={styles.ddList}
+                nestedScrollEnabled
+                keyboardShouldPersistTaps="handled"
+              >
+                {rows.map(r => {
+                  const on = r.id === customerId;
+                  return (
+                    <Pressable
+                      key={r.id}
+                      style={[styles.ddRow, on && styles.ddRowOn]}
+                      onPress={() => pickExisting(r.id, r.name, r.pickSub)}
+                    >
+                      <View
+                        style={[
+                          styles.av,
+                          styles.ddAv,
+                          on && styles.ddAvOn,
+                        ]}
+                      >
+                        <Text style={[styles.avText, on && styles.ddAvTextOn]}>
+                          {r.name.trim().charAt(0).toUpperCase() || '?'}
+                        </Text>
+                      </View>
+                      <View style={styles.ci}>
+                        <Text style={styles.ddRowName} numberOfLines={1}>
+                          {r.name}
+                        </Text>
+                        <Text
+                          style={[styles.ddRowSub, on && styles.ddOnText]}
+                          numberOfLines={1}
+                        >
+                          {r.sub}
+                        </Text>
+                        {r.near ? (
+                          <Text
+                            style={[styles.near, on && styles.ddOnText]}
+                            numberOfLines={1}
+                          >
+                            {r.near}
+                          </Text>
+                        ) : null}
+                      </View>
+                      {on ? (
+                        <View style={styles.ddTick}>
+                          <Ionicons
+                            name="checkmark"
+                            size={14}
+                            color={colors.white}
+                          />
+                        </View>
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <Text style={[styles.hint, styles.ddEmpty]}>
+                No customers found.
+              </Text>
+            )}
+            <Pressable
+              style={styles.ddNew}
+              onPress={() => {
+                setDdOpen(false);
+                setMode('new');
+              }}
+            >
+              <Text style={styles.addNewText}>＋ Add a new customer</Text>
+            </Pressable>
+          </View>
+        ) : null}
       </View>
     );
   }
