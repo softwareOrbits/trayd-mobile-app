@@ -129,6 +129,7 @@ const DICTATION_JS = `(function(){try{
   var TEXT_TYPES = ['', 'text', 'search'];
   var target = null;
   var base = '';
+  var written = null;
   var lastFocused = null;
   function dictatable(el){
     if (!el || el.disabled || el.readOnly) return false;
@@ -168,9 +169,11 @@ const DICTATION_JS = `(function(){try{
   }, true);
   window.__traydDictBegin = function(){
     base = target ? readValue(target) : '';
+    written = null;
   };
   window.__traydDictSet = function(spoken){
     if (!target || !spoken) return;
+    if (written !== null && readValue(target) !== written) return;
     var text = spoken;
     if (base.trim()) {
       var startsSentence = /[.!?]\\s*$/.test(base) || /\\n\\s*$/.test(base);
@@ -178,6 +181,7 @@ const DICTATION_JS = `(function(){try{
       text = base + (/\\s$/.test(base) ? '' : ' ') + text;
     }
     writeValue(target, text);
+    written = readValue(target);
   };
 }catch(e){}})();`;
 

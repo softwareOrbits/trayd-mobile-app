@@ -45,13 +45,12 @@ const permissionFor = (
   if (Platform.OS === 'android') {
     if (kind === 'location') return PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION;
     if (kind === 'camera') return PERMISSIONS.ANDROID.CAMERA;
-    // Scoped media reads landed in API 33; older devices still use storage.
-    return Number(Platform.Version) >= 33
-      ? PERMISSIONS.ANDROID.READ_MEDIA_IMAGES
-      : PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE;
   }
   return null;
 };
+
+const needsNoPermission = (kind: PermissionKind) =>
+  Platform.OS === 'android' && kind === 'photos';
 
 /** `limited` (iOS "selected photos") is usable, so it counts as granted. */
 const toState = (status: PermissionStatus): PermissionState => {
@@ -64,6 +63,7 @@ const toState = (status: PermissionStatus): PermissionState => {
 export async function checkPermission(
   kind: PermissionKind,
 ): Promise<PermissionState> {
+  if (needsNoPermission(kind)) return 'granted';
   try {
     if (kind === 'notifications') {
       const { status } = await checkNotifications();
@@ -80,6 +80,7 @@ export async function checkPermission(
 export async function requestPermission(
   kind: PermissionKind,
 ): Promise<PermissionState> {
+  if (needsNoPermission(kind)) return 'granted';
   try {
     if (kind === 'notifications') {
       const { status } = await requestNotifications(['alert', 'sound', 'badge']);

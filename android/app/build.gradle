@@ -90,8 +90,8 @@ android {
         applicationId "com.trayd.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
-        versionName "0.1.6"
+        versionCode 6
+        versionName "0.1.7"
         externalNativeBuild {
             cmake {
                 arguments "-DCMAKE_CXX_STANDARD_LIBRARIES=-lc++_shared -latomic -lm"

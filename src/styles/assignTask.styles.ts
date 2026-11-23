@@ -61,7 +61,10 @@ export const makeAssignTaskStyles = (theme: Theme) =>
       borderColor: theme.colors.borderMuted,
       backgroundColor: theme.colors.surface,
     },
-    employeeOn: { borderColor: theme.colors.primary },
+    employeeOn: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primary,
+    },
     employeeInfo: { flex: 1, gap: 2 },
     employeeName: {
       fontSize: theme.typography.size.md,
@@ -115,6 +118,13 @@ export const makeAssignTaskStyles = (theme: Theme) =>
       borderTopWidth: 1,
       borderTopColor: theme.colors.creamBorder,
       backgroundColor: theme.colors.background,
+    },
+    why: {
+      marginBottom: 10,
+      textAlign: 'center',
+      fontSize: theme.typography.size.sm,
+      fontFamily: theme.fonts.medium,
+      color: theme.colors.textMuted,
     },
     successBody: {
       flex: 1,

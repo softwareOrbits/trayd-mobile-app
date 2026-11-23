@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,7 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import { Button, CalendarModal } from '@/components/ui';
+import { Button, CalendarModal, JobFooter } from '@/components/ui';
 import { TaskAvatar } from '@/components/tasks';
 import { createTask, fetchAssignableEmployees } from '@/services/tasks';
 import { useTheme } from '@/theme';
@@ -24,29 +26,28 @@ import { fmtDateWeekday } from '@/utils/datetime';
 import { firstNameOf } from '@/utils/name';
 import { toastError } from '@/utils/toast';
 import { makeAssignTaskStyles } from '@/styles/assignTask.styles';
+import { makeNewJobStyles } from '@/styles/newJob.styles';
 import type { AssignableEmployee, MainStackParamList } from '@/types';
 
 const AssignTaskScreen = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeAssignTaskStyles);
+  const n = useThemedStyles(makeNewJobStyles);
   const insets = useSafeAreaInsets();
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
 
   const header = (
-    <View style={[styles.headerBar, { paddingTop: insets.top + 8 }]}>
+    <View style={[n.top, { paddingTop: insets.top + 12 }]}>
       <Pressable
-        style={styles.backBtn}
+        style={n.back}
         onPress={() => navigation.goBack()}
         hitSlop={8}
+        accessibilityLabel="Back"
       >
         <Ionicons name="chevron-back" size={20} color={colors.secondary} />
       </Pressable>
-      <View style={styles.headerCenter}>
-        <Text style={styles.headerEyebrow}>TASK MANAGEMENT</Text>
-        <Text style={styles.headerTitle}>Assign a task</Text>
-      </View>
-      <View style={styles.headerSpacer} />
+      <Text style={n.topTitle}>New task</Text>
     </View>
   );
 
@@ -80,7 +81,14 @@ const AssignTaskScreen = () => {
     [employees, assignee],
   );
 
-  const canAssign = !!assignee && !!title.trim() && !!date && !saving;
+  const why = !assignee
+    ? 'Pick who it’s for.'
+    : !title.trim()
+      ? 'Add a task title.'
+      : !date
+        ? 'Pick a deadline date.'
+        : null;
+  const canAssign = !why && !saving;
 
   const assign = async () => {
     if (!canAssign || !assignee || !date) return;
@@ -114,9 +122,7 @@ const AssignTaskScreen = () => {
           <Text style={styles.successTitle}>Task assigned</Text>
           <Text style={styles.successText}>
             <Text style={styles.successStrong}>{title.trim()}</Text>
-            {` is now on ${selected.name ?? 'their'}'s task list, due ${fmtDateWeekday(
-              date as string,
-            )}. They’ve had a push notification.`}
+            {` is on ${firstNameOf(selected.name) || 'their'}’s task list.`}
           </Text>
 
           <View style={styles.assigneeCard}>
@@ -141,101 +147,130 @@ const AssignTaskScreen = () => {
     );
   }
 
+  const label = (text: string, extra?: string, first?: boolean) => (
+    <Text style={[n.label, first && n.labelFirst]}>
+      {text}
+      {extra ? <Text style={n.labelExtra}>{` · ${extra}`}</Text> : null}
+    </Text>
+  );
+
   return (
-    <View style={styles.flex}>
+    <KeyboardAvoidingView
+      style={n.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       {header}
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        style={n.flex}
+        contentContainerStyle={[
+          n.content,
+          { paddingBottom: insets.bottom + 24 },
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.label}>ASSIGN TO</Text>
+        {label('Assign to', undefined, true)}
         {employees === null ? (
-          <ActivityIndicator color={colors.secondary} style={styles.loading} />
+          <ActivityIndicator color={colors.secondary} style={n.loader} />
         ) : employees.length === 0 ? (
-          <Text style={styles.emptyEmployees}>
-            No employees to assign to yet.
-          </Text>
+          <Text style={n.hint}>No employees to assign to yet.</Text>
         ) : (
-          <View style={styles.employeeList}>
+          <View style={n.pchips}>
             {employees.map(emp => {
               const on = emp.id === assignee;
+              const name = emp.name ?? 'Employee';
               return (
                 <Pressable
                   key={emp.id}
-                  style={[styles.employee, on && styles.employeeOn]}
-                  onPress={() => setAssignee(emp.id)}
+                  style={[n.pchip, on && n.pchipOn]}
+                  onPress={() => setAssignee(on ? null : emp.id)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on }}
                 >
-                  <TaskAvatar name={emp.name} size={38} />
-                  <View style={styles.employeeInfo}>
-                    <Text style={styles.employeeName}>
-                      {emp.name ?? 'Employee'}
+                  <View style={[n.pav, on && n.pavOn]}>
+                    <Text style={[n.pavText, on && n.pavTextOn]}>
+                      {name.trim().charAt(0).toUpperCase()}
                     </Text>
-                    {emp.roleName ? (
-                      <Text style={styles.employeeRole}>{emp.roleName}</Text>
-                    ) : null}
                   </View>
-                  <Ionicons
-                    name={on ? 'radio-button-on' : 'radio-button-off'}
-                    size={22}
-                    color={on ? colors.primary : colors.placeholder}
-                  />
+                  <Text style={[n.pchipText, on && n.pchipTextOn]}>
+                    {firstNameOf(name) || name}
+                  </Text>
+                  {on ? (
+                    <Ionicons name="checkmark" size={14} color={colors.white} />
+                  ) : null}
                 </Pressable>
               );
             })}
           </View>
         )}
 
-        <Text style={styles.label}>TASK TITLE</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. Collect conduit & trunking"
-          placeholderTextColor={colors.placeholder}
-          value={title}
-          onChangeText={setTitle}
-        />
+        {label('Task title')}
+        <View style={n.gap8}>
+          <TextInput
+            style={n.input}
+            placeholder="e.g. Collect conduit & trunking"
+            placeholderTextColor={colors.placeholder}
+            value={title}
+            onChangeText={setTitle}
+          />
+        </View>
 
-        <Text style={styles.label}>DESCRIPTION</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Any detail they’ll need on the way"
-          placeholderTextColor={colors.placeholder}
-          value={description}
-          onChangeText={setDescription}
-          multiline
-        />
+        {label('Description', 'optional')}
+        <View style={n.gap8}>
+          <TextInput
+            style={[n.input, n.textArea]}
+            placeholder="Any detail they’ll need on the way"
+            placeholderTextColor={colors.placeholder}
+            value={description}
+            onChangeText={setDescription}
+            multiline
+          />
+        </View>
 
-        <Text style={styles.label}>DEADLINE</Text>
-        <View style={styles.deadlineRow}>
+        {label('Deadline')}
+        <View style={[n.pills2, n.pillsTight]}>
           <Pressable
-            style={[styles.pill, styles.pillGrow]}
+            style={[n.pillbtn, n.pillWide]}
             onPress={() => setDatePicker(true)}
           >
-            <Ionicons name="calendar-outline" size={17} color={colors.secondary} />
-            <Text style={date ? styles.pillValue : styles.pillPlaceholder}>
-              {date ? fmtDateWeekday(date) : 'Pick a date'}
+            <Ionicons
+              name="calendar-outline"
+              size={18}
+              color={colors.secondary}
+            />
+            <Text
+              style={date ? n.pillValue : n.pillPlaceholder}
+              numberOfLines={1}
+            >
+              {date ? fmtDateWeekday(date) : 'Date *'}
             </Text>
           </Pressable>
-          <Pressable style={styles.pill} onPress={() => setTimeSheet(true)}>
-            <Ionicons name="time-outline" size={17} color={colors.secondary} />
-            <Text style={time ? styles.pillValue : styles.pillPlaceholder}>
-              {time ?? 'Any time'}
+          <Pressable
+            style={[n.pillbtn, n.pillNarrow]}
+            onPress={() => setTimeSheet(true)}
+          >
+            <Ionicons name="time-outline" size={18} color={colors.secondary} />
+            <Text style={time ? n.pillValue : n.pillPlaceholder}>
+              {time ? `By ${time}` : 'Any time'}
             </Text>
           </Pressable>
         </View>
 
-        <Text style={styles.label}>LOCATION · OPTIONAL</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. Heat Merchants · Raheen"
-          placeholderTextColor={colors.placeholder}
-          value={address}
-          onChangeText={setAddress}
-        />
+        {label('Location', 'optional')}
+        <View style={n.gap8}>
+          <TextInput
+            style={n.input}
+            placeholder="e.g. Heat Merchants · Raheen"
+            placeholderTextColor={colors.placeholder}
+            value={address}
+            onChangeText={setAddress}
+          />
+        </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <JobFooter>
+        {why ? <Text style={n.why}>{why}</Text> : null}
         <Button
           label={
             selected
@@ -248,7 +283,7 @@ const AssignTaskScreen = () => {
           disabled={!canAssign}
           onPress={assign}
         />
-      </View>
+      </JobFooter>
 
       <CalendarModal
         visible={datePicker}
@@ -267,53 +302,39 @@ const AssignTaskScreen = () => {
         animationType="fade"
         onRequestClose={() => setTimeSheet(false)}
       >
-        <View style={styles.sheetBackdrop}>
+        <View style={n.sheetBackdrop}>
           <Pressable
             style={StyleSheet.absoluteFill}
             onPress={() => setTimeSheet(false)}
           />
-          <View style={styles.sheetCard}>
-            <Text style={styles.sheetTitle}>Deadline time</Text>
-            <ScrollView style={styles.sheetList}>
-              <Pressable
-                style={styles.sheetRow}
-                onPress={() => {
-                  setTime(null);
-                  setTimeSheet(false);
-                }}
-              >
-                <Text style={styles.sheetRowText}>Any time</Text>
-                {time === null ? (
-                  <Ionicons name="checkmark" size={18} color={colors.primary} />
-                ) : null}
-              </Pressable>
-              {HALF_HOUR_TIME_OPTIONS.map(t => (
-                <Pressable
-                  key={t}
-                  style={styles.sheetRow}
-                  onPress={() => {
-                    setTime(t);
-                    setTimeSheet(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.sheetRowText,
-                      t === time && styles.sheetRowActive,
-                    ]}
-                  >
-                    {t}
-                  </Text>
-                  {t === time ? (
-                    <Ionicons name="checkmark" size={18} color={colors.primary} />
-                  ) : null}
-                </Pressable>
-              ))}
+          <View style={[n.sheet, { paddingBottom: insets.bottom + 22 }]}>
+            <View style={n.grab} />
+            <Text style={n.sheetTitle}>Due by</Text>
+            <ScrollView>
+              <View style={n.times}>
+                {[null, ...HALF_HOUR_TIME_OPTIONS].map(t => {
+                  const on = t === time;
+                  return (
+                    <Pressable
+                      key={t ?? 'any'}
+                      style={[n.timeBtn, !t && n.timeBtnWide, on && n.timeBtnOn]}
+                      onPress={() => {
+                        setTime(t);
+                        setTimeSheet(false);
+                      }}
+                    >
+                      <Text style={[n.timeText, on && n.timeTextOn]}>
+                        {t ?? 'Any time'}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </ScrollView>
           </View>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 

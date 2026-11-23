@@ -103,11 +103,16 @@ console.log(
   `[env] APP_ENV=${env} · ${config.webUrl} · Supabase ${config.projectRef} · Firebase ${expectedFirebase} · Android flavor ${flavor}`,
 );
 
+const childEnv = { ...process.env, APP_ENV: env };
+for (const key of Object.keys(childEnv)) {
+  if (key.toLowerCase() === 'nodefaultcurrentdirectoryinexepath') delete childEnv[key];
+}
+
 const result = spawnSync(args[0], args.slice(1), {
   cwd: root,
   stdio: 'inherit',
   shell: true,
-  env: { ...process.env, APP_ENV: env },
+  env: childEnv,
 });
 if (result.error) {
   console.error(`[env] Could not run "${args.join(' ')}": ${result.error.message}`);

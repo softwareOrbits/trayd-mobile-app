@@ -50,13 +50,13 @@ const FieldStack = ({ isOwner }: { isOwner: boolean }) => (
       component={StartJobScreen}
       options={{ presentation: 'modal' }}
     />
+    <Stack.Screen
+      name="AssignTask"
+      component={AssignTaskScreen}
+      options={{ presentation: 'modal' }}
+    />
     {isOwner ? (
       <>
-        <Stack.Screen
-          name="AssignTask"
-          component={AssignTaskScreen}
-          options={{ presentation: 'modal' }}
-        />
         <Stack.Screen
           name="AddServiceSchedule"
           component={AddServiceScheduleScreen}
@@ -120,7 +120,10 @@ const FieldStack = ({ isOwner }: { isOwner: boolean }) => (
       component={CertificationDetailScreen}
     />
     <Stack.Screen name="AddCertification" component={AddCertificationScreen} />
-    <Stack.Screen name="EditCertification" component={EditCertificationScreen} />
+    <Stack.Screen
+      name="EditCertification"
+      component={EditCertificationScreen}
+    />
   </Stack.Navigator>
 );
 
