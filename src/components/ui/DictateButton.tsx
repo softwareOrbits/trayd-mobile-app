@@ -82,7 +82,7 @@ const DictateButton = ({ listening, starting, disabled, onPress }: Props) => {
         </Text>
         <Text style={styles.hint}>
           {listening
-            ? 'Speak normally — your words appear above.'
+            ? 'Speak normally. Your words appear above.'
             : 'Speak your note instead of typing it.'}
         </Text>
       </View>

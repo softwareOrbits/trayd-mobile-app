@@ -55,7 +55,7 @@ export const LiveJobItem = ({
         </View>
 
         <Text style={styles.subtitle} numberOfLines={1}>
-          {job.customerAddress ?? '—'}
+          {job.customerAddress ?? '-'}
         </Text>
 
         <View style={styles.metaRow}>

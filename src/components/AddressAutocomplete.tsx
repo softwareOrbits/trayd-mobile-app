@@ -34,7 +34,7 @@ export const AddressAutocomplete = ({
   onChangeText,
   onSelect,
   label,
-  placeholder = 'Start typing — suggestions from Google Maps',
+  placeholder = 'Start typing for Google Maps suggestions',
   error,
 }: Props) => {
   const { colors } = useTheme();

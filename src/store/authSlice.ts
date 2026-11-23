@@ -161,8 +161,12 @@ const authSlice = createSlice({
         applyCredentials(state, action.payload);
       })
       .addCase(restoreSession.fulfilled, (state, action) => {
+        // No Supabase session on this phone: drop the saved login so the user
+        // lands on the login screen, not a main screen with a dead token.
         if (action.payload) {
           applyCredentials(state, action.payload);
+        } else {
+          clearCredentials(state);
         }
       })
       .addCase(signOut.fulfilled, clearCredentials);

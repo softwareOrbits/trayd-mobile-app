@@ -143,7 +143,7 @@ const NewLeaveRequestScreenInner = () => {
       Toast.show({
         type: 'error',
         text1: isNetworkError(e)
-          ? 'You’re offline — try again when connected.'
+          ? 'You’re offline. Try again when connected.'
           : e instanceof Error && e.message
             ? e.message
             : 'Could not submit the request.',
@@ -184,8 +184,8 @@ const NewLeaveRequestScreenInner = () => {
                 color={colors.warning}
               />
               <Text style={styles.bannerText}>
-                Over your {available} remaining day{available === 1 ? '' : 's'} —
-                the extra is at your employer’s discretion.
+                Over your {available} remaining day{available === 1 ? '' : 's'}.
+                The extra is at your employer’s discretion.
               </Text>
             </>
           ) : capped ? (
@@ -207,7 +207,7 @@ const NewLeaveRequestScreenInner = () => {
                 color={colors.warning}
               />
               <Text style={styles.bannerText}>
-                No allocated days — approval is entirely at your employer’s
+                No allocated days. Approval is entirely at your employer’s
                 discretion.
               </Text>
             </>
@@ -219,7 +219,7 @@ const NewLeaveRequestScreenInner = () => {
                 color={colors.warning}
               />
               <Text style={styles.bannerText}>
-                Unpaid — this leave doesn’t use your paid allowance.
+                Unpaid. This leave doesn’t use your paid allowance.
               </Text>
             </>
           )}

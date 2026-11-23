@@ -239,7 +239,7 @@ export const AskDraftCard = ({
   const cancel = () => {
     if (state !== 'pending') return;
     setEditing(null);
-    setResult({ ok: false, message: 'Cancelled — nothing was saved.' });
+    setResult({ ok: false, message: 'Cancelled. Nothing was saved.' });
     setState('done');
   };
 
@@ -311,7 +311,7 @@ export const AskDraftCard = ({
             onChangeText={text => setValue(t, text)}
             editable={editable}
             keyboardType={column.widget === 'number' ? 'decimal-pad' : 'default'}
-            placeholder={needed ? 'Needed' : '—'}
+            placeholder={needed ? 'Needed' : '-'}
             placeholderTextColor={needed ? '#B4541A' : colors.placeholder}
           />
         </View>
@@ -343,7 +343,7 @@ export const AskDraftCard = ({
             style={[styles.draftValue, needed && styles.draftValueMissing]}
             numberOfLines={1}
           >
-            {needed ? 'Needed' : displayValue(column, value) || '—'}
+            {needed ? 'Needed' : displayValue(column, value) || '-'}
           </Text>
         )}
       </Pressable>
@@ -396,7 +396,7 @@ export const AskDraftCard = ({
     <View style={styles.draftWrap}>
       {editable && fields.length ? (
         <Text style={styles.draftIntro}>
-          Here’s the draft — tap any line to edit it.
+          Here’s the draft. Tap any line to edit it.
         </Text>
       ) : null}
 
@@ -498,7 +498,7 @@ export const AskDraftCard = ({
                     style={[styles.draftValue, needed && styles.draftValueMissing]}
                     numberOfLines={1}
                   >
-                    {needed ? 'Needed' : shown || '—'}
+                    {needed ? 'Needed' : shown || '-'}
                   </Text>
                 )}
                 {editable && field && field.widget !== 'toggle' ? (

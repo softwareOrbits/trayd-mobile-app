@@ -112,7 +112,7 @@ export const AskHistoryDrawer = ({
             <ActivityIndicator color={colors.secondary} />
           ) : conversations.length === 0 ? (
             <Text style={styles.drawerEmpty}>
-              No chats yet — ask your first question.
+              No chats yet. Ask your first question.
             </Text>
           ) : (
             <ScrollView

@@ -95,7 +95,7 @@ const ViewChooserScreen = () => {
         How do you want to work today{firstName ? `, ${firstName}` : ''}?
       </Text>
       <Text style={styles.subtitle}>
-        Pick a view — you can switch anytime from the menu.
+        Pick a view. You can switch anytime from the menu.
       </Text>
 
       <View style={styles.cards}>
@@ -106,7 +106,7 @@ const ViewChooserScreen = () => {
           tone="employer"
           icon="briefcase-outline"
           title="Employer view"
-          description="Run the business — review invoices, watch live jobs, manage the team."
+          description="Run the business: review invoices, watch live jobs, manage the team."
           tags={EMPLOYER_TAGS}
           selected={selected === 'employer'}
           disabled={!employerAvailable}
@@ -140,7 +140,7 @@ const ViewChooserScreen = () => {
           tone="field"
           icon="construct-outline"
           title="Employee view"
-          description="Work a job — the chat logs your time, materials and photos as you go."
+          description="Work a job. The chat logs your time, materials and photos as you go."
           tags={FIELD_TAGS}
           selected={selected === 'field'}
           disabled={false}

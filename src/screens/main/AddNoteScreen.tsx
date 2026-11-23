@@ -95,7 +95,7 @@ const AddNoteScreen = () => {
       await saveJobCache(params.jobId, {
         notes: [...(cached?.notes ?? []), note],
       });
-      toastSuccess('Saved offline — note syncs when you’re back online.');
+      toastSuccess('Saved offline. The note syncs when you’re back online.');
       goBackSafe(navigation);
     };
     try {
@@ -137,7 +137,7 @@ const AddNoteScreen = () => {
         </Text>
 
         <Input
-          placeholder="e.g. Secondary leak found behind boiler — may need follow-up."
+          placeholder="e.g. Secondary leak found behind boiler, may need follow-up."
           value={text}
           onChangeText={next => {
             dictation.sync(next);

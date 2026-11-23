@@ -88,7 +88,7 @@ export const ServiceScheduleSection = ({
       {items.length === 0 ? (
         <Text style={styles.emptySection}>
           {canManage
-            ? 'Nothing scheduled yet — add the first service item.'
+            ? 'Nothing scheduled yet. Add the first service item.'
             : 'No service schedule set for this van yet.'}
         </Text>
       ) : (

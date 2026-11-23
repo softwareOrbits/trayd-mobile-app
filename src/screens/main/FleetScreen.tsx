@@ -123,7 +123,7 @@ const FleetScreen = () => {
             </View>
             <Text style={styles.emptyTitle}>No van assigned yet</Text>
             <Text style={styles.emptyText}>
-              {`Once ${owner} assigns you a van, you'll see its NCT, tax and service status here — and be able to report any issue straight from your phone.`}
+              {`Once ${owner} assigns you a van, you'll see its NCT, tax and service status here and be able to report any issue straight from your phone.`}
             </Text>
           </View>
           {reportableCount > 0 ? (

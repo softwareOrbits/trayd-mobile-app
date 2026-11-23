@@ -24,7 +24,7 @@ import { fmtDateFull } from '@/utils/datetime';
 import { makeCertificationStyles } from '@/styles/certifications.styles';
 import type { MainStackParamList } from '@/types';
 
-const fmtDate = (iso: string | null) => fmtDateFull(iso) ?? '—';
+const fmtDate = (iso: string | null) => fmtDateFull(iso) ?? '-';
 
 const CertificationDetailScreen = () => {
   const { colors } = useTheme();
@@ -110,9 +110,9 @@ const CertificationDetailScreen = () => {
 
   const b = banner();
   const rows = [
-    { label: 'HOLDER', value: holder || '—' },
-    { label: 'CERT NUMBER', value: cert.certNumber ?? '—' },
-    { label: 'ISSUING BODY', value: cert.issuingBody ?? '—' },
+    { label: 'HOLDER', value: holder || '-' },
+    { label: 'CERT NUMBER', value: cert.certNumber ?? '-' },
+    { label: 'ISSUING BODY', value: cert.issuingBody ?? '-' },
     { label: 'ISSUED', value: fmtDate(cert.issuedOn) },
     { label: 'EXPIRES', value: fmtDate(cert.expiresOn) },
   ];

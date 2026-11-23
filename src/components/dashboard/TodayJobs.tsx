@@ -95,7 +95,7 @@ export const TodayJobs = () => {
       eircode: live ? null : job.customerEircode?.trim() || null,
       status: live ? (job.status === 'paused' ? 'paused' : 'live') : 'next',
       tone: (live ? 'live' : 'next') as JobTone,
-      title: locality ? `${name} — ${locality}` : name,
+      title: locality ? `${name} · ${locality}` : name,
       sub: `${JOB_TYPE_LABEL[job.jobType]} · ${statusWord(job.status)}`,
     };
   });
@@ -118,7 +118,7 @@ export const TodayJobs = () => {
               <View style={styles.rowBody}>
                 <Text style={styles.jobTitle}>No jobs today</Text>
                 <Text style={styles.rowSub}>
-                  Nothing scheduled — enjoy the quiet.
+                  Nothing scheduled. Enjoy the quiet.
                 </Text>
               </View>
             </View>

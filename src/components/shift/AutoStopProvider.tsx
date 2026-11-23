@@ -55,7 +55,7 @@ export default function AutoStopProvider() {
       await setOvertimeDeclared(true);
       setPrompt(null);
     } catch (e) {
-      toastError(e, `Could not save that — your timer will stop at ${stopLabel}.`);
+      toastError(e, `Could not save that. Your timer will stop at ${stopLabel}.`);
     } finally {
       setDeclaring(false);
     }

@@ -269,7 +269,7 @@ const ProfileScreen = () => {
       Toast.show({
         type: 'success',
         text1: feedbackKind === 'bug' ? 'Bug reported' : 'Request sent',
-        text2: 'Thanks — the Trayd team will take a look.',
+        text2: 'Thanks. The Trayd team will take a look.',
       });
     } catch (e) {
       toastError(e, 'Could not send your feedback.');
@@ -416,7 +416,7 @@ const ProfileScreen = () => {
             <Text style={styles.sub}>
               {[member?.companyName, member?.roleName]
                 .filter(Boolean)
-                .join(' · ') || '—'}
+                .join(' · ') || '-'}
             </Text>
             <View
               style={[styles.syncBadge, queued && styles.syncBadgeQueued]}
@@ -508,7 +508,7 @@ const ProfileScreen = () => {
         {/* Account */}
         <Text style={styles.section}>ACCOUNT</Text>
         <View style={styles.card}>
-          {row('Email', member?.email ?? '—')}
+          {row('Email', member?.email ?? '-')}
           <View style={styles.divider} />
           {row('Password', 'Tap to change', {
             onPress: () => navigation.navigate('ChangePassword'),
@@ -587,7 +587,7 @@ const ProfileScreen = () => {
             onPress={openFeedback}
           />
           <Text style={styles.supportHint}>
-            Report a bug or request a feature. Goes straight to the Trayd team —
+            Report a bug or request a feature. Goes straight to the Trayd team,
             never your employer.
           </Text>
         </View>
@@ -649,8 +649,8 @@ const ProfileScreen = () => {
               <View style={styles.modalWarn}>
                 <Ionicons name="time-outline" size={16} color={colors.warning} />
                 <Text style={styles.modalWarnText}>
-                  Items queued offline stay safe and sync when you’re back —
-                  don’t reinstall the app.
+                  Items queued offline stay safe and sync when you’re back.
+                  Don’t reinstall the app.
                 </Text>
               </View>
             ) : null}
@@ -830,8 +830,8 @@ const ProfileScreen = () => {
             </View>
             <Text style={styles.modalTitle}>Delete {tradingName}?</Text>
             <Text style={styles.modalText}>
-              This permanently deletes {tradingName}, all its data — jobs,
-              invoices, customers, photos — and every owner and employee login,
+              This permanently deletes {tradingName}, all its data (jobs,
+              invoices, customers, photos) and every owner and employee login,
               including yours. This cannot be undone.
             </Text>
             <Text style={styles.modalText}>
@@ -958,7 +958,7 @@ const ProfileScreen = () => {
 
             <Text style={styles.fbNote}>
               Goes straight to the Trayd team. Only Trayd can see your
-              submissions — never your employer.
+              submissions, never your employer.
             </Text>
             <Button
               label="Send to Trayd"

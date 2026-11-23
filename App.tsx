@@ -17,6 +17,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { restoreSession, logout } from '@/store/authSlice';
 import { supabase } from '@/services/supabase';
 import { clearMemberCache } from '@/services/member';
+import { clearDataFromOtherEnvironment } from '@/services/environmentGuard';
 import {
   clearWebViewSession,
   pushSessionToWebView,
@@ -41,7 +42,17 @@ function Bootstrap() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    dispatch(restoreSession());
+    const boot = async () => {
+      // Data left by a build for another environment (dev vs prod) is wiped
+      // first, so its saved login can't open the app against this backend.
+      if (await clearDataFromOtherEnvironment()) {
+        clearMemberCache();
+        dispatch(logout());
+        dispatch(setUnread(0));
+      }
+      dispatch(restoreSession());
+    };
+    boot();
     const timer = setTimeout(() => setReady(true), SPLASH_DURATION);
     const { data: authSub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {

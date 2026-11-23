@@ -103,7 +103,7 @@ const AddJobPhotoScreen = () => {
       await saveJobCache(params.jobId, {
         photos: [...(cached?.photos ?? []), ...newPhotos],
       });
-      toastSuccess('Saved offline — photos upload when you’re back online.');
+      toastSuccess('Saved offline. Photos upload when you’re back online.');
       goBackSafe(navigation);
     };
     try {

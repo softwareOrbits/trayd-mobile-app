@@ -30,10 +30,10 @@ export const ASK_UPLOAD_TYPES = [
 ];
 
 const OFFLINE_ANSWER =
-  'You’re offline — Ask Trayd needs a connection to look anything up.';
+  'You’re offline. Ask Trayd needs a connection to look anything up.';
 const GENERIC_ANSWER = 'Something went wrong. Please try again.';
 const OFFLINE_COMMIT =
-  'You’re offline — reconnect to save this.';
+  'You’re offline. Reconnect to save this.';
 
 const ERROR_ANSWER: Record<string, string> = {
   not_authenticated: 'Please sign in again to ask about your work.',

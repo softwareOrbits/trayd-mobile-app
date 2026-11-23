@@ -19,7 +19,7 @@ const ITEMS: ChecklistItem[] = [
   {
     key: 'account',
     title: 'Account created',
-    sub: "You're all set — you're signed in",
+    sub: "You're all set. You're signed in",
     icon: 'checkmark',
     done: true,
   },

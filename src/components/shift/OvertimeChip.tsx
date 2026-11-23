@@ -29,8 +29,8 @@ export default function OvertimeChip({ running }: Props) {
       await setOvertimeDeclared(!declared);
       toastSuccess(
         declared
-          ? `Overtime off — timer stops at ${stopLabel}.`
-          : 'Overtime on — your timer keeps running.',
+          ? `Overtime off. The timer stops at ${stopLabel}.`
+          : 'Overtime on. Your timer keeps running.',
       );
     } catch (e) {
       toastError(e, 'Could not update overtime.');

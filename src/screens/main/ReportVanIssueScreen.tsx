@@ -258,7 +258,7 @@ const ReportVanIssueScreen = () => {
             ]}
             onPress={() => setDrivable(false)}
           >
-            <Text style={styles.drivableTitle}>No — off the road</Text>
+            <Text style={styles.drivableTitle}>No, off the road</Text>
             <Text style={styles.drivableSub}>flag as urgent</Text>
           </Pressable>
         </View>

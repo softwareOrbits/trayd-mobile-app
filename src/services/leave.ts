@@ -326,7 +326,7 @@ export async function submitLeaveRequest(
   const types = await loadLeaveTypes();
   const match = types.find(t => uiTypeFor(t) === draft.type);
   if (!match) {
-    throw new Error('This leave type isn’t available yet — pick another.');
+    throw new Error('This leave type isn’t available yet. Pick another.');
   }
 
   const { error } = await supabase.rpc('request_leave', {

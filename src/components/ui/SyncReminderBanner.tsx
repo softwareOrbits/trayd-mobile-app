@@ -21,7 +21,7 @@ const SyncReminderBanner = () => {
         <Text style={styles.text}>
           {pending > 0
             ? `New changes are paused. Reconnect to sync your ${pending} pending change${pending === 1 ? '' : 's'}.`
-            : 'New offline changes are paused — reconnect to keep working.'}
+            : 'New offline changes are paused. Reconnect to keep working.'}
         </Text>
       </View>
     </View>

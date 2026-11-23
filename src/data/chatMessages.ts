@@ -9,7 +9,7 @@ export const demoChat: ChatMessage[] = [
   {
     id: 'm2',
     role: 'user',
-    text: 'Receipt — Heat Merchants · €52.40',
+    text: 'Receipt · Heat Merchants · €52.40',
   },
   {
     id: 'm3',
@@ -36,7 +36,7 @@ export const demoChat: ChatMessage[] = [
   {
     id: 'm6',
     role: 'assistant',
-    text: 'Out-of-scope reply example below ↓ — I can only help with your **current job**.',
+    text: 'Out-of-scope reply example below ↓. I can only help with your **current job**.',
   },
   {
     id: 'm7',

@@ -208,7 +208,7 @@ const EditJobScreen = () => {
       setMatModal(false);
       Toast.show({
         type: 'success',
-        text1: queued ? 'Saved offline — will sync.' : 'Material added.',
+        text1: queued ? 'Saved offline. It will sync.' : 'Material added.',
       });
     } catch (e) {
       Toast.show({ type: 'error', text1: msg(e, 'Could not add material.') });

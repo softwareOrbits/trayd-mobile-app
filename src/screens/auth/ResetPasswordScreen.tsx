@@ -51,7 +51,7 @@ const ResetPasswordScreen = () => {
       Toast.show({ type: 'error', text1: error.message });
       return;
     }
-    Toast.show({ type: 'success', text1: 'Code sent — check your email.' });
+    Toast.show({ type: 'success', text1: 'Code sent. Check your email.' });
     navigation.navigate('VerifyIdentity', { email: data.email });
   };
 

@@ -3,7 +3,7 @@ import type { FlushOutcome } from './types';
 export class OfflineLimitError extends Error {
   constructor() {
     super(
-      'You’ve been offline too long — reconnect to sync before making more changes.',
+      'You’ve been offline too long. Reconnect to sync before making more changes.',
     );
     this.name = 'OfflineLimitError';
   }

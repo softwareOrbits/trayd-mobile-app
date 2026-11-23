@@ -68,7 +68,7 @@ const buildSteps = (task: Task, events: TaskEvent[]): Step[] => {
             started.note ? ` · “${started.note}”` : ''
           }`
         : overdue
-          ? 'Overdue — not started'
+          ? 'Overdue · Not started'
           : 'Pending',
     },
     {
@@ -342,7 +342,7 @@ const TaskDetailScreen = () => {
             <Text style={styles.blockLabel}>ADD A NOTE · OPTIONAL</Text>
             <TextInput
               style={styles.noteInput}
-              placeholder="e.g. picked up — two boxes, rest on back order"
+              placeholder="e.g. picked up two boxes, rest on back order"
               placeholderTextColor={colors.placeholder}
               value={note}
               onChangeText={changeNote}

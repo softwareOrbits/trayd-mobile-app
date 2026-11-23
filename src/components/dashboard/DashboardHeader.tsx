@@ -136,7 +136,7 @@ export const DashboardHeader = ({
             hitSlop={8}
             accessibilityLabel={
               certAlert
-                ? 'Profile — certifications need attention'
+                ? 'Profile. Certifications need attention'
                 : 'Profile'
             }
           >
@@ -182,7 +182,7 @@ export const DashboardHeader = ({
         <Text style={styles.subtitle}>
           <Text style={styles.subtitleStrong}>You're all set up.</Text>
           <Text style={styles.subtitleMuted}>
-            {' '}We'll assign your first job soon — they'll appear right here.
+            {' '}We'll assign your first job soon. It'll appear right here.
           </Text>
         </Text>
       )}

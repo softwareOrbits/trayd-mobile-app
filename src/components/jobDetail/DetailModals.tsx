@@ -160,7 +160,7 @@ export const TimeEditSheet = ({
         <View style={[styles.modalCard, { paddingBottom: insets.bottom + 20 }]}>
           <Text style={styles.modalTitle}>Edit start time</Text>
           <Text style={styles.modalHint}>
-            Adjust when the job started — we log the edit for your office.
+            Adjust when the job started. We log the edit for your office.
           </Text>
           <View style={styles.timeRow}>
             <Input

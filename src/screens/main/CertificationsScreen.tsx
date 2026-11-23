@@ -154,7 +154,7 @@ const CertificationsScreen = () => {
         >
           <Text style={styles.subtitle}>
             {[holder, role].filter(Boolean).join(' · ')}
-            {holder ? ' — ' : ''}show this screen on site when asked.
+            {holder ? '. ' : ''}{holder ? 'Show' : 'show'} this screen on site when asked.
           </Text>
 
           <View style={{ height: 16 }} />
@@ -205,7 +205,7 @@ const CertificationsScreen = () => {
                     </View>
                     <Text style={styles.cardMeta}>
                       {[c.issuingBody, c.certNumber].filter(Boolean).join(' · ') ||
-                        '—'}
+                        '-'}
                     </Text>
                     <Text style={styles.cardExpiry}>
                       {c.expiresOn ? (

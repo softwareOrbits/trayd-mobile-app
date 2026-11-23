@@ -37,7 +37,7 @@ const hhmm = (iso: string | null) => {
 
 const clockOf = (iso: string | null) => {
   const { hh, mm } = hhmm(iso);
-  return hh ? `${hh}:${mm}` : '—';
+  return hh ? `${hh}:${mm}` : '-';
 };
 
 /**
@@ -108,7 +108,7 @@ export const CrewHoursSheet = ({
                 {`${firstNameOf(nameOf(edit.segment.memberId)) || 'Crew'}'s hours`}
               </Text>
               <Text style={styles.modalHint}>
-                {`${fmtDMY(edit.segment.startTime)} — the edit is logged against your name.`}
+                {`${fmtDMY(edit.segment.startTime)}. The edit is logged against your name.`}
               </Text>
 
               <Text style={styles.crewHoursLabel}>STARTED</Text>

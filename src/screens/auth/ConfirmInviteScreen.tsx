@@ -74,10 +74,10 @@ const ConfirmInviteScreen = () => {
 
   const rows = member
     ? [
-        { label: 'Name', value: member.fullName ?? '—', mono: false },
-        { label: 'Role', value: member.roleName ?? '—', mono: false },
-        { label: 'Company', value: member.companyName ?? '—', mono: true },
-        { label: 'Email', value: member.email ?? '—', mono: true },
+        { label: 'Name', value: member.fullName ?? '-', mono: false },
+        { label: 'Role', value: member.roleName ?? '-', mono: false },
+        { label: 'Company', value: member.companyName ?? '-', mono: true },
+        { label: 'Email', value: member.email ?? '-', mono: true },
       ]
     : [];
 
@@ -163,7 +163,7 @@ const ConfirmInviteScreen = () => {
                 mode: 'onboard',
               })
             }
-            secondary="Not me — sign out"
+            secondary="Not me? Sign out"
             onSecondary={signOutToLogin}
           />
         ) : (

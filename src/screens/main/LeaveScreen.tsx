@@ -202,7 +202,7 @@ const LeaveScreenInner = () => {
                   </View>
                   <Text style={body.emptyTitle}>No matching requests</Text>
                   <Text style={body.emptyText}>
-                    Nothing matches these filters — try a different type or
+                    Nothing matches these filters. Try a different type or
                     status.
                   </Text>
                 </View>

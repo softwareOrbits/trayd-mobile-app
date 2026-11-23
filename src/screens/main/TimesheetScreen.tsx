@@ -338,7 +338,7 @@ const TimesheetScreen = () => {
                   ) : null}
                 </View>
                 <Text style={worked ? styles.dayHours : styles.dayHoursMuted}>
-                  {worked ? fmtHoursMin(d.totalHours) : '—'}
+                  {worked ? fmtHoursMin(d.totalHours) : '-'}
                 </Text>
               </View>
             );

@@ -52,7 +52,7 @@ export const VanIssuePromo = () => {
           <View style={styles.rowBody}>
             <Text style={styles.vanTitle}>Spotted something on the van?</Text>
             <Text style={styles.vanSub}>
-              {`Report it now — straight to ${owner} & the van's log`}
+              {`Report it now, straight to ${owner} & the van's log`}
             </Text>
           </View>
         </View>

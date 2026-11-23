@@ -192,7 +192,7 @@ export const AskOptionSheet = ({
                 {!visible.length && !typed ? (
                   <Text style={styles.optionEmpty}>
                     {searchable
-                      ? 'Nothing to pick from yet — type a name above.'
+                      ? 'Nothing to pick from yet. Type a name above.'
                       : 'No choices available.'}
                   </Text>
                 ) : null}

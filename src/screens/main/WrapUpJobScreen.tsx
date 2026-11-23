@@ -458,7 +458,7 @@ const WrapUpJobScreen = () => {
         { id: items[0].clientKey, uri: asset.uri, time: fmtClock(new Date()) },
       ]);
       setPhotoCounts(prev => ({ ...prev, after: prev.after + 1 }));
-      toastSuccess('Saved offline — photo uploads when you reconnect.');
+      toastSuccess('Saved offline. The photo uploads when you reconnect.');
     };
     try {
       const { uploaded } = await addJobPhotos({
@@ -528,7 +528,7 @@ const WrapUpJobScreen = () => {
         }
         setMatSheet(null);
         toastSuccess(
-          queued ? 'Saved offline — syncs when you’re back online.' : 'Item logged.',
+          queued ? 'Saved offline. It syncs when you’re back online.' : 'Item logged.',
         );
       } else {
         const editedId = matSheet;
@@ -550,7 +550,7 @@ const WrapUpJobScreen = () => {
         }
         setMatSheet(null);
         toastSuccess(
-          queued ? 'Saved offline — syncs when you’re back online.' : 'Item updated.',
+          queued ? 'Saved offline. It syncs when you’re back online.' : 'Item updated.',
         );
       }
     } catch (e) {
@@ -576,7 +576,7 @@ const WrapUpJobScreen = () => {
       }
       setMatSheet(null);
       toastSuccess(
-        queued ? 'Saved offline — syncs when you’re back online.' : 'Item removed.',
+        queued ? 'Saved offline. It syncs when you’re back online.' : 'Item removed.',
       );
     } catch (e) {
       toastError(e, 'Could not remove the item.');
@@ -693,7 +693,7 @@ const WrapUpJobScreen = () => {
       await pauseJob(params.jobId, atIso, { crew: true });
       dispatch(patchJobStatus({ id: params.jobId, status: 'paused' }));
       dispatch(fetchJobs());
-      toastSuccess('Paused — see you tomorrow.');
+      toastSuccess('Paused. See you tomorrow.');
       resetToJobsTab('resume');
     } catch (e) {
       if (isNetworkError(e)) {
@@ -711,7 +711,7 @@ const WrapUpJobScreen = () => {
             detail: { ...detail, status: 'paused' },
           });
         }
-        Toast.show({ type: 'info', text1: 'Saved offline — will sync.' });
+        Toast.show({ type: 'info', text1: 'Saved offline. It will sync.' });
         resetToJobsTab('resume');
       } else if (isAccessRevoked(e)) {
         dispatch(signOut());
@@ -769,7 +769,7 @@ const WrapUpJobScreen = () => {
           <Text style={styles.resultText}>
             {success
               ? `${owner} has been notified. You’ll get a push when the invoice is approved.`
-              : 'Nothing to do — Trayd will send this automatically when signal returns.'}
+              : 'Nothing to do. Trayd will send this automatically when signal returns.'}
           </Text>
 
           <View style={styles.resultCard}>
@@ -927,7 +927,7 @@ const WrapUpJobScreen = () => {
   ).length;
   const notesValue =
     notes.length === 0
-      ? '—'
+      ? '-'
       : customerNotes === 0
       ? `${notes.length} employer-only`
       : `${notes.length} note${notes.length === 1 ? '' : 's'}`;
@@ -945,11 +945,11 @@ const WrapUpJobScreen = () => {
     const presets: { k: 'down5' | 'down15' | 'now'; label: string }[] = [
       { k: 'down5', label: 'Round down 5m' },
       { k: 'down15', label: 'Round down 15m' },
-      { k: 'now', label: `Now — ${fmtClock(new Date())}` },
+      { k: 'now', label: `Now · ${fmtClock(new Date())}` },
     ];
     title = 'Edit job times';
     subtitle =
-      'Use this if you forgot to start or stop the timer — your office sees a small note that the time was edited.';
+      'Use this if you forgot to start or stop the timer. Your office sees a small note that the time was edited.';
     body = (
       <View style={styles.gap16}>
         <View style={styles.segToggle}>
@@ -1068,9 +1068,9 @@ const WrapUpJobScreen = () => {
   } else if (step === 1) {
     title = 'Finishing now?';
     subtitle = `We logged your start at ${
-      startDate ? fmtClock(startDate) : '—'
+      startDate ? fmtClock(startDate) : '-'
     } and finish at ${
-      finishDate ? fmtClock(finishDate) : '—'
+      finishDate ? fmtClock(finishDate) : '-'
     }. Adjust either if you need to fix things up retroactively.`;
     body = (
       <View style={styles.gap12}>
@@ -1082,7 +1082,7 @@ const WrapUpJobScreen = () => {
             </Pressable>
           </View>
           <Text style={styles.timeValue}>
-            {startDate ? fmtClock(startDate) : '—'}
+            {startDate ? fmtClock(startDate) : '-'}
           </Text>
         </View>
         <View style={[styles.timeCard, styles.timeCardActive]}>
@@ -1093,7 +1093,7 @@ const WrapUpJobScreen = () => {
             </Pressable>
           </View>
           <Text style={styles.timeValue}>
-            {finishDate ? fmtClock(finishDate) : '—'}
+            {finishDate ? fmtClock(finishDate) : '-'}
           </Text>
         </View>
         <View style={styles.totalCard}>
@@ -1104,7 +1104,7 @@ const WrapUpJobScreen = () => {
           <Ionicons name="alert-circle" size={18} color={colors.warning} />
           <Text style={styles.warnText}>
             <Text style={styles.warnStrong}>Forgot to off the timer? </Text>
-            Tap a card to set the real start or finish time — we log the edit so
+            Tap a card to set the real start or finish time. We log the edit so
             {` ${ownerName}`} can see what you changed.
           </Text>
         </View>
@@ -1113,7 +1113,7 @@ const WrapUpJobScreen = () => {
     footer = (
       <>
         <Button
-          label={`Finish at ${finishDate ? fmtClock(finishDate) : '—'} ✓`}
+          label={`Finish at ${finishDate ? fmtClock(finishDate) : '-'} ✓`}
           fullWidth
           onPress={() => setStep(2)}
         />
@@ -1122,7 +1122,7 @@ const WrapUpJobScreen = () => {
           hitSlop={8}
           style={styles.linkBtn}
         >
-          <Text style={styles.linkText}>Not yet — keep working</Text>
+          <Text style={styles.linkText}>Not yet, keep working</Text>
         </Pressable>
       </>
     );
@@ -1176,11 +1176,11 @@ const WrapUpJobScreen = () => {
   } else if (step === 3) {
     title = 'What got done?';
     subtitle =
-      'A line or two — this is the description your office and the customer may see on the invoice.';
+      'A line or two. This is the description your office and the customer may see on the invoice.';
     body = (
       <View style={styles.gap16}>
         <Input
-          placeholder="e.g. Replaced 22mm ball valve and 1m of copper pipe behind boiler. Pressure tested — no leaks remaining."
+          placeholder="e.g. Replaced 22mm ball valve and 1m of copper pipe behind boiler. Pressure tested, no leaks remaining."
           value={summary}
           onChangeText={setSummary}
           multiline
@@ -1203,7 +1203,7 @@ const WrapUpJobScreen = () => {
         </View>
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>
-            AI uses this as the description line — keep it factual. Trayd will
+            AI uses this as the description line, so keep it factual. Trayd will
             not reword it.
           </Text>
         </View>
@@ -1265,7 +1265,7 @@ const WrapUpJobScreen = () => {
     footer = (
       <>
         <Button
-          label="Looks right — continue"
+          label="Looks right, continue"
           fullWidth
           onPress={() => setStep(5)}
         />
@@ -1288,7 +1288,7 @@ const WrapUpJobScreen = () => {
       .filter(Boolean)
       .join(' · ');
     title = `Send this to ${ownerName}?`;
-    subtitle = `This is a draft summary, not the final invoice — ${ownerName} reviews the full line-by-line and edits before sending. Catch anything wrong now.`;
+    subtitle = `This is a draft summary, not the final invoice. ${ownerName} reviews the full line-by-line and edits before sending. Catch anything wrong now.`;
     body = (
       <View style={styles.gap12}>
         <View style={styles.draftCard}>

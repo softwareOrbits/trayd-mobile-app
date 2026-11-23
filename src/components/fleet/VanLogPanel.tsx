@@ -349,7 +349,7 @@ export const VanLogPanel = ({
 
         <Text style={styles.sectionLabel}>{`OPEN · ${openItems.length}`}</Text>
         {openItems.length === 0 ? (
-          <Text style={styles.emptySection}>Nothing open — all clear.</Text>
+          <Text style={styles.emptySection}>Nothing open. All clear.</Text>
         ) : (
           openItems.map(item =>
             item.type === 'issue' ? (

@@ -254,7 +254,7 @@ const AddServiceScheduleScreen = () => {
             </Text>
             <Text style={styles.nextDueHint}>
               {recursBy === 'mileage'
-                ? 'Mileage-only items have no date — they fall due on the van’s odometer reading.'
+                ? 'Mileage-only items have no date. They fall due on the van’s odometer reading.'
                 : lastDone
                   ? 'Worked out from LAST DONE plus the interval.'
                   : 'Add a LAST DONE date and we’ll project the next one.'}

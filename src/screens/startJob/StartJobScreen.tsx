@@ -412,13 +412,13 @@ const StartJobScreen = () => {
           dispatch(addPendingJob(job));
           Toast.show({
             type: 'success',
-            text1: 'Saved offline — job syncs when you reconnect.',
+            text1: 'Saved offline. The job syncs when you reconnect.',
           });
           navigation.replace('JobDetail', { jobId });
         } catch {
           Toast.show({
             type: 'info',
-            text1: 'You’re offline — start the job when you reconnect.',
+            text1: 'You’re offline. Start the job when you reconnect.',
           });
         }
       } else {
@@ -532,7 +532,7 @@ const StartJobScreen = () => {
               onUse={() => pickExisting(nearest.customer.id)}
             />
             <Text style={styles.hintText}>
-              No GPS? You can still search or add new — nothing&apos;s blocked.
+              No GPS? You can still search or add new. Nothing&apos;s blocked.
             </Text>
           </View>
         ) : null}
@@ -555,7 +555,7 @@ const StartJobScreen = () => {
               ))}
               {!customers.length ? (
                 <Text style={styles.hintText}>
-                  No customers yet — add your first one below.
+                  No customers yet. Add your first one below.
                 </Text>
               ) : null}
             </>
@@ -659,7 +659,7 @@ const StartJobScreen = () => {
             />
           )}
         />
-        <Text style={styles.hintText}>Pre-filled from GPS — editable.</Text>
+        <Text style={styles.hintText}>Pre-filled from GPS. You can edit it.</Text>
       </View>
     );
     footer = (
@@ -673,9 +673,9 @@ const StartJobScreen = () => {
     );
   } else if (step === 1 && mode === 'dedup' && candidate) {
     const firstName = candidate.name.split(' ')[0];
-    title = `Hold on — is this ${firstName}?`;
+    title = `Hold on, is this ${firstName}?`;
     subtitle =
-      'We match by phone to keep your customers tidy — same number means same person, even if a name was typed differently.';
+      'We match by phone to keep your customers tidy. Same number means same person, even if a name was typed differently.';
     bodyContent = (
       <View style={styles.matchCard}>
         <Text style={styles.matchLabel}>PHONE NUMBER ALREADY ON FILE</Text>
@@ -691,12 +691,12 @@ const StartJobScreen = () => {
     footer = (
       <View style={styles.gap12}>
         <Button
-          label={`Yes — use existing ${candidate.name}`}
+          label={`Yes, use existing ${candidate.name}`}
           fullWidth
           onPress={() => pickExisting(candidate.id)}
         />
         <Button
-          label="No — create a new customer"
+          label="No, create a new customer"
           variant="outlined"
           color="secondary"
           fullWidth
@@ -720,7 +720,7 @@ const StartJobScreen = () => {
         ))}
         <View style={styles.noteBox}>
           <Text style={styles.noteText}>
-            Multi-day isn&apos;t chosen here — at the end of the day just tap{' '}
+            Multi-day isn&apos;t chosen here. At the end of the day, tap{' '}
             <Text style={styles.noteStrong}>Continue tomorrow</Text> instead of
             Finish.
           </Text>
@@ -742,7 +742,7 @@ const StartJobScreen = () => {
     bodyContent = (
       <View style={styles.gap12}>
         <Button
-          label="Just me — skip ahead"
+          label="Just me, skip ahead"
           variant="outlined"
           color="secondary"
           fullWidth
@@ -778,7 +778,7 @@ const StartJobScreen = () => {
     );
     footer = (
       <Button
-        label={`${crew.length} on site — continue`}
+        label={`${crew.length} on site · Continue`}
         fullWidth
         disabled={crew.length === 0}
         onPress={() => setStep(4)}
@@ -787,7 +787,7 @@ const StartJobScreen = () => {
   } else if (step === 4) {
     title = 'Anything off the van?';
     subtitle =
-      'Tap to add van stock or a custom item — you can adjust or add more during the job.';
+      'Tap to add van stock or a custom item. You can adjust or add more during the job.';
     bodyContent = (
       <View style={styles.gap12}>
         <Input
@@ -816,7 +816,7 @@ const StartJobScreen = () => {
             ))}
             {!catalog.length ? (
               <Text style={styles.hintText}>
-                No materials found — try a different search.
+                No materials found. Try a different search.
               </Text>
             ) : null}
           </>
@@ -829,7 +829,7 @@ const StartJobScreen = () => {
           pickedMaterials.length
             ? `${pickedMaterials.length} item${
                 pickedMaterials.length === 1 ? '' : 's'
-              } — continue`
+              } · Continue`
             : 'Continue'
         }
         fullWidth

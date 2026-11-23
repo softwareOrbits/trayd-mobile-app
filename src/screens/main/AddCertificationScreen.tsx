@@ -115,7 +115,7 @@ const AddCertificationScreen = () => {
       return;
     }
     if (offlineActionBlocked()) {
-      Toast.show({ type: 'error', text1: 'Blocked — you appear offline.' });
+      Toast.show({ type: 'error', text1: 'You appear to be offline. Try again when connected.' });
       return;
     }
     setSaving(true);
@@ -255,7 +255,7 @@ const AddCertificationScreen = () => {
             {photoUploading
               ? 'Uploading…'
               : photoPath
-              ? 'Card photo attached — tap to replace'
+              ? 'Card photo attached. Tap to replace'
               : 'Take a photo or upload'}
           </Text>
         </Pressable>

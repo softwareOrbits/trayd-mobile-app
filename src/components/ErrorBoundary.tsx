@@ -29,7 +29,7 @@ export class ErrorBoundary extends Component<
 
     const {
       title = 'Something went wrong',
-      message = 'This screen hit an unexpected error. Try again — if it keeps happening, restart the app.',
+      message = 'This screen hit an unexpected error. Try again. If it keeps happening, restart the app.',
     } = this.props;
 
     return (

@@ -225,10 +225,10 @@ const AddReceiptScreen = () => {
           setReceiptDate(prev => res.extracted?.receipt_date ?? prev);
         }
         await loadLines(receiptId, res.extracted);
-        toastSuccess('Receipt read — check the items below.');
+        toastSuccess('Receipt read. Check the items below.');
       } else {
         toastError(
-          new Error('Still couldn’t read it — add the items by hand.'),
+          new Error('Still couldn’t read it. Add the items by hand.'),
           'Still couldn’t read it.',
         );
       }
@@ -451,7 +451,7 @@ const AddReceiptScreen = () => {
         }
         toastSuccess(
           queued
-            ? `Saved offline — ${lines.length} item${lines.length === 1 ? '' : 's'} sync when you reconnect.`
+            ? `Saved offline. ${lines.length} item${lines.length === 1 ? '' : 's'} sync when you reconnect.`
             : `${lines.length} material${lines.length === 1 ? '' : 's'} added to the job.`,
         );
         navigation.goBack();
@@ -555,8 +555,8 @@ const AddReceiptScreen = () => {
       >
         <Text style={styles.subtitle}>
           {manual
-            ? 'Enter the receipt’s items by hand — add a line for each one.'
-            : 'OCR pre-filled the items — edit any name, quantity or price right here.'}
+            ? 'Enter the receipt’s items by hand. Add a line for each one.'
+            : 'OCR pre-filled the items. Edit any name, quantity or price right here.'}
         </Text>
 
         {/* Auto-extracted header card */}
@@ -739,7 +739,7 @@ const AddReceiptScreen = () => {
             ))
           ) : (
             <Text style={styles.emptyLines}>
-              No lines — tap “+ Add line” to enter them.
+              No lines yet. Tap “+ Add line” to enter them.
             </Text>
           )}
         </View>
@@ -749,10 +749,10 @@ const AddReceiptScreen = () => {
           <Text style={styles.headsUpLabel}>HEADS-UP</Text>
           <Text style={styles.headsUpText}>
             {manual
-              ? 'Add each line you need — they save to the job as materials (and sync later if you’re offline).'
+              ? 'Add each line you need. They save to the job as materials (and sync later if you’re offline).'
               : extracted?.issues
               ? extracted.issues
-              : 'If OCR misses lines entirely, you can add them manually — the job is never blocked by an OCR failure.'}
+              : 'If OCR misses lines entirely, you can add them manually. The job is never blocked by an OCR failure.'}
           </Text>
         </View>
 
@@ -819,7 +819,7 @@ const AddReceiptScreen = () => {
                 {supplierMatches.length === 0 ? (
                   <Text style={styles.pickEmpty}>
                     {vendor.trim()
-                      ? 'New supplier — it will be added to the list.'
+                      ? 'New supplier. It will be added to the list.'
                       : 'No suppliers used yet.'}
                   </Text>
                 ) : (
@@ -909,7 +909,7 @@ const AddReceiptScreen = () => {
               ))}
             </ScrollView>
             <Input
-              label="Something else — name it"
+              label="Something else? Name it"
               value={CATEGORIES.includes(category) ? '' : category}
               onChangeText={setCategory}
               autoCapitalize="sentences"

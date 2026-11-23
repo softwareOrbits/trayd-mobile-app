@@ -265,7 +265,7 @@ const EmployerWebViewScreen = () => {
           break;
         case NativeMessage.WEB_ERROR:
           console.warn(
-            `[web error] ${msg.source ?? 'unknown'}${msg.where ? ` · ${msg.where}` : ''} — ${msg.message ?? ''}`,
+            `[web error] ${msg.source ?? 'unknown'}${msg.where ? ` · ${msg.where}` : ''}: ${msg.message ?? ''}`,
             { route: msg.route, code: msg.code, stack: msg.stack },
           );
           break;

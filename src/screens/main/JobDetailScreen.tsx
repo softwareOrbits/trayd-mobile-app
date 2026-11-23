@@ -441,7 +441,7 @@ const JobDetailScreen = () => {
         saveJobCache(detail.id, { segments: nextSegments, detail: nextDetail });
         dispatch(setPendingJobStatus({ id: detail.id, status: nextStatus }));
         dispatch(patchJobStatus({ id: detail.id, status: nextStatus }));
-        Toast.show({ type: 'info', text1: 'Saved offline — will sync.' });
+        Toast.show({ type: 'info', text1: 'Saved offline. It will sync.' });
         if (action === 'pause' && nextStatus === 'paused') {
           resetToJobsTab('resume');
           return;
@@ -494,7 +494,7 @@ const JobDetailScreen = () => {
         });
         Toast.show({
           type: 'info',
-          text1: 'Saved offline — quote syncs when you reconnect.',
+          text1: 'Saved offline. The quote syncs when you reconnect.',
         });
         resetToJobsTab('done');
       } else if (isAccessRevoked(e)) {
@@ -701,7 +701,7 @@ const JobDetailScreen = () => {
         }
         setMatSheet(null);
         toastSuccess(
-          queued ? 'Saved offline — syncs when you’re back online.' : 'Item logged.',
+          queued ? 'Saved offline. It syncs when you’re back online.' : 'Item logged.',
         );
       } else {
         const { queued } = await editMaterialOffline(matSheet, {
@@ -723,7 +723,7 @@ const JobDetailScreen = () => {
         }
         setMatSheet(null);
         toastSuccess(
-          queued ? 'Saved offline — syncs when you’re back online.' : 'Item updated.',
+          queued ? 'Saved offline. It syncs when you’re back online.' : 'Item updated.',
         );
       }
     } catch (e) {
@@ -749,7 +749,7 @@ const JobDetailScreen = () => {
       }
       setMatSheet(null);
       toastSuccess(
-        queued ? 'Saved offline — syncs when you’re back online.' : 'Item removed.',
+        queued ? 'Saved offline. It syncs when you’re back online.' : 'Item removed.',
       );
     } catch (e) {
       toastError(e, 'Could not remove the item.');
@@ -1022,7 +1022,7 @@ const JobDetailScreen = () => {
           <DayRow
             day={{
               label: `Day ${lastDay.dayNumber + 1} · Resume today`,
-              sub: '—',
+              sub: '-',
               active: true,
             }}
             last
@@ -1207,7 +1207,7 @@ const JobDetailScreen = () => {
           <Text style={styles.calloutText}>
             <Text style={styles.calloutStrong}>Rough materials help. </Text>
             Add anything you reckon the job needs. On submit this becomes a
-            Quote record — your office builds the formal quote from your photos,
+            Quote record. Your office builds the formal quote from your photos,
             notes &amp; materials.
           </Text>
         </Callout>
@@ -1287,7 +1287,7 @@ const JobDetailScreen = () => {
         color="secondary"
         fullWidth
         loading={acting}
-        onPress={() => lifecycle('pause', 'Paused — see you tomorrow.')}
+        onPress={() => lifecycle('pause', 'Paused. See you tomorrow.')}
       />
     </View>
   ) : (
@@ -1329,7 +1329,7 @@ const JobDetailScreen = () => {
             <View style={styles.block}>
               <Callout variant="info" icon="lock-closed-outline">
                 <Text style={styles.calloutMuted}>
-                  Read-only — you&apos;ll get a push when it&apos;s approved.
+                  Read-only. You&apos;ll get a push when it&apos;s approved.
                 </Text>
               </Callout>
             </View>
@@ -1461,7 +1461,7 @@ const JobDetailScreen = () => {
               ) : (
                 <Pressable style={styles.emptyLog} onPress={openNewMaterial}>
                   <Text style={styles.cardText}>
-                    Nothing logged yet — tap to add materials or van stock.
+                    Nothing logged yet. Tap to add materials or van stock.
                   </Text>
                 </Pressable>
               )}
@@ -1623,7 +1623,7 @@ const JobDetailScreen = () => {
               color="secondary"
               fullWidth
               loading={acting}
-              onPress={() => lifecycle('pause', 'Paused — see you tomorrow.')}
+              onPress={() => lifecycle('pause', 'Paused. See you tomorrow.')}
             />
           </View>
         ) : (

@@ -27,7 +27,7 @@ export const LiveNowBanner = ({
           <Text style={styles.label}>{`LIVE NOW · ${count}`}</Text>
         </View>
         <Text style={styles.title} numberOfLines={1}>
-          {`${client} — ${region}`}
+          {`${client} · ${region}`}
         </Text>
         <Text style={styles.meta} numberOfLines={1}>
           {`${elapsed} · day ${day} · ${assignee}`}

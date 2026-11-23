@@ -78,7 +78,7 @@ export function validateConfig(): ConfigReport {
     problems.push({
       level: 'warning',
       area: 'firebase',
-      message: `This ${ENVIRONMENT} JS bundle runs on a native build using Firebase project "${firebase.id}", expected "${config.firebaseProjectId}". Metro and the installed build use different environments — run the matching npm scripts (e.g. start:prod with android:prod).`,
+      message: `This ${ENVIRONMENT} JS bundle runs on a native build using Firebase project "${firebase.id}", expected "${config.firebaseProjectId}". Metro and the installed build use different environments. run the matching npm scripts (e.g. start:prod with android:prod).`,
     });
   }
 
@@ -102,7 +102,7 @@ export function validateConfig(): ConfigReport {
 
 export function logConfigReport(report: ConfigReport): void {
   console.log(
-    `[env] ${report.environment} · web ${report.webUrl} · supabase ${report.supabaseRef ?? '—'} · firebase ${report.firebaseProject ?? '—'}`,
+    `[env] ${report.environment} · web ${report.webUrl} · supabase ${report.supabaseRef ?? '-'} · firebase ${report.firebaseProject ?? '-'}`,
   );
   for (const p of report.problems) {
     const line = `[env:${p.area}] ${p.message}`;

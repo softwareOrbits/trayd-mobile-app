@@ -40,7 +40,7 @@ export const QuickAccess = () => {
     entitlement > 0 ? Math.min(1, (used + pending) / entitlement) : 0;
   const leaveTitle = balances
     ? `Leave · ${fmtDays(used)} of ${fmtDays(entitlement)} days`
-    : 'Leave · —';
+    : 'Leave · -';
 
   return (
     <View style={styles.section}>
