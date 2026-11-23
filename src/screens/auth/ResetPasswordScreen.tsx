@@ -91,6 +91,8 @@ const ResetPasswordScreen = () => {
                 label="Email"
                 placeholder="name@company.com"
                 keyboardType="email-address"
+                textContentType="emailAddress"
+                autoComplete="email"
                 autoCapitalize="none"
                 autoCorrect={false}
                 value={value}
