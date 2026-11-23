@@ -141,6 +141,21 @@ export function useDictation(value: string, onChange: (text: string) => void) {
     speech.stop();
   }, []);
 
+  // Call when the text has been sent or saved. A plain stop() still lets the
+  // engine deliver its final result and 'end' event, which would write the
+  // sent text back into the cleared input. Abort instead, and drop the
+  // session state so late events are ignored.
+  const reset = useCallback(() => {
+    base.current = '';
+    committed.current = '';
+    interim.current = '';
+    setStarting(false);
+    setListening(false);
+    if (!active.current) return;
+    active.current = false;
+    speech.abort();
+  }, []);
+
   const sync = useCallback((text: string) => {
     if (!active.current) return;
     base.current = text;
@@ -163,5 +178,5 @@ export function useDictation(value: string, onChange: (text: string) => void) {
     [],
   );
 
-  return { listening, starting, toggle, stop, sync };
+  return { listening, starting, toggle, stop, sync, reset };
 }

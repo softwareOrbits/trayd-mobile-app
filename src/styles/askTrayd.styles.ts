@@ -615,6 +615,7 @@ export const makeAskTraydStyles = (theme: Theme) =>
       fontFamily: theme.fonts.regular,
       color: theme.colors.text,
     },
+    composerInputEmpty: { height: 44 },
     composerSend: {
       width: 36,
       height: 36,

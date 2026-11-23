@@ -64,7 +64,7 @@ export const AskComposer = ({
 
   const submit = () => {
     if (!canSend) return;
-    dictation.stop();
+    dictation.reset();
     const trimmed = text.trim();
     setText('');
     onSend(trimmed);
@@ -133,7 +133,9 @@ export const AskComposer = ({
         ) : null}
 
         <TextInput
-          style={styles.composerInput}
+          // Multiline inputs on iOS keep their grown height after the value is
+          // cleared programmatically (on send); pin the height while empty.
+          style={[styles.composerInput, !text && styles.composerInputEmpty]}
           value={text}
           onChangeText={next => {
             dictation.sync(next);

@@ -70,7 +70,7 @@ const AddNoteScreen = () => {
   const save = async () => {
     const body = text.trim();
     if (!body || saving) return;
-    dictation.stop();
+    dictation.reset();
     if (offlineActionBlocked()) return;
     setSaving(true);
     const queueOffline = async () => {
