@@ -10,8 +10,10 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -104,6 +106,22 @@ const WHEN_OPTIONS = [
   ['nodate', 'reorder-three-outline', 'No date'],
 ] as const;
 
+const PHOTO_COLUMNS = 4;
+const PHOTO_GAP = 8;
+const SCREEN_PADDING = 16;
+
+const CameraIcon = ({ color }: { color: string }) => (
+  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M4.5 7.5H7.5L9.2 4.5H14.8L16.5 7.5H19.5A2 2 0 0 1 21.5 9.5V18A2 2 0 0 1 19.5 20H4.5A2 2 0 0 1 2.5 18V9.5A2 2 0 0 1 4.5 7.5Z"
+      stroke={color}
+      strokeWidth={1.8}
+      strokeLinejoin="round"
+    />
+    <Circle cx={12} cy={13.5} r={3.6} stroke={color} strokeWidth={1.8} />
+  </Svg>
+);
+
 const firstName = (name: string | null) =>
   (name ?? '').trim().split(/\s+/)[0] || 'Member';
 
@@ -116,6 +134,12 @@ const StartJobScreen = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeNewJobStyles);
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const tileEdge = Math.floor(
+    (screenWidth - SCREEN_PADDING * 2 - PHOTO_GAP * (PHOTO_COLUMNS - 1)) /
+      PHOTO_COLUMNS,
+  );
+  const tileSize = { width: tileEdge, height: tileEdge };
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const route = useRoute<RouteProp<MainStackParamList, 'StartJob'>>();
@@ -1037,7 +1061,7 @@ const StartJobScreen = () => {
               {photos.map((p, i) => (
                 <Pressable
                   key={p.uri}
-                  style={styles.tile}
+                  style={[styles.tile, tileSize]}
                   onPress={() =>
                     preview.open(
                       photos.map(x => ({ uri: x.uri, label: 'Before photo' })),
@@ -1060,11 +1084,11 @@ const StartJobScreen = () => {
                 </Pressable>
               ))}
               <Pressable
-                style={[styles.tile, styles.tileAdd]}
+                style={[styles.tile, tileSize, styles.tileAdd]}
                 onPress={addPhotos}
               >
-                <Ionicons name="camera-outline" size={22} color={colors.textMuted} />
-                <Text style={styles.tileAddText}>
+                <CameraIcon color={colors.textMuted} />
+                <Text style={styles.tileAddText} numberOfLines={1}>
                   {photos.length ? 'Add' : 'Add photo'}
                 </Text>
               </Pressable>

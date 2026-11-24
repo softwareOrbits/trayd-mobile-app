@@ -426,8 +426,6 @@ export const makeNewJobStyles = (theme: Theme) =>
       marginTop: 8,
     },
     tile: {
-      width: '22.9%',
-      aspectRatio: 1,
       borderRadius: 14,
       overflow: 'hidden',
     },
