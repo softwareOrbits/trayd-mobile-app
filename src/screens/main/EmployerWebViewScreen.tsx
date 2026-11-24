@@ -38,6 +38,7 @@ import { previewFile, saveFileAndShare, savePdfAndShare } from '@/services/pdf';
 import { haptics } from '@/utils/haptics';
 import {
   buildBootstrapScript,
+  HEALTH_CHECK_JS,
   NativeMessage,
   type NativeInboundMessage,
 } from '@/webview/session-bridge';
@@ -47,7 +48,6 @@ import {
   reloadWebView,
   unregisterEmployerWebView,
 } from '@/webview/webviewRegistry';
-import WebDictationMic from '@/webview/WebDictationMic';
 import { useWebDictationBridge } from '@/webview/useWebDictationBridge';
 import { useTheme, type Theme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
@@ -63,6 +63,12 @@ const TypedWebView = WebView as unknown as ComponentType<
 type ShouldStartLoad = NonNullable<WebViewProps['onShouldStartLoadWithRequest']>;
 
 const TAP_HAPTIC_GAP_MS = 120;
+const HEALTH_RETRY_MS = 2000;
+const HEALTH_TIMEOUT_MS = 4500;
+const REVEAL_CHECK_MS = 12000;
+const LOAD_TIMEOUT_MS = 20000;
+const CRASH_WINDOW_MS = 60000;
+const MAX_CRASHES = 3;
 
 /** Host of a URL without pulling in a URL polyfill: `https://a.b/c` → `a.b`. */
 const hostOf = (url: string): string => url.split('/')[2] ?? '';
@@ -113,7 +119,7 @@ const EmployerWebViewScreen = () => {
   const [seedKey, setSeedKey] = useState(0);
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [fieldFocused, setFieldFocused] = useState(false);
+  const [sourceUri, setSourceUri] = useState(WEB_APP_URL);
   const injectIntoWeb = useCallback(
     (script: string) => webRef.current?.injectJavaScript(script),
     [],
@@ -123,27 +129,86 @@ const EmployerWebViewScreen = () => {
   const recovering = useRef(false);
   const reseeded = useRef(false);
   const signingOut = useRef(false);
+  const readyRef = useRef(false);
+  readyRef.current = ready;
+  const lastUrl = useRef(WEB_APP_URL);
+  const processGone = useRef(false);
+  const crashTimes = useRef<number[]>([]);
+  const healthTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const configured = !!WEB_APP_URL;
 
-  const retry = useCallback(() => {
-    setLoadError(null);
-    setReady(false);
-    webRef.current?.reload();
+  const clearHealthCheck = useCallback(() => {
+    healthTimers.current.forEach(clearTimeout);
+    healthTimers.current = [];
   }, []);
 
-  // Seed the injected script from the freshest session before the WebView loads.
+  const remountWebView = useCallback(async () => {
+    if (recovering.current || signingOut.current) return;
+    recovering.current = true;
+    processGone.current = false;
+    clearHealthCheck();
+    setLoadError(null);
+    setReady(false);
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (data.session) {
+        const url = lastUrl.current;
+        const canResume =
+          crashTimes.current.length < 2 &&
+          hostOf(url) === hostOf(WEB_APP_URL) &&
+          !isWebAuthRoute(url);
+        setSourceUri(canResume ? url : WEB_APP_URL);
+        setBootstrap(buildBootstrapScript(data.session, bottomInsetRef.current));
+        setSeedKey(key => key + 1);
+      } else if (error) {
+        setLoadError('Check your connection and try again.');
+      } else {
+        signingOut.current = true;
+        dispatch(signOut());
+      }
+    } catch {
+      setLoadError('Check your connection and try again.');
+    } finally {
+      recovering.current = false;
+    }
+  }, [clearHealthCheck, dispatch]);
+
+  const checkWebViewAlive = useCallback(() => {
+    if (!readyRef.current) return;
+    clearHealthCheck();
+    injectIntoWeb(HEALTH_CHECK_JS);
+    healthTimers.current = [
+      setTimeout(() => injectIntoWeb(HEALTH_CHECK_JS), HEALTH_RETRY_MS),
+      setTimeout(() => remountWebView(), HEALTH_TIMEOUT_MS),
+    ];
+  }, [clearHealthCheck, injectIntoWeb, remountWebView]);
+
+  const onWebProcessGone = useCallback(() => {
+    const now = Date.now();
+    crashTimes.current = [
+      ...crashTimes.current.filter(t => now - t < CRASH_WINDOW_MS),
+      now,
+    ];
+    clearHealthCheck();
+    processGone.current = true;
+    setReady(false);
+    if (crashTimes.current.length >= MAX_CRASHES) {
+      setLoadError('The dashboard stopped working. Try again.');
+      return;
+    }
+    if (AppState.currentState === 'active') remountWebView();
+  }, [clearHealthCheck, remountWebView]);
+
+  const retry = useCallback(() => {
+    crashTimes.current = [];
+    remountWebView();
+  }, [remountWebView]);
+
   useEffect(() => {
-    let active = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      if (data.session) setBootstrap(buildBootstrapScript(data.session, bottomInsetRef.current));
-      else dispatch(signOut());
-    });
-    return () => {
-      active = false;
-    };
-  }, [dispatch]);
+    remountWebView();
+    return clearHealthCheck;
+  }, [remountWebView, clearHealthCheck]);
 
   // Expose this WebView to code outside the tree (token-refresh push, teardown).
   useEffect(() => {
@@ -155,28 +220,48 @@ const EmployerWebViewScreen = () => {
     return () => unregisterEmployerWebView(controls);
   }, []);
 
-  // Fallback: never leave the veil up forever if the web never posts READY.
   useEffect(() => {
-    if (ready || !bootstrap) return;
-    const t = setTimeout(() => setReady(true), 12000);
-    return () => clearTimeout(t);
-  }, [ready, bootstrap]);
+    if (ready || loadError || !bootstrap) return;
+    const probe = setTimeout(() => injectIntoWeb(HEALTH_CHECK_JS), REVEAL_CHECK_MS);
+    const giveUp = setTimeout(
+      () => setLoadError('The dashboard is taking too long to load.'),
+      LOAD_TIMEOUT_MS,
+    );
+    return () => {
+      clearTimeout(probe);
+      clearTimeout(giveUp);
+    };
+  }, [ready, loadError, bootstrap, seedKey, injectIntoWeb]);
 
   // On foreground: refresh the web session and reload if we came back from an
   // external (Stripe) hop so the dashboard reflects the new state.
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
-      if (state !== 'active') return;
-      supabase.auth.getSession().then(({ data }) => {
-        if (data.session) pushSessionToWebView(data.session);
-      });
+      if (state !== 'active') {
+        clearHealthCheck();
+        return;
+      }
+      reseeded.current = false;
+      if (processGone.current) {
+        openedExternal.current = false;
+        if (crashTimes.current.length < MAX_CRASHES) remountWebView();
+        return;
+      }
+      supabase.auth
+        .getSession()
+        .then(({ data }) => {
+          if (data.session) pushSessionToWebView(data.session);
+        })
+        .catch(() => undefined);
       if (openedExternal.current) {
         openedExternal.current = false;
         reloadWebView();
+        return;
       }
+      checkWebViewAlive();
     });
     return () => sub.remove();
-  }, []);
+  }, [checkWebViewAlive, clearHealthCheck, remountWebView]);
 
   // Android hardware back: navigate WebView history, else return to the chooser.
   // Skip when a screen is pushed on top (Notifications/JobDetail) so the native
@@ -206,20 +291,15 @@ const EmployerWebViewScreen = () => {
    */
   const recoverWebSession = useCallback(() => {
     if (recovering.current || signingOut.current) return;
-    recovering.current = true;
-    setReady(false);
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session || reseeded.current) {
-        signingOut.current = true;
-        dispatch(signOut());
-        return;
-      }
-      reseeded.current = true;
-      setBootstrap(buildBootstrapScript(data.session, bottomInsetRef.current));
-      setSeedKey(key => key + 1);
-      recovering.current = false;
-    });
-  }, [dispatch]);
+    if (reseeded.current) {
+      signingOut.current = true;
+      setReady(false);
+      dispatch(signOut());
+      return;
+    }
+    reseeded.current = true;
+    remountWebView();
+  }, [dispatch, remountWebView]);
 
   const onMessage = useCallback(
     (event: WebViewMessageEvent) => {
@@ -231,6 +311,12 @@ const EmployerWebViewScreen = () => {
       }
       switch (msg.type) {
         case NativeMessage.READY:
+          setLoadError(null);
+          setReady(true);
+          break;
+        case NativeMessage.ALIVE:
+          if (!msg.ok) break;
+          clearHealthCheck();
           setReady(true);
           break;
         case NativeMessage.SIGNED_OUT:
@@ -285,15 +371,12 @@ const EmployerWebViewScreen = () => {
           else haptics.tap();
           break;
         }
-        case NativeMessage.FIELD_FOCUS:
-          setFieldFocused(!!msg.focused);
-          break;
         case NativeMessage.DICTATE:
           handleWebDictate(msg.action);
           break;
       }
     },
-    [dispatch, recoverWebSession, handleWebDictate],
+    [clearHealthCheck, dispatch, recoverWebSession, handleWebDictate],
   );
 
   // Keep external hosts (Stripe checkout/portal, etc.) out of the WebView — open
@@ -328,6 +411,7 @@ const EmployerWebViewScreen = () => {
   const onNavStateChange = useCallback(
     (navState: WebViewNavigation) => {
       canGoBackRef.current = navState.canGoBack;
+      if (navState.url.startsWith('http')) lastUrl.current = navState.url;
       if (isWebAuthRoute(navState.url)) recoverWebSession();
     },
     [recoverWebSession],
@@ -355,10 +439,12 @@ const EmployerWebViewScreen = () => {
             // refreshed session instead of replaying the stale one on reload.
             key={seedKey}
             ref={webRef}
-            source={{ uri: WEB_APP_URL }}
+            source={{ uri: sourceUri }}
             originWhitelist={['*']}
             injectedJavaScriptBeforeContentLoaded={bootstrap}
             onMessage={onMessage}
+            onContentProcessDidTerminate={onWebProcessGone}
+            onRenderProcessGone={onWebProcessGone}
             onShouldStartLoadWithRequest={onShouldStartLoad}
             onNavigationStateChange={onNavStateChange}
             onError={e => onLoadError(e.nativeEvent.description)}
@@ -398,10 +484,6 @@ const EmployerWebViewScreen = () => {
           </View>
         ) : null}
       </View>
-
-      {configured && ready && !loadError ? (
-        <WebDictationMic fieldFocused={fieldFocused} inject={injectIntoWeb} />
-      ) : null}
 
       {configured && !loadError && !ready ? (
         <View style={[styles.veil, { backgroundColor: colors.background }]}>
