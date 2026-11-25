@@ -65,7 +65,11 @@ import { staticMapUrl } from '@/services/places';
 import { APP_VERSION } from '@/utils/appInfo';
 import { hasQueuedActions } from '@/services/outbox';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { setSelectedView, signOut } from '@/store/authSlice';
+import {
+  refreshAccessViews,
+  setSelectedView,
+  signOut,
+} from '@/store/authSlice';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeProfileStyles } from '@/styles/profile.styles';
@@ -121,7 +125,9 @@ const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
   const navHeight = useBottomNavHeight();
   const dispatch = useAppDispatch();
-  const isOwner = useAppSelector(s => s.auth.isOwner);
+  const canSwitchView = useAppSelector(
+    s => s.auth.employerView && s.auth.employeeView,
+  );
   const { status: permissions, fix: fixPermission } = usePermissionStatus();
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
@@ -137,6 +143,21 @@ const ProfileScreen = () => {
   const [phoneModal, setPhoneModal] = useState(false);
   const [phoneDraft, setPhoneDraft] = useState('');
   const [phoneSaving, setPhoneSaving] = useState(false);
+  const openEmployerView = async () => {
+    const views = await dispatch(refreshAccessViews())
+      .unwrap()
+      .catch(() => null);
+    if (views && !views.employerView) {
+      Toast.show({
+        type: 'info',
+        text1: 'Employer access removed',
+        text2: 'Your role no longer includes the employer view.',
+      });
+      return;
+    }
+    dispatch(setSelectedView('employer'));
+  };
+
   const [photoSheet, setPhotoSheet] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [deactivateModal, setDeactivateModal] = useState(false);
@@ -436,13 +457,13 @@ const ProfileScreen = () => {
           </View>
         </View>
 
-        {isOwner ? (
+        {canSwitchView ? (
           <Button
             label="Switch to Employer View"
             leftIcon="briefcase-outline"
             fullWidth
             style={styles.employerBtn}
-            onPress={() => dispatch(setSelectedView('employer'))}
+            onPress={openEmployerView}
           />
         ) : null}
 

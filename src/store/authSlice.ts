@@ -8,6 +8,8 @@ import { clearMemberCache } from '@/services/member';
 import { unregisterPush } from '@/services/push';
 import { getKeepSignedIn } from '@/services/authPrefs';
 import { getJwtClaims } from '@/utils/jwt';
+import { fetchAccessViews } from '@/services/access';
+import { readAccessViews, type AccessViews } from '@/utils/accessViews';
 import type {
   AuthState,
   AuthUser,
@@ -34,6 +36,8 @@ const initialState: AuthState = {
   user: null,
   isLoggedIn: false,
   isOwner: false,
+  employerView: false,
+  employeeView: true,
   selectedView: null,
 };
 
@@ -45,12 +49,14 @@ const readIsOwner = (accessToken: string): boolean => {
 };
 
 /**
- * Initial view for a freshly-authenticated session. Owners start with no view
- * so the chooser is shown; everyone else goes straight to the field app,
- * exactly as before this feature existed.
+ * Initial view for a freshly-authenticated session. Roles with both views start
+ * with no view so the chooser is shown; everyone else goes straight to theirs.
  */
-const initialViewFor = (isOwner: boolean): SelectedView | null =>
-  isOwner ? null : 'field';
+const initialViewFor = (accessToken: string): SelectedView | null => {
+  const { employerView, employeeView } = readAccessViews(accessToken);
+  if (employerView && employeeView) return null;
+  return employerView ? 'employer' : 'field';
+};
 
 export const signInWithPassword = createAsyncThunk<
   SetCredentialsPayload,
@@ -80,7 +86,7 @@ export const signInWithPassword = createAsyncThunk<
     refreshToken: data.session.refresh_token,
     user: { id: data.user?.id, email: data.user?.email ?? undefined },
     isOwner,
-    selectedView: initialViewFor(isOwner),
+    selectedView: initialViewFor(data.session.access_token),
   };
 });
 
@@ -104,11 +110,30 @@ export const restoreSession = createAsyncThunk<SetCredentialsPayload | null>(
         email: data.session.user.email ?? undefined,
       },
       isOwner,
-      // Cold start: recompute the initial view so owners always see the chooser.
-      selectedView: initialViewFor(isOwner),
+      // Cold start: recompute the initial view so the chooser shows again.
+      selectedView: initialViewFor(data.session.access_token),
     };
   },
 );
+
+export const refreshAccessViews = createAsyncThunk<
+  AccessViews | null,
+  void,
+  { state: { auth: AuthState } }
+>('auth/refreshAccessViews', async (_, { getState }) => {
+  const { data } = await supabase.auth.getSession();
+  if (!data.session) return null;
+  const views = await fetchAccessViews(data.session.access_token);
+  if (!views) return null;
+  const { employerView, employeeView } = getState().auth;
+  if (
+    views.employerView !== employerView ||
+    views.employeeView !== employeeView
+  ) {
+    supabase.auth.refreshSession().catch(() => undefined);
+  }
+  return views;
+});
 
 export const signOut = createAsyncThunk('auth/signOut', async () => {
   await unregisterPush();
@@ -121,6 +146,7 @@ const applyCredentials = (
   payload: SetCredentialsPayload,
 ) => {
   state.accessToken = payload.accessToken;
+  Object.assign(state, readAccessViews(payload.accessToken));
   state.refreshToken = payload.refreshToken ?? state.refreshToken;
   state.user = payload.user ?? state.user;
   state.isLoggedIn = true;
@@ -134,6 +160,8 @@ const clearCredentials = (state: AuthState) => {
   state.user = null;
   state.isLoggedIn = false;
   state.isOwner = false;
+  state.employerView = false;
+  state.employeeView = true;
   state.selectedView = null;
 };
 
@@ -153,6 +181,9 @@ const authSlice = createSlice({
     ) => {
       state.selectedView = action.payload;
     },
+    syncAccessViews: (state, action: PayloadAction<string>) => {
+      Object.assign(state, readAccessViews(action.payload));
+    },
     logout: clearCredentials,
   },
   extraReducers: builder => {
@@ -169,10 +200,20 @@ const authSlice = createSlice({
           clearCredentials(state);
         }
       })
+      .addCase(refreshAccessViews.fulfilled, (state, action) => {
+        if (action.payload && state.isLoggedIn) {
+          Object.assign(state, action.payload);
+        }
+      })
       .addCase(signOut.fulfilled, clearCredentials);
   },
 });
 
-export const { setCredentials, setUser, setSelectedView, logout } =
-  authSlice.actions;
+export const {
+  setCredentials,
+  setUser,
+  setSelectedView,
+  syncAccessViews,
+  logout,
+} = authSlice.actions;
 export default authSlice.reducer;

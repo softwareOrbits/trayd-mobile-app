@@ -5,7 +5,7 @@ export type AuthUser = {
   photo?: string;
 };
 
-/** Which experience an owner is currently in. `null` = show the chooser. */
+/** Which experience the user is currently in. `null` = show the chooser. */
 export type SelectedView = 'field' | 'employer';
 
 export type AuthState = {
@@ -15,10 +15,11 @@ export type AuthState = {
   isLoggedIn: boolean;
   /** Owner (primary/secondary) per the JWT `trayd_role.is_owner` claim. */
   isOwner: boolean;
+  employerView: boolean;
+  employeeView: boolean;
   /**
    * Chosen view. Transient (never persisted) — reset on every login and cold
-   * start so owners always land on the chooser. Non-owners are forced to
-   * 'field' so they never see it and the app behaves exactly as before.
+   * start so anyone with both views lands on the chooser.
    */
   selectedView: SelectedView | null;
 };

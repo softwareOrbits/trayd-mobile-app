@@ -5,7 +5,8 @@ import { NavigationContainer } from '@react-navigation/native';
 // pulls in the nav-aware components, which cycles back through this module and
 // leaves the import undefined at evaluation time.
 import LoadingScreen from '@/components/LoadingScreen';
-import { useAppSelector } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { refreshAccessViews } from '@/store/authSlice';
 import {
   hasPrimedPermissions,
   markPermissionsPrimed,
@@ -47,7 +48,7 @@ const usePrimingGate = (isLoggedIn: boolean, userId: string | null) => {
   return { primed, complete };
 };
 
-const useNavHaptic = () => {
+const useRouteChange = (onChange: () => void) => {
   const routeKey = useRef<string | undefined>(undefined);
 
   const sync = useCallback(() => {
@@ -59,7 +60,8 @@ const useNavHaptic = () => {
     if (!next || next === routeKey.current) return;
     routeKey.current = next;
     haptics.nav();
-  }, []);
+    onChange();
+  }, [onChange]);
 
   return { sync, onStateChange };
 };
@@ -68,7 +70,14 @@ const AppNavigator = () => {
   const isLoggedIn = useAppSelector(state => state.auth.isLoggedIn);
   const userId = useAppSelector(state => state.auth.user?.id ?? null);
   const { primed, complete } = usePrimingGate(isLoggedIn, userId);
-  const { sync, onStateChange } = useNavHaptic();
+  const dispatch = useAppDispatch();
+  const inEmployerView = useAppSelector(
+    state => state.auth.selectedView === 'employer',
+  );
+  const checkAccess = useCallback(() => {
+    if (isLoggedIn && !inEmployerView) dispatch(refreshAccessViews());
+  }, [dispatch, isLoggedIn, inEmployerView]);
+  const { sync, onStateChange } = useRouteChange(checkAccess);
 
   // NavigationContainer needs a navigator child, so the read-the-flag gap waits
   // outside it. Cold starts are already behind the boot splash, so this is only

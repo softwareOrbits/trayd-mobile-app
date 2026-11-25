@@ -14,7 +14,7 @@ import Toast from 'react-native-toast-message';
 
 import { persistor, store } from '@/store';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { restoreSession, logout } from '@/store/authSlice';
+import { logout, restoreSession, syncAccessViews } from '@/store/authSlice';
 import { supabase } from '@/services/supabase';
 import { clearMemberCache } from '@/services/member';
 import { clearDataFromOtherEnvironment } from '@/services/environmentGuard';
@@ -65,6 +65,9 @@ function Bootstrap() {
         // RN is the sole refresher; keep the open employer WebView in sync so its
         // (non-auto-refreshing) client never expires. No-op if it isn't mounted.
         pushSessionToWebView(session);
+        if (event === 'TOKEN_REFRESHED') {
+          dispatch(syncAccessViews(session.access_token));
+        }
       }
     });
     return () => {

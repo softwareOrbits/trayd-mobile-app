@@ -30,8 +30,12 @@ import { WEB_APP_URL } from '@/config/environment';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { useAppDispatch } from '@/store/hooks';
-import { setSelectedView, signOut } from '@/store/authSlice';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  refreshAccessViews,
+  setSelectedView,
+  signOut,
+} from '@/store/authSlice';
 import type { MainStackParamList } from '@/types';
 import { supabase } from '@/services/supabase';
 import { previewFile, saveFileAndShare, savePdfAndShare } from '@/services/pdf';
@@ -107,6 +111,7 @@ const EmployerWebViewScreen = () => {
   const bottomInsetRef = useRef(insets.bottom);
   bottomInsetRef.current = insets.bottom;
   const dispatch = useAppDispatch();
+  const employeeView = useAppSelector(s => s.auth.employeeView);
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
 
@@ -274,12 +279,13 @@ const EmployerWebViewScreen = () => {
         webRef.current?.goBack();
         return true;
       }
+      if (!employeeView) return false;
       dispatch(setSelectedView(null));
       return true;
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
     return () => sub.remove();
-  }, [dispatch, navigation]);
+  }, [dispatch, navigation, employeeView]);
 
   /**
    * The dashboard fell back to its own sign-in. Almost always its seeded session
@@ -330,7 +336,13 @@ const EmployerWebViewScreen = () => {
           recoverWebSession();
           break;
         case NativeMessage.SWITCH_VIEW:
-          dispatch(setSelectedView('field'));
+          dispatch(refreshAccessViews()).finally(() =>
+            dispatch(setSelectedView('field')),
+          );
+          break;
+        case NativeMessage.REFRESH_SESSION:
+          dispatch(refreshAccessViews());
+          supabase.auth.refreshSession().catch(() => undefined);
           break;
         case NativeMessage.SAVE_PDF:
           savePdfAndShare(msg.filename, msg.base64).catch(() => undefined);

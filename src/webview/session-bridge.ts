@@ -22,6 +22,7 @@ export const NativeMessage = {
    */
   AUTH_LOST: 'AUTH_LOST',
   SWITCH_VIEW: 'SWITCH_VIEW',
+  REFRESH_SESSION: 'REFRESH_SESSION',
   /** Web wants the native share sheet for a generated PDF. */
   SAVE_PDF: 'SAVE_PDF',
   SAVE_FILE: 'SAVE_FILE',
@@ -37,6 +38,7 @@ export type NativeInboundMessage =
   | { type: typeof NativeMessage.SIGNED_OUT }
   | { type: typeof NativeMessage.AUTH_LOST }
   | { type: typeof NativeMessage.SWITCH_VIEW }
+  | { type: typeof NativeMessage.REFRESH_SESSION }
   | { type: typeof NativeMessage.SAVE_PDF; filename: string; base64: string }
   | {
       type: typeof NativeMessage.SAVE_FILE;

@@ -1,6 +1,8 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { MainStackParamList } from '@/types';
-import { useAppSelector } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { setSelectedView } from '@/store/authSlice';
+import AccessRevokedModal from '@/components/AccessRevokedModal';
 import MainTabs from './MainTabs';
 import ChatScreen from '@/screens/main/ChatScreen';
 import JobDetailScreen from '@/screens/main/JobDetailScreen';
@@ -143,17 +145,32 @@ const EmployerStack = () => (
 );
 
 /**
- * Post-login gate. Owners pick their experience each session; everyone else
- * (employees) drops straight into the field app exactly as before — the chooser
- * and employer WebView are never reached for non-owners.
+ * Post-login gate. Roles with both views pick their experience each session;
+ * everyone else drops straight into the one view their role has.
  */
 const MainStack = () => {
+  const dispatch = useAppDispatch();
   const selectedView = useAppSelector(s => s.auth.selectedView);
   const isOwner = useAppSelector(s => s.auth.isOwner);
+  const employerView = useAppSelector(s => s.auth.employerView);
+  const employeeView = useAppSelector(s => s.auth.employeeView);
 
-  if (isOwner && selectedView === null) return <ViewChooserScreen />;
-  if (isOwner && selectedView === 'employer') return <EmployerStack />;
-  return <FieldStack isOwner={isOwner} />;
+  if (selectedView === 'employer') return <EmployerStack />;
+  if (selectedView === null && employerView) {
+    return employeeView ? <ViewChooserScreen /> : <EmployerStack />;
+  }
+  return (
+    <>
+      <FieldStack isOwner={isOwner} />
+      {employeeView ? null : (
+        <AccessRevokedModal
+          text="Your role no longer includes the employee view. You can keep working in the employer view."
+          actionLabel="Go to employer view"
+          onAction={() => dispatch(setSelectedView('employer'))}
+        />
+      )}
+    </>
+  );
 };
 
 export default MainStack;
