@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +15,7 @@ import {
   BUSINESS_SETUP_INCOMPLETE,
   signInWithPassword,
 } from '@/store/authSlice';
-import { setKeepSignedIn } from '@/services/authPrefs';
+import { getLastEmail, setKeepSignedIn } from '@/services/authPrefs';
 import { Banner, Button, Input } from '@/components/ui';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
@@ -42,6 +42,8 @@ const LoginScreen = () => {
   const {
     control,
     handleSubmit,
+    getValues,
+    setValue,
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(schema),
@@ -49,6 +51,16 @@ const LoginScreen = () => {
   });
 
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    getLastEmail().then((email) => {
+      if (live && email && !getValues('email')) setValue('email', email);
+    });
+    return () => {
+      live = false;
+    };
+  }, [getValues, setValue]);
   const [showPassword, setShowPassword] = useState(false);
   const [keepSignedIn, setKeepSignedInState] = useState(true);
   const [banner, setBanner] = useState<{

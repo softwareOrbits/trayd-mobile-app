@@ -29,6 +29,7 @@ import { CertComplianceProvider } from '@/compliance';
 import { warmCaches } from '@/offline/prefetch';
 import { fetchUnread, setUnread } from '@/store/notificationsSlice';
 import { registerPush } from '@/services/push';
+import { rememberEmail } from '@/services/authPrefs';
 import AutoStopProvider from '@/components/shift/AutoStopProvider';
 import AppNavigator from '@/navigation/AppNavigator';
 
@@ -65,6 +66,7 @@ function Bootstrap() {
         // RN is the sole refresher; keep the open employer WebView in sync so its
         // (non-auto-refreshing) client never expires. No-op if it isn't mounted.
         pushSessionToWebView(session);
+        rememberEmail(session.user.email).catch(() => undefined);
         if (event === 'TOKEN_REFRESHED') {
           dispatch(syncAccessViews(session.access_token));
         }

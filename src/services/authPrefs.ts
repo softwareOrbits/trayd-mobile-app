@@ -18,3 +18,23 @@ export async function getKeepSignedIn(): Promise<boolean> {
     return true;
   }
 }
+
+const LAST_EMAIL_KEY = 'auth:lastemail:v1';
+
+export async function rememberEmail(email: string | null | undefined): Promise<void> {
+  const clean = email?.trim().toLowerCase();
+  if (!clean) return;
+  try {
+    await AsyncStorage.setItem(LAST_EMAIL_KEY, clean);
+  } catch {
+    return;
+  }
+}
+
+export async function getLastEmail(): Promise<string> {
+  try {
+    return (await AsyncStorage.getItem(LAST_EMAIL_KEY)) ?? '';
+  } catch {
+    return '';
+  }
+}

@@ -6,7 +6,7 @@ import {
 import { supabase } from '@/services/supabase';
 import { clearMemberCache } from '@/services/member';
 import { unregisterPush } from '@/services/push';
-import { getKeepSignedIn } from '@/services/authPrefs';
+import { getKeepSignedIn, rememberEmail } from '@/services/authPrefs';
 import { getJwtClaims } from '@/utils/jwt';
 import { fetchAccessViews } from '@/services/access';
 import { readAccessViews, type AccessViews } from '@/utils/accessViews';
@@ -70,6 +70,7 @@ export const signInWithPassword = createAsyncThunk<
   if (error || !data.session) {
     return rejectWithValue(error?.message ?? 'Unable to sign in');
   }
+  await rememberEmail(email);
   // A removed/suspended member authenticates fine but has no `business_id`
   // claim (custom_access_token_hook skips removed rows) — block entry.
   const claims = getJwtClaims(data.session.access_token);
@@ -97,6 +98,7 @@ export const restoreSession = createAsyncThunk<SetCredentialsPayload | null>(
     if (!data.session) {
       return null;
     }
+    await rememberEmail(data.session.user.email);
     if (!(await getKeepSignedIn())) {
       await supabase.auth.signOut({ scope: 'local' });
       return null;
@@ -136,6 +138,8 @@ export const refreshAccessViews = createAsyncThunk<
 });
 
 export const signOut = createAsyncThunk('auth/signOut', async () => {
+  const { data } = await supabase.auth.getSession();
+  await rememberEmail(data.session?.user.email);
   await unregisterPush();
   await supabase.auth.signOut({ scope: 'local' });
   clearMemberCache();
