@@ -20,18 +20,23 @@ type DashboardValue = {
   data: DashboardData | null;
   loading: boolean;
   refresh: () => Promise<void>;
+  version: number;
+  reload: () => Promise<void>;
 };
 
 const DashboardContext = createContext<DashboardValue>({
   data: null,
   loading: false,
   refresh: async () => {},
+  version: 0,
+  reload: async () => {},
 });
 
 export const DashboardProvider = ({ children }: { children: ReactNode }) => {
   const online = useOnline();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [version, setVersion] = useState(0);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -72,9 +77,14 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
     if (online) refresh();
   }, [online, refresh]);
 
+  const reload = useCallback(async () => {
+    setVersion(v => v + 1);
+    await refresh();
+  }, [refresh]);
+
   const value = useMemo(
-    () => ({ data, loading, refresh }),
-    [data, loading, refresh],
+    () => ({ data, loading, refresh, version, reload }),
+    [data, loading, refresh, version, reload],
   );
 
   return (

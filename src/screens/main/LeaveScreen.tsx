@@ -24,6 +24,7 @@ import { LeaveHeader, LeaveFilters, LeaveRequestList } from '@/components/leave'
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { useCollapsibleOnScroll } from '@/utils/useCollapsibleOnScroll';
+import { usePullRefresh } from '@/utils/usePullRefresh';
 import { makeLeaveStyles, makeLeaveBodyStyles } from '@/styles/leave.styles';
 import { fetchLeaveBalances, fetchLeaveRequests } from '@/services/leave';
 import {
@@ -114,6 +115,8 @@ const LeaveScreenInner = () => {
     }, [load]),
   );
 
+  const refreshControl = usePullRefresh(() => load());
+
   const filtered = useMemo(
     () =>
       requests.filter(
@@ -143,6 +146,7 @@ const LeaveScreenInner = () => {
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
+        refreshControl={refreshControl}
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: navHeight + 24 },

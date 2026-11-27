@@ -18,6 +18,7 @@ import { useAppSelector } from '@/store/hooks';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { useCollapsibleOnScroll } from '@/utils/useCollapsibleOnScroll';
+import { usePullRefresh } from '@/utils/usePullRefresh';
 import { toastError } from '@/utils/toast';
 import { makeFleetStyles } from '@/styles/fleet.styles';
 import type { MainStackParamList, VanLog, Vehicle } from '@/types';
@@ -39,39 +40,43 @@ const FleetScreen = () => {
   const [myMemberId, setMyMemberId] = useState<string | null>(null);
   const [reportableCount, setReportableCount] = useState(0);
 
+  const load = useCallback(async (isActive: () => boolean = () => true) => {
+    try {
+      const [vehicle, owner, me, reportable] = await Promise.all([
+        fetchMyVan(),
+        fetchOwnerFirstName().catch(() => null),
+        getMyMemberRef().catch(() => null),
+        fetchReportableVans().catch(() => [] as Vehicle[]),
+      ]);
+      if (!isActive()) return;
+      setVan(vehicle);
+      setReportableCount(reportable.length);
+      setOwnerName(owner);
+      setMyMemberId(me?.id ?? null);
+      if (vehicle) {
+        const vanLog = await fetchVanLog(vehicle.id);
+        if (isActive()) setLog(vanLog);
+      } else {
+        setLog(null);
+      }
+    } catch (e) {
+      if (isActive()) toastError(e, 'Could not load your van.');
+    } finally {
+      if (isActive()) setLoading(false);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      (async () => {
-        try {
-          const [vehicle, owner, me, reportable] = await Promise.all([
-            fetchMyVan(),
-            fetchOwnerFirstName().catch(() => null),
-            getMyMemberRef().catch(() => null),
-            fetchReportableVans().catch(() => [] as Vehicle[]),
-          ]);
-          if (!active) return;
-          setVan(vehicle);
-          setReportableCount(reportable.length);
-          setOwnerName(owner);
-          setMyMemberId(me?.id ?? null);
-          if (vehicle) {
-            const vanLog = await fetchVanLog(vehicle.id);
-            if (active) setLog(vanLog);
-          } else {
-            setLog(null);
-          }
-        } catch (e) {
-          if (active) toastError(e, 'Could not load your van.');
-        } finally {
-          if (active) setLoading(false);
-        }
-      })();
+      load(() => active);
       return () => {
         active = false;
       };
-    }, []),
+    }, [load]),
   );
+
+  const refreshControl = usePullRefresh(() => load());
 
   const owner = ownerName ?? 'the office';
 
@@ -112,6 +117,7 @@ const FleetScreen = () => {
           showsVerticalScrollIndicator={false}
           onScroll={onScroll}
           scrollEventThrottle={16}
+          refreshControl={refreshControl}
           contentContainerStyle={[
             styles.emptyWrap,
             { paddingBottom: navHeight + 24 },
@@ -165,6 +171,7 @@ const FleetScreen = () => {
           })
         }
         onScroll={onScroll}
+        refreshControl={refreshControl}
       />
       <AskTraydFab collapsed={collapsed} />
     </View>

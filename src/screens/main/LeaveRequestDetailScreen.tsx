@@ -16,7 +16,12 @@ import {
   formatRangeArrow,
   formatShort,
 } from '@/components/leave/leave.helpers';
-import { canCancelRequest, cancelLeaveRequest } from '@/services/leave';
+import {
+  canCancelRequest,
+  cancelLeaveRequest,
+  fetchLeaveRequestById,
+} from '@/services/leave';
+import { usePullRefresh } from '@/utils/usePullRefresh';
 import { goBackSafe } from '@/utils/navigation';
 import { haptics } from '@/utils/haptics';
 import { useTheme } from '@/theme';
@@ -44,9 +49,13 @@ const LeaveRequestDetailScreenInner = () => {
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const { params } =
     useRoute<RouteProp<MainStackParamList, 'LeaveRequestDetail'>>();
-  const request = params.request;
-
+  const [request, setRequest] = useState(params.request);
   const [cancelling, setCancelling] = useState(false);
+
+  const refreshControl = usePullRefresh(async () => {
+    const fresh = await fetchLeaveRequestById(params.request.id);
+    if (fresh) setRequest(fresh);
+  });
 
   const accent =
     request.status === 'approved'
@@ -148,6 +157,7 @@ const LeaveRequestDetailScreenInner = () => {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
       >
         <View style={styles.card}>
           <View style={styles.summaryTop}>

@@ -13,6 +13,7 @@ import {
   QuickAccess,
   VanIssuePromo,
   PermissionBanner,
+  useDashboard,
   type DashboardVariant,
 } from '@/components/dashboard';
 import { CertComplianceBanner } from '@/compliance';
@@ -20,15 +21,20 @@ import { useAppDispatch } from '@/store/hooks';
 import { fetchJobs } from '@/store/jobsSlice';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { useCollapsibleOnScroll } from '@/utils/useCollapsibleOnScroll';
+import { usePullRefresh } from '@/utils/usePullRefresh';
 import { makeDashboardStyles } from '@/styles/dashboard.styles';
 
 const VARIANT: DashboardVariant = 'active';
 
-const DashboardScreen = () => {
+const DashboardBody = () => {
   const styles = useThemedStyles(makeDashboardStyles);
   const navHeight = useBottomNavHeight();
   const dispatch = useAppDispatch();
+  const { reload } = useDashboard();
   const { collapsed, onScroll } = useCollapsibleOnScroll();
+  const refreshControl = usePullRefresh(() =>
+    Promise.all([dispatch(fetchJobs()), reload()]),
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -39,37 +45,42 @@ const DashboardScreen = () => {
   );
 
   return (
-    <DashboardProvider>
-      <View style={styles.root}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          onScroll={onScroll}
-          scrollEventThrottle={16}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: navHeight + 24 }]}
-        >
-          <DashboardHeader variant={VARIANT} />
-          <View style={styles.body}>
-            {VARIANT === 'active' ? (
-              <>
-                <PermissionBanner />
-                <CertComplianceBanner style={styles.certBanner} />
-                <TodayJobs />
-                <QuickAccess />
-                <VanIssuePromo />
-              </>
-            ) : (
-              <>
-                <TodayCard />
-                <GettingStarted />
-                <QuickActions />
-              </>
-            )}
-          </View>
-        </ScrollView>
-        <AskTraydFab collapsed={collapsed} />
-      </View>
-    </DashboardProvider>
+    <View style={styles.root}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        refreshControl={refreshControl}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: navHeight + 24 }]}
+      >
+        <DashboardHeader variant={VARIANT} />
+        <View style={styles.body}>
+          {VARIANT === 'active' ? (
+            <>
+              <PermissionBanner />
+              <CertComplianceBanner style={styles.certBanner} />
+              <TodayJobs />
+              <QuickAccess />
+              <VanIssuePromo />
+            </>
+          ) : (
+            <>
+              <TodayCard />
+              <GettingStarted />
+              <QuickActions />
+            </>
+          )}
+        </View>
+      </ScrollView>
+      <AskTraydFab collapsed={collapsed} />
+    </View>
   );
 };
+
+const DashboardScreen = () => (
+  <DashboardProvider>
+    <DashboardBody />
+  </DashboardProvider>
+);
 
 export default DashboardScreen;

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import {
+  type RefreshControlProps,
   Image,
   Modal,
   Pressable,
@@ -230,6 +231,7 @@ export const VanLogPanel = ({
   onOpenTask,
   onAddScheduleItem,
   onScroll,
+  refreshControl,
   bottomPadding = 24,
 }: {
   log: VanLog;
@@ -240,6 +242,7 @@ export const VanLogPanel = ({
   onOpenTask: (taskId: string) => void;
   onAddScheduleItem?: () => void;
   onScroll?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  refreshControl?: ReactElement<RefreshControlProps>;
   bottomPadding?: number;
 }) => {
   const { colors } = useTheme();
@@ -306,6 +309,7 @@ export const VanLogPanel = ({
         showsVerticalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        refreshControl={refreshControl}
         contentContainerStyle={[styles.panelContent, { paddingBottom: bottomPadding }]}
       >
         <Pressable style={styles.reportBanner} onPress={onReport}>

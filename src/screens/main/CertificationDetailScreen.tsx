@@ -16,7 +16,12 @@ import {
   previewKindOf,
   useFilePreview,
 } from '@/components/ui';
-import { certDocumentUrl, daysToExpiry } from '@/services/certifications';
+import {
+  certDocumentUrl,
+  daysToExpiry,
+  fetchMyCertifications,
+} from '@/services/certifications';
+import { usePullRefresh } from '@/utils/usePullRefresh';
 import { toastError } from '@/utils/toast';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
@@ -34,10 +39,17 @@ const CertificationDetailScreen = () => {
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const { params } =
     useRoute<RouteProp<MainStackParamList, 'CertificationDetail'>>();
-  const { cert, holder } = params;
+  const { holder } = params;
+  const [cert, setCert] = useState(params.cert);
   const preview = useFilePreview();
   const [docUrl, setDocUrl] = useState<string | null>(null);
   const [loadingDoc, setLoadingDoc] = useState(false);
+
+  const refreshControl = usePullRefresh(async () => {
+    const all = await fetchMyCertifications();
+    const fresh = all.find(c => c.id === params.cert.id);
+    if (fresh) setCert(fresh);
+  });
 
   useEffect(() => {
     if (!cert.documentPath) return undefined;
@@ -139,6 +151,7 @@ const CertificationDetailScreen = () => {
           { paddingTop: 16, paddingBottom: insets.bottom + 24 },
         ]}
         showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
       >
         <View style={[styles.banner, { backgroundColor: b.bg }]}>
           <Ionicons name={b.icon} size={20} color={b.color} />

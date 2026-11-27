@@ -16,6 +16,7 @@ import { useAppSelector } from '@/store/hooks';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { toastError } from '@/utils/toast';
+import { usePullRefresh } from '@/utils/usePullRefresh';
 import { makeFleetStyles } from '@/styles/fleet.styles';
 import type { MainStackParamList, VanLog } from '@/types';
 
@@ -31,26 +32,34 @@ const VanLogScreen = () => {
   const [ownerName, setOwnerName] = useState<string | null>(null);
   const [myMemberId, setMyMemberId] = useState<string | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      let active = true;
+  const load = useCallback(
+    (isActive: () => boolean = () => true) =>
       Promise.all([
         fetchVanLog(params.vehicleId),
         fetchOwnerFirstName().catch(() => null),
         getMyMemberRef().catch(() => null),
       ])
         .then(([vanLog, owner, me]) => {
-          if (!active) return;
+          if (!isActive()) return;
           setLog(vanLog);
           setOwnerName(owner);
           setMyMemberId(me?.id ?? null);
         })
-        .catch(e => active && toastError(e, 'Could not load the van log.'));
+        .catch(e => isActive() && toastError(e, 'Could not load the van log.')),
+    [params.vehicleId],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      load(() => active);
       return () => {
         active = false;
       };
-    }, [params.vehicleId]),
+    }, [load]),
   );
+
+  const refreshControl = usePullRefresh(() => load());
 
   return (
     <View style={styles.flex}>
@@ -64,6 +73,7 @@ const VanLogScreen = () => {
           ownerName={ownerName}
           myMemberId={myMemberId}
           canManageSchedule={isOwner}
+          refreshControl={refreshControl}
           onReport={() =>
             navigation.navigate('ReportVanIssue', {
               vehicleId: params.vehicleId,
