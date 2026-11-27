@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -17,6 +17,7 @@ import { fmtHoursMin } from '@/components/wrapUp/helpers';
 import { MONTHS_SHORT } from '@/utils/constants';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { usePullRefresh } from '@/utils/usePullRefresh';
 import { makeTimesheetStyles } from '@/styles/timesheet.styles';
 import type { MainStackParamList, Timesheet } from '@/types';
 
@@ -198,19 +199,28 @@ const TimesheetScreen = () => {
   const isCurrentMonth =
     year === now.getFullYear() && month === now.getMonth();
 
+  const load = useCallback(
+    (isActive: () => boolean = () => true) =>
+      fetchTimesheet(
+        new Date(year, month, 1).toISOString(),
+        new Date(year, month + 1, 1).toISOString(),
+      )
+        .then(t => isActive() && setData(t))
+        .catch(() => isActive() && setData(null))
+        .finally(() => isActive() && setLoading(false)),
+    [year, month],
+  );
+
   useEffect(() => {
     let active = true;
     setLoading(true);
-    const from = new Date(year, month, 1).toISOString();
-    const to = new Date(year, month + 1, 1).toISOString();
-    fetchTimesheet(from, to)
-      .then(t => active && setData(t))
-      .catch(() => active && setData(null))
-      .finally(() => active && setLoading(false));
+    load(() => active);
     return () => {
       active = false;
     };
-  }, [year, month]);
+  }, [load]);
+
+  const refreshControl = usePullRefresh(() => load());
 
   const shiftMonth = (dir: number) =>
     setYm(prev => {
@@ -275,7 +285,10 @@ const TimesheetScreen = () => {
           <ActivityIndicator color={colors.secondary} />
         </View>
       ) : days.length === 0 ? (
-        <View style={styles.empty}>
+        <ScrollView
+          contentContainerStyle={styles.empty}
+          refreshControl={refreshControl}
+        >
           <View style={styles.emptyIcon}>
             <Ionicons name="time-outline" size={28} color={colors.textMuted} />
           </View>
@@ -284,7 +297,7 @@ const TimesheetScreen = () => {
             Hours log automatically when you start a job. Each day’s work will
             show up here.
           </Text>
-        </View>
+        </ScrollView>
       ) : (
         <ScrollView
           contentContainerStyle={[
@@ -292,6 +305,7 @@ const TimesheetScreen = () => {
             { paddingBottom: insets.bottom + 24 },
           ]}
           showsVerticalScrollIndicator={false}
+          refreshControl={refreshControl}
         >
           <Text style={styles.sectionLabel}>BY DAY</Text>
           {days.map(d => {

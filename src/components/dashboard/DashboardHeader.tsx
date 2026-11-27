@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -49,37 +49,50 @@ export const DashboardHeader = ({
   const [van, setVan] = useState<Vehicle | null>(null);
   const [tasksDue, setTasksDue] = useState(0);
   const { compliance } = useCertCompliance();
-  const { data } = useDashboard();
+  const { data, version } = useDashboard();
   const certAlert = compliance.blockers.length > 0;
+
+  const load = useCallback((isActive: () => boolean) => {
+    fetchMyMember()
+      .then(m => isActive() && setMember(m))
+      .catch(() => {});
+    fetchMyVan()
+      .then(v => isActive() && setVan(v))
+      .catch(() => {});
+    fetchTasks()
+      .then(tasks => {
+        if (!isActive()) return;
+        const today = new Date().toISOString().slice(0, 10);
+        setTasksDue(
+          tasks.filter(
+            t =>
+              t.status !== 'complete' &&
+              !!t.deadlineDate &&
+              t.deadlineDate <= today,
+          ).length,
+        );
+      })
+      .catch(() => {});
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      fetchMyMember()
-        .then(m => active && setMember(m))
-        .catch(() => {});
-      fetchMyVan()
-        .then(v => active && setVan(v))
-        .catch(() => {});
-      fetchTasks()
-        .then(tasks => {
-          if (!active) return;
-          const today = new Date().toISOString().slice(0, 10);
-          setTasksDue(
-            tasks.filter(
-              t =>
-                t.status !== 'complete' &&
-                !!t.deadlineDate &&
-                t.deadlineDate <= today,
-            ).length,
-          );
-        })
-        .catch(() => {});
+      load(() => active);
       return () => {
         active = false;
       };
-    }, []),
+    }, [load]),
   );
+
+  useEffect(() => {
+    if (!version) return undefined;
+    let active = true;
+    load(() => active);
+    return () => {
+      active = false;
+    };
+  }, [version, load]);
 
   const now = new Date();
   const firstName = firstNameOf(member?.fullName);

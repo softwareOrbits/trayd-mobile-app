@@ -12,7 +12,6 @@ export {
   makeLeaveBodyStyles,
 } from './leave.styles';
 export { makeProfileStyles } from './profile.styles';
-export { makeEditJobStyles } from './editJob.styles';
 export { makeAddReceiptStyles } from './addReceipt.styles';
 export { makeAddJobPhotoStyles } from './addJobPhoto.styles';
 export { makeAddNoteStyles } from './addNote.styles';

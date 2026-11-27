@@ -25,6 +25,7 @@ import { fetchMyMember } from '@/services/member';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { fmtDateFull } from '@/utils/datetime';
+import { usePullRefresh } from '@/utils/usePullRefresh';
 import { makeCertificationStyles } from '@/styles/certifications.styles';
 import type { MainStackParamList } from '@/types';
 
@@ -82,30 +83,40 @@ const CertificationsScreen = () => {
     }
   };
 
+  const load = useCallback(
+    (isActive: () => boolean = () => true) =>
+      Promise.all([
+        fetchMyCertifications({ offset: 0, limit: PAGE_SIZE })
+          .then(c => {
+            if (!isActive()) return;
+            setCerts(c);
+            setHasMore(c.length === PAGE_SIZE);
+          })
+          .catch(() => isActive() && setCerts([]))
+          .finally(() => isActive() && setLoading(false)),
+        fetchMyMember()
+          .then(m => {
+            if (!isActive()) return;
+            setHolder(m.fullName ?? 'You');
+            setRole(m.roleName ?? '');
+          })
+          .catch(() => {}),
+      ]),
+    [],
+  );
+
   useFocusEffect(
     useCallback(() => {
       let active = true;
       setLoading(true);
-      fetchMyCertifications({ offset: 0, limit: PAGE_SIZE })
-        .then(c => {
-          if (!active) return;
-          setCerts(c);
-          setHasMore(c.length === PAGE_SIZE);
-        })
-        .catch(() => active && setCerts([]))
-        .finally(() => active && setLoading(false));
-      fetchMyMember()
-        .then(m => {
-          if (!active) return;
-          setHolder(m.fullName ?? 'You');
-          setRole(m.roleName ?? '');
-        })
-        .catch(() => {});
+      load(() => active);
       return () => {
         active = false;
       };
-    }, []),
+    }, [load]),
   );
+
+  const refreshControl = usePullRefresh(() => load());
 
   const badgeFor = (status: CertStatus) => {
     switch (status) {
@@ -151,6 +162,7 @@ const CertificationsScreen = () => {
           showsVerticalScrollIndicator={false}
           onScroll={onNearEnd}
           scrollEventThrottle={100}
+          refreshControl={refreshControl}
         >
           <Text style={styles.subtitle}>
             {[holder, role].filter(Boolean).join(' · ')}

@@ -19,6 +19,7 @@ import { isOverdue, vehicleLabel } from '@/components/tasks/tasks.helpers';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { useCollapsibleOnScroll } from '@/utils/useCollapsibleOnScroll';
+import { usePullRefresh } from '@/utils/usePullRefresh';
 import { WEEK_LETTERS } from '@/utils/constants';
 import { fmtDMY, fmtWeekdayDMY, timeOf } from '@/utils/datetime';
 import { dateKey } from '@/components/jobs/jobsScreen.helpers';
@@ -90,31 +91,47 @@ const CalendarScreen = () => {
     }, [dispatch]),
   );
 
+  const loadLeaves = useCallback(
+    (isActive: () => boolean = () => true) =>
+      fetchLeaveRequests()
+        .then(rows => {
+          if (!isActive()) return;
+          setLeaves(
+            rows.filter(r => r.status === 'approved' || r.status === 'pending'),
+          );
+        })
+        .catch(() => {}),
+    [],
+  );
+
+  const loadTasks = useCallback(
+    (isActive: () => boolean = () => true) =>
+      fetchTasks()
+        .then(rows => isActive() && setTasks(rows))
+        .catch(() => {}),
+    [],
+  );
+
   useEffect(() => {
     let active = true;
-    fetchLeaveRequests()
-      .then(rows => {
-        if (!active) return;
-        setLeaves(
-          rows.filter(r => r.status === 'approved' || r.status === 'pending'),
-        );
-      })
-      .catch(() => {});
+    loadLeaves(() => active);
     return () => {
       active = false;
     };
-  }, []);
+  }, [loadLeaves]);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      fetchTasks()
-        .then(rows => active && setTasks(rows))
-        .catch(() => {});
+      loadTasks(() => active);
       return () => {
         active = false;
       };
-    }, []),
+    }, [loadTasks]),
+  );
+
+  const refreshControl = usePullRefresh(() =>
+    Promise.all([dispatch(fetchJobs()), loadLeaves(), loadTasks()]),
   );
 
   const tasksByDay = useMemo(() => {
@@ -512,6 +529,7 @@ const CalendarScreen = () => {
       <ScrollView
         onScroll={onScroll}
         scrollEventThrottle={16}
+        refreshControl={refreshControl}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: navHeight + 24 }]}
       >

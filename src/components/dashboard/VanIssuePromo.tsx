@@ -9,6 +9,7 @@ import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeDashboardBodyStyles } from '@/styles/dashboard.styles';
 import type { MainStackParamList, Vehicle } from '@/types';
+import { useDashboard } from './DashboardProvider';
 
 export const VanIssuePromo = () => {
   const { colors } = useTheme();
@@ -18,6 +19,7 @@ export const VanIssuePromo = () => {
 
   const [van, setVan] = useState<Vehicle | null>(null);
   const [ownerName, setOwnerName] = useState<string | null>(null);
+  const { version } = useDashboard();
 
   useEffect(() => {
     let active = true;
@@ -30,7 +32,7 @@ export const VanIssuePromo = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [version]);
 
   const owner = ownerName ?? 'the office';
 

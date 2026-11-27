@@ -30,6 +30,7 @@ import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { fmtEventStamp } from '@/utils/datetime';
 import { toastError, toastSuccess } from '@/utils/toast';
+import { usePullRefresh } from '@/utils/usePullRefresh';
 import { makeTaskDetailStyles } from '@/styles/taskDetail.styles';
 import type { MainStackParamList, Task, TaskEvent, TaskStatus } from '@/types';
 
@@ -137,6 +138,8 @@ const TaskDetailScreen = () => {
     }, [load]),
   );
 
+  const refreshControl = usePullRefresh(load);
+
   const saveNote = async () => {
     if (!note.trim() || savingNote || busy) return;
     setSavingNote(true);
@@ -219,6 +222,7 @@ const TaskDetailScreen = () => {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
       >
         <View style={styles.statusRow}>
           <View style={[styles.statusChip, { backgroundColor: chip.bg }]}>

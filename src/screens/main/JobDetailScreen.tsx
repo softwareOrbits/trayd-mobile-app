@@ -92,6 +92,7 @@ import { goBackSafe } from '@/utils/navigation';
 import { uuidv4 } from '@/utils/uuid';
 import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
+import { usePullRefresh } from '@/utils/usePullRefresh';
 import { dayNumberFor, formatElapsed } from '@/utils/liveMeta';
 import { formatDuration } from '@/utils/duration';
 import { fmtWeekdayDMY } from '@/utils/datetime';
@@ -195,7 +196,7 @@ const JobDetailScreen = () => {
 
   const loadSession = useCallback((jobId: string) => {
     if (pendingRef.current || !isOnline()) {
-      loadJobCache(jobId).then(cached => {
+      return loadJobCache(jobId).then(cached => {
         if (!cached) return;
         if (cached.materials) setMaterials(cached.materials);
         if (cached.notes) setNotes(cached.notes);
@@ -204,9 +205,8 @@ const JobDetailScreen = () => {
         if (cached.days) setDays(cached.days);
         if (cached.photos) setPhotos(cached.photos);
       });
-      return;
     }
-    fetchJobPhotos(jobId)
+    const photosDone = fetchJobPhotos(jobId)
       .then(p => {
         setPhotos(p);
         saveJobCache(jobId, { photos: p });
@@ -215,7 +215,7 @@ const JobDetailScreen = () => {
         const cached = await loadJobCache(jobId);
         if (cached?.photos) setPhotos(cached.photos);
       });
-    Promise.allSettled([
+    const restDone = Promise.allSettled([
       fetchJobMaterials(jobId),
       fetchJobNotes(jobId),
       fetchJobRoster(jobId),
@@ -253,6 +253,7 @@ const JobDetailScreen = () => {
         setSegments(cached.segments);
       if (dys.status === 'rejected' && cached.days) setDays(cached.days);
     });
+    return Promise.all([photosDone, restDone]).then(() => {});
   }, []);
 
   const cachedDetail = useCallback(async (): Promise<JobDetail | null> => {
@@ -293,10 +294,11 @@ const JobDetailScreen = () => {
 
   const refreshDetail = useCallback(() => {
     if (pendingRef.current || !isOnline()) {
-      cachedDetail().then(base => base && setDetail(base));
-      return;
+      return cachedDetail().then(base => {
+        if (base) setDetail(base);
+      });
     }
-    fetchJobDetail(params.jobId)
+    return fetchJobDetail(params.jobId)
       .then(d => {
         setDetail(d);
         saveJobCache(params.jobId, { detail: d });
@@ -359,6 +361,10 @@ const JobDetailScreen = () => {
     });
     return () => sub.remove();
   }, [flushAndRefresh]);
+
+  const refreshControl = usePullRefresh(() =>
+    Promise.all([refreshDetail(), loadSession(params.jobId)]),
+  );
 
 
   // Pause / Resume via the lifecycle RPCs (segment-based clock). Offline, the
@@ -1676,6 +1682,7 @@ const JobDetailScreen = () => {
         style={styles.flex}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
       >
         <View style={styles.metaRow}>
           {badge}

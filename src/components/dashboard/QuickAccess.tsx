@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -9,6 +9,7 @@ import { useTheme } from '@/theme';
 import { useThemedStyles } from '@/utils/useThemedStyles';
 import { makeDashboardBodyStyles } from '@/styles/dashboard.styles';
 import type { LeaveBalance, MainTabParamList } from '@/types';
+import { useDashboard } from './DashboardProvider';
 
 const fmtDays = (n: number) =>
   Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '');
@@ -18,18 +19,32 @@ export const QuickAccess = () => {
   const styles = useThemedStyles(makeDashboardBodyStyles);
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const [balances, setBalances] = useState<LeaveBalance[] | null>(null);
+  const { version } = useDashboard();
+
+  const load = useCallback((isActive: () => boolean) => {
+    fetchLeaveBalances()
+      .then(b => isActive() && setBalances(b))
+      .catch(() => {});
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      fetchLeaveBalances()
-        .then(b => active && setBalances(b))
-        .catch(() => {});
+      load(() => active);
       return () => {
         active = false;
       };
-    }, []),
+    }, [load]),
   );
+
+  useEffect(() => {
+    if (!version) return undefined;
+    let active = true;
+    load(() => active);
+    return () => {
+      active = false;
+    };
+  }, [version, load]);
 
   const entitlement =
     balances?.reduce((s, b) => s + b.entitlement, 0) ?? 0;
